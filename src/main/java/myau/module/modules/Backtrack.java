@@ -35,7 +35,6 @@ public class Backtrack extends Module {
     public final IntProperty nextBacktrackDelay = new IntProperty("next-backtrack-delay", 0, 0, 2000);
     public final BooleanProperty pauseOnHurtTime = new BooleanProperty("pause-on-hurttime", false);
     public final IntProperty hurtTimeThreshold = new IntProperty("hurttime-threshold", 3, 0, 10, () -> this.pauseOnHurtTime.getValue());
-    // Fix #2: allow Backtrack to work independent of KillAura (manual clicks, AutoClicker, etc.).
     public final BooleanProperty standalone = new BooleanProperty("standalone", true);
     public final BooleanProperty showPosition = new BooleanProperty("show-position", true);
 
@@ -64,9 +63,6 @@ public class Backtrack extends Module {
             target = killAura.getTarget();
         }
 
-        // Fix #2: fallback target — whatever the player is currently aiming at.
-        // Covers manual clicks and AutoClicker (both hit mc.objectMouseOver.entityHit),
-        // and keeps working the same way when KillAura is on but has no locked target yet.
         if (target == null && this.standalone.getValue()
                 && mc.objectMouseOver != null
                 && mc.objectMouseOver.typeOfHit == net.minecraft.util.MovingObjectPosition.MovingObjectType.ENTITY
