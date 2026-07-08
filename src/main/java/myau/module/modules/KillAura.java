@@ -95,7 +95,6 @@ public class KillAura extends Module {
     public final BooleanProperty golems;
     public final BooleanProperty silverfish;
     public final BooleanProperty teams;
-    // Fix #1: player-quality checks (MS + armor) toggleable from KillAura settings panel.
     public final BooleanProperty msCheck;
     public final IntProperty maxPing;
     public final BooleanProperty armorCheck;
@@ -243,7 +242,6 @@ public class KillAura extends Module {
                 } else if (TeamUtil.isFriend((EntityPlayer) entityLivingBase)) {
                     return false;
                 }
-                // Fix #1: MS Check — skip targets whose ping exceeds threshold.
                 if (this.msCheck.getValue()) {
                     try {
                         net.minecraft.client.network.NetworkPlayerInfo info =
@@ -251,9 +249,8 @@ public class KillAura extends Module {
                         if (info != null && info.getResponseTime() > this.maxPing.getValue()) {
                             return false;
                         }
-                    } catch (Throwable ignored) { /* fall through if net handler unavailable */ }
+                    } catch (Throwable ignored) {  }
                 }
-                // Fix #1: Armor Check — refuse targets with no armor at all (typical bot signature).
                 if (this.armorCheck.getValue()) {
                     boolean anyArmor = false;
                     for (int slot = 1; slot <= 4; slot++) {
@@ -381,11 +378,9 @@ public class KillAura extends Module {
         this.golems = new BooleanProperty("golems", false);
         this.silverfish = new BooleanProperty("silverfish", false);
         this.teams = new BooleanProperty("teams", true);
-        // Fix #1: MS Check (ping filter) — toggle + threshold. Default ON so behavior matches previous fixed check.
-        this.msCheck = new BooleanProperty("ms-check", true);
+        this.msCheck = new BooleanProperty("ms-check", false);
         this.maxPing = new IntProperty("max-ping", 300, 50, 1000, () -> this.msCheck.getValue());
-        // Fix #1: Armor Check — refuses to attack players wearing no armor (bots). Default ON per spec.
-        this.armorCheck = new BooleanProperty("armor-check", true);
+        this.armorCheck = new BooleanProperty("armor-check", false);
         this.showTarget = new ModeProperty("show-target", 0, new String[]{"NONE", "DEFAULT", "HUD"});
         this.debugLog = new ModeProperty("debug-log", 0, new String[]{"NONE", "HEALTH"});
     }
