@@ -32,16 +32,12 @@ public class Notifications extends Module {
         INSTANCE = this;
     }
 
-    // Toggle-style notification: title becomes "<title> enabled" / "<title> disabled".
-    // Passing an empty/null message keeps the notice as a single line (fix #3).
     public static void push(String title, String message, boolean enabled) {
         if (INSTANCE == null || !INSTANCE.isEnabled()) return;
         String body = message == null ? "" : message;
         INSTANCE.notices.add(new Notice(title, body, enabled, false, System.currentTimeMillis()));
     }
 
-    // Raw notification: title is shown exactly as given (no " enabled"/" disabled" suffix).
-    // Used by HackerDetector to render "Hacker Detected" + "<player> - <cheat>".
     public static void pushRaw(String title, String message) {
         if (INSTANCE == null || !INSTANCE.isEnabled()) return;
         String body = message == null ? "" : message;
