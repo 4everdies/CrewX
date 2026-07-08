@@ -1,0 +1,206 @@
+package myau.module.modules;
+
+import myau.Myau;
+import myau.event.EventTarget;
+import myau.event.types.EventType;
+import myau.event.types.Priority;
+import myau.events.LoadWorldEvent;
+import myau.events.PacketEvent;
+import myau.events.UpdateEvent;
+import myau.module.Module;
+import myau.property.properties.BooleanProperty;
+import myau.property.properties.IntProperty;
+import myau.util.ItemUtil;
+import myau.util.PacketUtil;
+import myau.util.RandomUtil;
+import net.minecraft.client.Minecraft;
+import net.minecraft.entity.Entity;
+import net.minecraft.network.Packet;
+import net.minecraft.network.play.INetHandlerPlayClient;
+import net.minecraft.network.play.server.*;
+import net.minecraft.util.MovingObjectPosition;
+
+import java.lang.reflect.Field;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+
+public class KnockbackDelay extends Module {
+    private static final Minecraft mc = Minecraft.getMinecraft();
+
+    private final IntProperty airDelay = new IntProperty("AirDelay", 90, 0, 1000);
+    private final IntProperty groundDelay = new IntProperty("GroundDelay", 0, 0, 1000);
+    private final IntProperty chance = new IntProperty("Chance", 100, 0, 100);
+    private final BooleanProperty realtimeDamage = new BooleanProperty("RealtimeDamage", true);
+    private final BooleanProperty requireTarget = new BooleanProperty("RequireTarget", false);
+    private final BooleanProperty onlySwords = new BooleanProperty("OnlySwords", false);
+
+    private final Queue<TimedPacket> packets = new ConcurrentLinkedQueue<>();
+    private boolean blink;
+
+    public KnockbackDelay() {
+        super("KnockbackDelay", false);
+    }
+
+    @Override
+    public String[] getSuffix() {
+        return new String[]{airDelay.getValue() + " - " + groundDelay.getValue()};
+    }
+
+    @Override
+    public void onDisabled() {
+        reset();
+    }
+
+    @EventTarget
+    public void onUpdate(UpdateEvent event) {
+        if (event.getType() != EventType.PRE) return;
+        if (mc.thePlayer == null || mc.theWorld == null) return;
+        if (mc.isSingleplayer() || mc.thePlayer.ticksExisted < 20) return;
+
+        if (mc.currentScreen != null) {
+            reset();
+            return;
+        }
+
+        if (!shouldActivate()) {
+            reset();
+            return;
+        }
+
+        int delay = mc.thePlayer.onGround ? groundDelay.getValue() : airDelay.getValue();
+
+        if (!packets.isEmpty()) {
+            handle(delay);
+        }
+
+        if (mc.thePlayer.hurtTime > 0) {
+            blink = true;
+        } else if (packets.isEmpty()) {
+            blink = false;
+        }
+    }
+
+    @EventTarget
+    public void onLoadWorld(LoadWorldEvent event) {
+        reset();
+    }
+
+    @EventTarget(Priority.HIGHEST)
+    public void onPacket(PacketEvent event) {
+        if (event.getType() != EventType.RECEIVE) return;
+        if (mc.thePlayer == null || mc.theWorld == null) return;
+        if (mc.isSingleplayer() || mc.thePlayer.ticksExisted < 20 || event.isCancelled()) return;
+
+        Packet<?> packet = event.getPacket();
+
+        if (packet instanceof S07PacketRespawn) {
+            reset();
+            return;
+        }
+
+        if (realtimeDamage.getValue() && packet instanceof S19PacketEntityStatus) {
+            S19PacketEntityStatus statusPacket = (S19PacketEntityStatus) packet;
+            if (statusPacket.getOpCode() == 2 && statusPacket.getEntity(mc.theWorld) == mc.thePlayer) {
+                return;
+            }
+        }
+
+        if (!blink && isPlayerKnockbackPacket(packet) && shouldActivate()) {
+            blink = true;
+        }
+
+        if (blink) {
+            event.setCancelled(true);
+            packets.add(new TimedPacket(packet, System.currentTimeMillis()));
+        }
+    }
+
+    private boolean isPlayerKnockbackPacket(Packet<?> packet) {
+        if (packet instanceof S12PacketEntityVelocity) {
+            return ((S12PacketEntityVelocity) packet).getEntityID() == mc.thePlayer.getEntityId();
+        }
+
+        if (packet instanceof S27PacketExplosion) {
+            S27PacketExplosion explosion = (S27PacketExplosion) packet;
+            return explosion.func_149149_c() != 0.0F || explosion.func_149144_d() != 0.0F || explosion.func_149147_e() != 0.0F;
+        }
+
+        return false;
+    }
+
+    private boolean shouldActivate() {
+        if ((int)(Math.random() * 101) > chance.getValue()) return false;
+
+        if (requireTarget.getValue() && findTarget() == null) return false;
+
+        if (onlySwords.getValue() && !ItemUtil.isHoldingSword()) return false;
+
+        return true;
+    }
+
+    private void reset() {
+        if (!blink) return;
+        blink = false;
+        flush();
+    }
+
+    private void handle(int delay) {
+        while (!packets.isEmpty()) {
+            TimedPacket wrapper = packets.peek();
+            if (wrapper != null && wrapper.elapsed(delay)) {
+                packets.poll();
+                processPacketSilent(wrapper.packet);
+            } else {
+                break;
+            }
+        }
+    }
+
+    private void flush() {
+        TimedPacket wrapper;
+        while ((wrapper = packets.poll()) != null) {
+            processPacketSilent(wrapper.packet);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void processPacketSilent(Packet<?> packet) {
+        try {
+            if (mc.getNetHandler() != null) {
+                ((Packet<INetHandlerPlayClient>) packet).processPacket(mc.getNetHandler());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static class TimedPacket {
+        private final Packet<?> packet;
+        private final long time;
+
+        public TimedPacket(Packet<?> packet, long time) {
+            this.packet = packet;
+            this.time = time;
+        }
+
+        public boolean elapsed(int delayMs) {
+            return System.currentTimeMillis() - time >= delayMs;
+        }
+    }
+
+    private Entity findTarget() {
+        KillAura ka = (KillAura) Myau.moduleManager.modules.get(KillAura.class);
+        if (ka != null && ka.isEnabled() && ka.getTarget() != null) {
+            return ka.getTarget();
+        }
+
+        if (mc.pointedEntity != null) return mc.pointedEntity;
+
+        if (mc.objectMouseOver != null && mc.objectMouseOver.typeOfHit == MovingObjectPosition.MovingObjectType.ENTITY) {
+            return mc.objectMouseOver.entityHit;
+        }
+
+        return null;
+    }
+}

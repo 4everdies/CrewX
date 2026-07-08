@@ -1,0 +1,180 @@
+package myau.util;
+
+import myau.Myau;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.network.NetworkPlayerInfo;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.item.EntityArmorStand;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.scoreboard.ScorePlayerTeam;
+
+import java.awt.*;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class TeamUtil {
+    private static final Minecraft mc = Minecraft.getMinecraft();
+
+    public static boolean isEntityLoaded(Entity entity) {
+        if (entity == null) return false;
+        return TeamUtil.mc.theWorld.loadedEntityList.contains(entity);
+    }
+
+    public static List<Entity> getLoadedEntitiesSorted() {
+        return TeamUtil.mc.theWorld.loadedEntityList.stream().sorted((entity1, entity2) -> {
+            double dist1 = mc.getRenderManager().getDistanceToCamera(entity1.posX, entity1.posY, entity1.posZ);
+            double dist2 = mc.getRenderManager().getDistanceToCamera(entity2.posX, entity2.posY, entity2.posZ);
+            if (dist1 < dist2) {
+                return 1;
+            }
+            if (dist1 > dist2) {
+                return -1;
+            }
+            return entity1.getUniqueID().toString().compareTo(entity2.getUniqueID().toString());
+        }).collect(Collectors.toList());
+    }
+
+    public static float getHealthScore(EntityLivingBase entityLivingBase) {
+        return entityLivingBase.getHealth() * (20.0f / (float) entityLivingBase.getTotalArmorValue());
+    }
+
+    public static String stripName(Entity entity) {
+        return entity.getDisplayName().getFormattedText().replaceAll("§\\S$", "").replaceAll("(?i)§r", "§f").trim();
+    }
+
+    public static Color getTeamColor(EntityPlayer player, float alpha) {
+        int colorCode = 0xFFFFFF;
+        ScorePlayerTeam playerTeam = (ScorePlayerTeam) player.getTeam();
+        if (playerTeam != null) {
+            String colorPrefix = FontRenderer.getFormatFromString(playerTeam.getColorPrefix());
+            if (colorPrefix.length() >= 2) {
+                colorCode = TeamUtil.mc.fontRendererObj.getColorCode(colorPrefix.charAt(1));
+            }
+        }
+        return new Color(colorCode & 0xFFFFFF | (int)(alpha * 255) << 24, true);
+    }
+
+    private static final java.util.Map<java.util.UUID, java.util.Deque<Integer>> PING_HISTORY = new java.util.HashMap<>();
+    private static final int PING_SAMPLES = 6;
+
+    public static void samplePing(EntityPlayer player) {
+        if (player == null) return;
+        NetworkPlayerInfo info = mc.getNetHandler() != null ? mc.getNetHandler().getPlayerInfo(player.getUniqueID()) : null;
+        if (info == null) return;
+        java.util.Deque<Integer> deque = PING_HISTORY.get(player.getUniqueID());
+        if (deque == null) {
+            deque = new java.util.ArrayDeque<>();
+            PING_HISTORY.put(player.getUniqueID(), deque);
+        }
+        deque.addLast(info.getResponseTime());
+        while (deque.size() > PING_SAMPLES) deque.pollFirst();
+    }
+
+    private static boolean pingLooksBot(EntityPlayer player) {
+        java.util.Deque<Integer> deque = PING_HISTORY.get(player.getUniqueID());
+        if (deque == null || deque.size() < 3) return false;
+        int zeros = 0;
+        int variation = 0;
+        int prev = Integer.MIN_VALUE;
+        for (int v : deque) {
+            if (v <= 0) zeros++;
+            if (prev != Integer.MIN_VALUE && v != prev) variation++;
+            prev = v;
+        }
+        return zeros == deque.size() && variation == 0;
+    }
+
+    public static boolean isBot(EntityPlayer player) {
+        if (player == TeamUtil.mc.thePlayer) {
+            return false;
+        }
+        if (player.getHealth() <= 0.0F || player.isDead) {
+            return true;
+        }
+        NetworkPlayerInfo playerInfo = mc.getNetHandler().getPlayerInfo(player.getName());
+        if (playerInfo == null) {
+            return true;
+        }
+        samplePing(player);
+        if (pingLooksBot(player)) {
+            return true;
+        }
+        if (!ServerUtil.isHypixel()) return false;
+        if (player.getName().startsWith("§k")) {
+            return player.isInvisible();
+        }
+        ScorePlayerTeam playerTeam = playerInfo.getPlayerTeam();
+        if (playerTeam == null) return false;
+        if (!playerTeam.getTeamName().isEmpty()) return false;
+        return playerTeam.getColorPrefix().equals("§c");
+    }
+
+    public static boolean isSameTeam(EntityPlayer player) {
+        if (player == TeamUtil.mc.thePlayer) {
+            return true;
+        }
+        NetworkPlayerInfo selfInfo = mc.getNetHandler().getPlayerInfo(TeamUtil.mc.thePlayer.getUniqueID());
+        if (selfInfo == null) {
+            return false;
+        }
+        ScorePlayerTeam selfTeam = selfInfo.getPlayerTeam();
+        if (selfTeam == null) {
+            return false;
+        }
+        NetworkPlayerInfo targetInfo = mc.getNetHandler().getPlayerInfo(player.getUniqueID());
+        if (targetInfo == null) {
+            return false;
+        }
+        ScorePlayerTeam targetTeam = targetInfo.getPlayerTeam();
+        if (targetTeam == null) {
+            return false;
+        }
+        return selfTeam.getColorPrefix().equals(targetTeam.getColorPrefix());
+    }
+
+    public static boolean hasTeamColor(EntityLivingBase entity) {
+        if (entity == TeamUtil.mc.thePlayer) {
+            return true;
+        }
+        NetworkPlayerInfo selfInfo = mc.getNetHandler().getPlayerInfo(TeamUtil.mc.thePlayer.getUniqueID());
+        if (selfInfo == null) {
+            return false;
+        }
+        ScorePlayerTeam selfTeam = selfInfo.getPlayerTeam();
+        if (selfTeam == null) {
+            return false;
+        }
+        if (selfTeam.getColorPrefix().length() < 2) {
+            return false;
+        }
+        EntityLivingBase nearestArmorStand = TeamUtil.mc.theWorld.findNearestEntityWithinAABB(EntityArmorStand.class, entity.getEntityBoundingBox(), entity);
+        if (nearestArmorStand != null) {
+            return nearestArmorStand.getName().contains(selfTeam.getColorPrefix().substring(0, 2));
+        }
+        return false;
+    }
+
+    public static boolean isShop(EntityLivingBase entity) {
+        if (entity == TeamUtil.mc.thePlayer) {
+            return false;
+        }
+        EntityLivingBase armorStand = TeamUtil.mc.theWorld.findNearestEntityWithinAABB(EntityArmorStand.class, entity.getEntityBoundingBox(), entity);
+        if (armorStand == null) return false;
+        String displayName = armorStand.getName();
+        if (displayName.contains("RIGHT CLICK")) return true;
+        if (displayName.contains("ITEM SHOP")) return true;
+        if (displayName.contains("UPGRADES")) return true;
+        if (displayName.contains("BANKER")) return true;
+        return displayName.contains("STREAK POWERS");
+    }
+
+    public static boolean isFriend(EntityPlayer player) {
+        return Myau.friendManager.isFriend(player.getName());
+    }
+
+    public static boolean isTarget(EntityPlayer player) {
+        return Myau.targetManager.isFriend(player.getName());
+    }
+}
