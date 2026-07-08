@@ -34,12 +34,6 @@ public class LagManager {
         this.lastPosition = new Vec3(0.0, 0.0, 0.0);
     }
 
-    // Fix #5: cap how many packets are flushed per invocation. When Backtrack releases
-    // its held queue (setDelay(0)) the previous implementation drained everything in one
-    // tick — the server then received a burst of C03PacketPlayer updates with wildly
-    // different positions and responded with S08PacketPlayerPosLook (lagback), even for
-    // players with a healthy ping. Draining at a bounded rate keeps positions monotonic
-    // and eliminates the false-positive lagback.
     private static final int MAX_FLUSH_PER_TICK = 4;
 
     private void flushQueue() {
@@ -55,8 +49,6 @@ public class LagManager {
                 break;
             }
             if (this.tickDelay <= 0 && sent >= MAX_FLUSH_PER_TICK) {
-                // Drain-mode throttle: release at most MAX_FLUSH_PER_TICK per tick so the
-                // server sees a natural stream of position packets, not a burst.
                 break;
             }
             this.packetQueue.poll();
