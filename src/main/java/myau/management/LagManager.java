@@ -34,7 +34,7 @@ public class LagManager {
         this.lastPosition = new Vec3(0.0, 0.0, 0.0);
     }
 
-    private static final int MAX_FLUSH_PER_TICK = 4;
+    private static final int MAX_FLUSH_PER_TICK = 0;
 
     private void flushQueue() {
         if (mc.getNetHandler() == null) {
