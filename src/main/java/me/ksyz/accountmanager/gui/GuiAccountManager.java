@@ -30,6 +30,7 @@ public class GuiAccountManager extends GuiScreen {
     private int selectedAccount = -1;
     private ExecutorService executor = null;
     private CompletableFuture<Void> task = null;
+    private long lastClickTime = 0;
 
     public GuiAccountManager(GuiScreen previousScreen) {
         this.previousScreen = previousScreen;
@@ -133,6 +134,14 @@ public class GuiAccountManager extends GuiScreen {
             guiAccountList.handleMouseInput();
         }
         super.handleMouseInput();
+    }
+
+    @Override
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        long now = System.currentTimeMillis();
+        if (now - lastClickTime < 80L) return;
+        lastClickTime = now;
+        super.mouseClicked(mouseX, mouseY, mouseButton);
     }
 
     @Override

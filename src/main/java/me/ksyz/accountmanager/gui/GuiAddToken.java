@@ -109,6 +109,23 @@ public class GuiAddToken extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
+        if (isCtrlKeyDown() && keyCode == Keyboard.KEY_A) {
+            tokenField.setCursorPosition(0);
+            tokenField.setSelectionPos(tokenField.getText().length());
+            return;
+        }
+        if (isCtrlKeyDown() && keyCode == Keyboard.KEY_BACK) {
+            String text = tokenField.getText();
+            int cursor = tokenField.getCursorPosition();
+            if (cursor > 0 && !text.isEmpty()) {
+                int start = cursor - 1;
+                while (start > 0 && text.charAt(start - 1) == ' ') start--;
+                while (start > 0 && text.charAt(start - 1) != ' ') start--;
+                tokenField.setText(text.substring(0, start) + text.substring(cursor));
+                tokenField.setCursorPosition(start);
+            }
+            return;
+        }
         tokenField.textboxKeyTyped(typedChar, keyCode);
         if (keyCode == Keyboard.KEY_ESCAPE) {
             if(task == null || task.isDone() || task.isCancelled() || task.isCompletedExceptionally()){

@@ -90,7 +90,7 @@ public class Myau {
         moduleManager.modules.put(KnockbackDelay.class, new KnockbackDelay());
         moduleManager.modules.put(BlockHit.class, new BlockHit());
         moduleManager.modules.put(AutoHeadHitter.class, new AutoHeadHitter());
-        moduleManager.modules.put(AutoBedDef.class, new AutoBedDef());
+        moduleManager.modules.put(BedDefender.class, new BedDefender());
         moduleManager.modules.put(Displace.class, new Displace());
         moduleManager.modules.put(Notifications.class, new Notifications());
         moduleManager.modules.put(ESP.class, new ESP());

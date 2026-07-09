@@ -103,6 +103,23 @@ public class GuiSessionLogin extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        if (isCtrlKeyDown() && keyCode == Keyboard.KEY_A) {
+            sessionField.setCursorPosition(0);
+            sessionField.setSelectionPos(sessionField.getText().length());
+            return;
+        }
+        if (isCtrlKeyDown() && keyCode == Keyboard.KEY_BACK) {
+            String text = sessionField.getText();
+            int cursor = sessionField.getCursorPosition();
+            if (cursor > 0 && !text.isEmpty()) {
+                int start = cursor - 1;
+                while (start > 0 && text.charAt(start - 1) == ' ') start--;
+                while (start > 0 && text.charAt(start - 1) != ' ') start--;
+                sessionField.setText(text.substring(0, start) + text.substring(cursor));
+                sessionField.setCursorPosition(start);
+            }
+            return;
+        }
         sessionField.textboxKeyTyped(typedChar, keyCode);
 
         if (Keyboard.KEY_ESCAPE == keyCode) mc.displayGuiScreen(previousScreen);

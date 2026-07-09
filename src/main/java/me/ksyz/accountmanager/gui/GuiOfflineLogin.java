@@ -69,6 +69,23 @@ public class GuiOfflineLogin extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
+        if (isCtrlKeyDown() && keyCode == Keyboard.KEY_A) {
+            usernameField.setCursorPosition(0);
+            usernameField.setSelectionPos(usernameField.getText().length());
+            return;
+        }
+        if (isCtrlKeyDown() && keyCode == Keyboard.KEY_BACK) {
+            String text = usernameField.getText();
+            int cursor = usernameField.getCursorPosition();
+            if (cursor > 0 && !text.isEmpty()) {
+                int start = cursor - 1;
+                while (start > 0 && text.charAt(start - 1) == ' ') start--;
+                while (start > 0 && text.charAt(start - 1) != ' ') start--;
+                usernameField.setText(text.substring(0, start) + text.substring(cursor));
+                usernameField.setCursorPosition(start);
+            }
+            return;
+        }
         usernameField.textboxKeyTyped(typedChar, keyCode);
         if (keyCode == 28) {
             actionPerformed(buttonList.get(0));
