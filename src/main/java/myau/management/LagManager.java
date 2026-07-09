@@ -48,7 +48,7 @@ public class LagManager {
             if (this.tickDelay > 0 && lagPacket.delay <= this.tickDelay) {
                 break;
             }
-            if (this.tickDelay <= 0 && sent >= MAX_FLUSH_PER_TICK) {
+            if (this.tickDelay > 0 && sent >= MAX_FLUSH_PER_TICK) {
                 break;
             }
             this.packetQueue.poll();
@@ -71,7 +71,9 @@ public class LagManager {
 
     public boolean handlePacket(Packet<?> packet) {
         this.flushQueue();
-        if (packet instanceof C00PacketKeepAlive || packet instanceof C01PacketChatMessage) {
+        if (packet instanceof C00PacketKeepAlive || packet instanceof C01PacketChatMessage
+                || packet instanceof net.minecraft.network.play.client.C0FPacketConfirmTransaction
+                || packet instanceof net.minecraft.network.play.client.C0BPacketEntityAction) {
             return false;
         } else if ((long) this.tickDelay > 0L) {
             this.packetQueue.offer(new LagPacket(packet));
@@ -102,8 +104,10 @@ public class LagManager {
     @EventTarget
     public void onTick(TickEvent event) {
         if (event.getType() == EventType.POST) {
-            if (mc.thePlayer.isDead) {
+            if (mc.thePlayer == null || mc.theWorld == null || mc.thePlayer.isDead) {
+                this.packetQueue.clear();
                 this.setDelay(0);
+                return;
             }
             this.incrementDelays();
             this.flushQueue();

@@ -54,8 +54,7 @@ public abstract class Module {
                 this.onDisabled();
             }
             try {
-                if (!(this instanceof myau.module.modules.Notifications)) {
-                    // Fix #3: single-line "<Module> enabled/disabled" — no duplicate body text.
+                    if (!(this instanceof myau.module.modules.Notifications) && !(this instanceof myau.module.modules.GuiModule)) {
                     myau.module.modules.Notifications.push(this.name, "", enabled);
                 }
             } catch (Throwable ignored) {}

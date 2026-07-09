@@ -18,13 +18,11 @@ import net.minecraft.util.Vec3;
 
 public class HitSelect extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
-
     public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"SECOND", "CRITICALS", "W_TAP"});
-
     private boolean sprintState = false;
     private boolean set = false;
     private double savedSlowdown = 0.0;
-
+    private boolean wasKeepSprintEnabled = false;
     private int blockedHits = 0;
     private int allowedHits = 0;
 
@@ -176,14 +174,12 @@ public class HitSelect extends Module {
         }
 
         try {
-
             this.savedSlowdown = keepSprint.slowdown.getValue().doubleValue();
-
+            this.wasKeepSprintEnabled = keepSprint.isEnabled();
             if (!keepSprint.isEnabled()) {
                 keepSprint.toggle();
             }
             keepSprint.slowdown.setValue(0);
-
             this.set = true;
         } catch (Exception e) {
             e.printStackTrace();
@@ -204,7 +200,7 @@ public class HitSelect extends Module {
 
             keepSprint.slowdown.setValue((int) this.savedSlowdown);
 
-            if (keepSprint.isEnabled()) {
+            if (!this.wasKeepSprintEnabled && keepSprint.isEnabled()) {
                 keepSprint.toggle();
             }
         } catch (Exception e) {
@@ -251,6 +247,7 @@ public class HitSelect extends Module {
     public void onDisabled() {
         this.resetMotion();
         this.sprintState = false;
+        this.wasKeepSprintEnabled = false;
         this.set = false;
         this.savedSlowdown = 0.0;
         this.blockedHits = 0;
