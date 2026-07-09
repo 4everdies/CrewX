@@ -64,6 +64,9 @@ public class GuiAccountManager extends GuiScreen {
         buttonList.add(new GuiButton(
                 5, width / 2 - 50, height - 28, 95, 20, "Add Token"
         ));
+        buttonList.add(new GuiButton(
+                6, width / 2 - 50, height - 52, 95, 20, "Offline"
+        ));
 
         guiAccountList = new GuiAccountList(mc);
         guiAccountList.registerScrollButtons(11, 12);
@@ -290,6 +293,10 @@ public class GuiAccountManager extends GuiScreen {
                 break;
                 case 5:{
                     mc.displayGuiScreen(new GuiAddToken(this));
+                }
+                break;
+                case 6:{
+                    mc.displayGuiScreen(new GuiOfflineLogin(this));
                 }
                 break;
                 default: {
