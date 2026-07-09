@@ -29,7 +29,7 @@ public class Backtrack extends Module {
     private long nextAllowedTime = 0L;
 
     public final IntProperty minDelay = new IntProperty("min-delay", 100, 0, 1000);
-    public final IntProperty maxDelay = new IntProperty("max-delay", 150, 0, 1000);
+    public final IntProperty maxDelay = new IntProperty("max-delay", 250, 0, 1000);
     public final FloatProperty range = new FloatProperty("range", 3.0F, 0.0F, 10.0F);
     public final IntProperty chance = new IntProperty("chance", 100, 0, 100);
     public final IntProperty nextBacktrackDelay = new IntProperty("next-backtrack-delay", 0, 0, 2000);

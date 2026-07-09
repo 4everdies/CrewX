@@ -65,7 +65,6 @@ public class GuiOfflineLogin extends GuiScreen {
             SessionManager.set(new Session(username, offlineUuid, "0", "legacy"));
             mc.displayGuiScreen(previousScreen);
         }
-        super.actionPerformed(button);
     }
 
     @Override

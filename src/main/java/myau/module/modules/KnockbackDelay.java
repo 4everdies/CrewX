@@ -54,6 +54,7 @@ public class KnockbackDelay extends Module {
 
     @EventTarget
     public void onUpdate(UpdateEvent event) {
+        if (!this.isEnabled()) return;
         if (event.getType() != EventType.PRE) return;
         if (mc.thePlayer == null || mc.theWorld == null) return;
         if (mc.isSingleplayer() || mc.thePlayer.ticksExisted < 20) return;
@@ -88,6 +89,7 @@ public class KnockbackDelay extends Module {
 
     @EventTarget(Priority.HIGHEST)
     public void onPacket(PacketEvent event) {
+        if (!this.isEnabled()) return;
         if (event.getType() != EventType.RECEIVE) return;
         if (mc.thePlayer == null || mc.theWorld == null) return;
         if (mc.isSingleplayer() || mc.thePlayer.ticksExisted < 20 || event.isCancelled()) return;

@@ -31,7 +31,7 @@ public class Events {
             return;
         }
 
-        if (mc.currentScreen instanceof GuiSelectWorld || mc.currentScreen instanceof GuiMultiplayer) {
+        if (mc.currentScreen instanceof GuiMultiplayer) {
             String text = TextFormatting.translate(String.format(
                     "&7Username: &3%s&r", SessionManager.get().getUsername()
             ));
@@ -43,7 +43,7 @@ public class Events {
 
     @SubscribeEvent
     public void initGuiEvent(InitGuiEvent.Post event) {
-        if (event.gui instanceof GuiSelectWorld || event.gui instanceof GuiMultiplayer) {
+        if (event.gui instanceof GuiMultiplayer) {
             event.buttonList.add(new GuiButton(
                     69, event.gui.width - 106, 6, 100, 20, "Accounts"
             ));
@@ -115,7 +115,7 @@ public class Events {
 
     @SubscribeEvent
     public void onClick(ActionPerformedEvent event) {
-        if (event.gui instanceof GuiSelectWorld || event.gui instanceof GuiMultiplayer) {
+        if (event.gui instanceof GuiMultiplayer) {
             if (event.button.id == 69) {
                 mc.displayGuiScreen(new GuiAccountManager(event.gui));
             }

@@ -142,6 +142,8 @@ public class Myau {
         moduleManager.modules.put(Wtap.class, new Wtap());
         moduleManager.modules.put(Xray.class, new Xray());
         moduleManager.modules.put(Insults.class, new Insults());
+        moduleManager.modules.put(AutoChest.class, new AutoChest());
+        moduleManager.modules.put(Cape.class, new Cape());
         commandManager.commands.add(new BindCommand());
         commandManager.commands.add(new ConfigCommand());
         commandManager.commands.add(new DenickCommand());

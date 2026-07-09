@@ -86,6 +86,7 @@ public class ClickGui extends GuiScreen {
         renderModules.add(Myau.moduleManager.getModule(Radar.class));
         renderModules.add(Myau.moduleManager.getModule(DynamicIsland.class));
         renderModules.add(Myau.moduleManager.getModule(Notifications.class));
+        renderModules.add(Myau.moduleManager.getModule(Cape.class));
 
         List<Module> playerModules = new ArrayList<>();
         playerModules.add(Myau.moduleManager.getModule(AutoHeal.class));
@@ -105,6 +106,7 @@ public class ClickGui extends GuiScreen {
         playerModules.add(Myau.moduleManager.getModule(AutoSoup.class));
         playerModules.add(Myau.moduleManager.getModule(AutoHeadHitter.class));
         playerModules.add(Myau.moduleManager.getModule(AutoBedDef.class));
+        playerModules.add(Myau.moduleManager.getModule(AutoChest.class));
 
         List<Module> miscModules = new ArrayList<>();
         miscModules.add(Myau.moduleManager.getModule(Spammer.class));
@@ -182,7 +184,7 @@ public class ClickGui extends GuiScreen {
     public void drawScreen(int x, int y, float p) {
         drawRect(0, 0, this.width, this.height, new Color(0, 0, 0, 100).getRGB());
 
-        mc.fontRendererObj.drawStringWithShadow("CrewX by Crowly & Myau", 4, this.height - 3 - mc.fontRendererObj.FONT_HEIGHT, new Color(60, 162, 253).getRGB());
+        mc.fontRendererObj.drawStringWithShadow("CrewX by Crowly, 4everdies & OpenMyau", 4, this.height - 3 - mc.fontRendererObj.FONT_HEIGHT, new Color(60, 162, 253).getRGB());
 
         for (CategoryComponent category : categoryList) {
             category.render(this.fontRendererObj);
