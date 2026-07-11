@@ -18,6 +18,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.play.client.C0BPacketEntityAction;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.MathHelper;
@@ -77,6 +78,10 @@ public class BedDefender extends Module {
     private BlockPos currentPlacePos;
     private boolean hasTarget;
 
+    private float lastYaw = Float.NaN;
+    private float lastPitch = Float.NaN;
+    private boolean isRotating = false;
+
     public BedDefender() {
         super("BedDefender", false);
     }
@@ -116,6 +121,9 @@ public class BedDefender extends Module {
         currentTargetHitVec = null;
         currentPlacePos = null;
         hasTarget = false;
+        lastYaw = Float.NaN;
+        lastPitch = Float.NaN;
+        isRotating = false;
     }
 
     private void findBed() {
@@ -219,130 +227,168 @@ public class BedDefender extends Module {
     @EventTarget(Priority.HIGH)
     public void onUpdate(UpdateEvent event) {
         if (!isEnabled()) return;
-        if (event.getType() != EventType.PRE) return;
         if (mc.thePlayer == null || mc.theWorld == null) return;
 
-        if (bedFoot == null || !(mc.theWorld.getBlockState(bedFoot).getBlock() instanceof BlockBed)) {
-            bedFoot = null;
-            bedHead = null;
-            bedFacing = null;
-            findBed();
-            if (bedFoot != null) generatePyramid();
-            return;
-        }
-
-        hasTarget = false;
-        currentTarget = null;
-        currentTargetFacing = null;
-        currentTargetHitVec = null;
-
-        if (remainingBlocks.isEmpty()) {
-            handleQueueEmpty();
-            return;
-        }
-
-        long now = System.nanoTime();
-
-        BlockPos placePos = null;
-        BlockPos supportPos = null;
-        EnumFacing targetFace = null;
-        Vec3 targetHit = null;
-        float bestYaw = 0;
-        float bestPitch = 0;
-
-        Iterator<BlockPos> it = remainingBlocks.iterator();
-        while (it.hasNext()) {
-            BlockPos candidate = it.next();
-
-            Block existing = mc.theWorld.getBlockState(candidate).getBlock();
-            if (existing != Blocks.air) {
-                it.remove();
-                pendingConfirmation.remove(candidate);
-                attemptCounts.remove(candidate);
-                placedBlocks.add(candidate);
-                continue;
+        if (event.getType() == EventType.PRE) {
+            if (bedFoot == null || !(mc.theWorld.getBlockState(bedFoot).getBlock() instanceof BlockBed)) {
+                bedFoot = null;
+                bedHead = null;
+                bedFacing = null;
+                findBed();
+                if (bedFoot != null) generatePyramid();
+                return;
             }
 
-            Long sentAt = pendingConfirmation.get(candidate);
-            if (sentAt != null) {
-                if (now - sentAt < CONFIRM_TIMEOUT_NANOS) continue;
-                pendingConfirmation.remove(candidate);
-                placedBlocks.remove(candidate);
-                if (registerFailedAttempt(candidate)) {
-                    it.remove();
+            hasTarget = false;
+            currentTarget = null;
+            currentTargetFacing = null;
+            currentTargetHitVec = null;
+
+            if (remainingBlocks.isEmpty()) {
+                handleQueueEmpty();
+            }
+
+            BlockPos placePos = null;
+            BlockPos supportPos = null;
+            EnumFacing targetFace = null;
+            Vec3 targetHit = null;
+            float bestYaw = 0;
+            float bestPitch = 0;
+
+            long now = System.nanoTime();
+
+            if (!remainingBlocks.isEmpty()) {
+                Iterator<BlockPos> it = remainingBlocks.iterator();
+                while (it.hasNext()) {
+                    BlockPos candidate = it.next();
+
+                    Block existing = mc.theWorld.getBlockState(candidate).getBlock();
+                    if (existing != Blocks.air) {
+                        it.remove();
+                        pendingConfirmation.remove(candidate);
+                        attemptCounts.remove(candidate);
+                        placedBlocks.add(candidate);
+                        continue;
+                    }
+
+                    Long sentAt = pendingConfirmation.get(candidate);
+                    if (sentAt != null) {
+                        if (now - sentAt < CONFIRM_TIMEOUT_NANOS) continue;
+                        pendingConfirmation.remove(candidate);
+                        placedBlocks.remove(candidate);
+                        if (registerFailedAttempt(candidate)) {
+                            it.remove();
+                        }
+                        continue;
+                    }
+
+                    PlacementData data = findPlacement(candidate);
+                    if (data == null) continue;
+
+                    float[] rot = computeRotations(data.hitVec);
+                    if (rot == null) continue;
+
+                    placePos = candidate;
+                    supportPos = data.neighbor;
+                    targetFace = data.side;
+                    targetHit = data.hitVec;
+                    bestYaw = rot[0];
+                    bestPitch = rot[1];
+                    break;
                 }
-                continue;
             }
 
-            PlacementData data = findPlacement(candidate);
-            if (data == null) continue;
+            if (placePos != null) {
+                currentPlacePos = placePos;
+                currentTarget = supportPos;
+                currentTargetFacing = targetFace;
+                currentTargetHitVec = targetHit;
+                hasTarget = true;
 
-            float[] rot = computeRotations(data.hitVec);
-            if (rot == null) continue;
-
-            placePos = candidate;
-            supportPos = data.neighbor;
-            targetFace = data.side;
-            targetHit = data.hitVec;
-            bestYaw = rot[0];
-            bestPitch = rot[1];
-            break;
-        }
-
-        if (placePos == null) return;
-
-        currentPlacePos = placePos;
-        currentTarget = supportPos;
-        currentTargetFacing = targetFace;
-        currentTargetHitVec = targetHit;
-        hasTarget = true;
-
-        int layer = placePos.getY() - bedFoot.getY();
-        Block material = getLayerMaterial(layer);
-        if (material != lastSelectedMaterial) {
-            if (selectBlock(material)) {
-                lastSelectedMaterial = material;
-            } else if (selectBestBlock()) {
-                ItemStack held = mc.thePlayer.inventory.getCurrentItem();
-                lastSelectedMaterial = (held != null && held.getItem() instanceof ItemBlock)
-                        ? ((ItemBlock) held.getItem()).getBlock() : null;
-            } else {
-                lastSelectedMaterial = null;
+                int layer = placePos.getY() - bedFoot.getY();
+                Block material = getLayerMaterial(layer);
+                if (material != lastSelectedMaterial) {
+                    if (selectBlock(material)) {
+                        lastSelectedMaterial = material;
+                    } else if (selectBestBlock()) {
+                        ItemStack held = mc.thePlayer.inventory.getCurrentItem();
+                        lastSelectedMaterial = (held != null && held.getItem() instanceof ItemBlock)
+                                ? ((ItemBlock) held.getItem()).getBlock() : null;
+                    } else {
+                        lastSelectedMaterial = null;
+                    }
+                }
             }
+            if (hasTarget) {
+                if (!isRotating || Float.isNaN(lastYaw) || Float.isNaN(lastPitch)) {
+                    lastYaw = event.getYaw();
+                    lastPitch = event.getPitch();
+                    isRotating = true;
+                }
+
+                float yawDiff = MathHelper.wrapAngleTo180_float(bestYaw - lastYaw);
+                float pitchDiff = bestPitch - lastPitch;
+                double dist = Math.sqrt(yawDiff * yawDiff + pitchDiff * pitchDiff);
+                float maxStep = 25.0f + ThreadLocalRandom.current().nextFloat() * 15.0f;
+                if (dist > maxStep) {
+                    lastYaw += (yawDiff / dist) * maxStep;
+                    lastPitch += (pitchDiff / dist) * maxStep;
+                } else {
+                    lastYaw = bestYaw;
+                    lastPitch = bestPitch;
+                }
+                lastPitch = MathHelper.clamp_float(lastPitch, -90.0f, 90.0f);
+                event.setRotation(lastYaw, lastPitch, ROT_PRIORITY);
+            } else if (isRotating) {
+                float targetYaw = event.getYaw();
+                float targetPitch = event.getPitch();
+                float yawDiff = MathHelper.wrapAngleTo180_float(targetYaw - lastYaw);
+                float pitchDiff = targetPitch - lastPitch;
+                double dist = Math.sqrt(yawDiff * yawDiff + pitchDiff * pitchDiff);
+                float maxStep = 25.0f + ThreadLocalRandom.current().nextFloat() * 15.0f;
+                if (dist > maxStep) {
+                    lastYaw += (yawDiff / dist) * maxStep;
+                    lastPitch += (pitchDiff / dist) * maxStep;
+                    lastPitch = MathHelper.clamp_float(lastPitch, -90.0f, 90.0f);
+                    event.setRotation(lastYaw, lastPitch, ROT_PRIORITY);
+                } else {
+                    isRotating = false;
+                    lastYaw = Float.NaN;
+                    lastPitch = Float.NaN;
+                }
+            }
+        } else if (event.getType() == EventType.POST) {
+            if (!hasTarget || currentTarget == null || currentTargetFacing == null || currentTargetHitVec == null)
+                return;
+            if (Float.isNaN(lastYaw) || Float.isNaN(lastPitch)) return;
+            long now = System.nanoTime();
+            if (now - lastPlaceTime < currentCooldownNanos) return;
+            float[] targetRot = computeRotations(currentTargetHitVec);
+            if (targetRot != null) {
+                float yawDiff = MathHelper.wrapAngleTo180_float(targetRot[0] - lastYaw);
+                float pitchDiff = targetRot[1] - lastPitch;
+                if (Math.abs(yawDiff) > 5.0f || Math.abs(pitchDiff) > 5.0f) {
+                    return;
+                }
+            }
+            ItemStack held = mc.thePlayer.inventory.getCurrentItem();
+            if (held == null || !(held.getItem() instanceof ItemBlock)) return;
+            mc.thePlayer.setSneaking(true);
+            mc.getNetHandler().addToSendQueue(new C0BPacketEntityAction(mc.thePlayer, C0BPacketEntityAction.Action.START_SNEAKING));
+            mc.thePlayer.swingItem();
+            mc.playerController.onPlayerRightClick(mc.thePlayer, mc.theWorld, held, currentTarget, currentTargetFacing, currentTargetHitVec);
+            mc.getNetHandler().addToSendQueue(new C0BPacketEntityAction(mc.thePlayer, C0BPacketEntityAction.Action.STOP_SNEAKING));
+            mc.thePlayer.setSneaking(false);
+            lastPlaceTime = now;
+            currentCooldownNanos = nextCooldownNanos();
+            pendingConfirmation.put(currentPlacePos, now);
+            placedBlocks.add(currentPlacePos);
+            hasTarget = false;
+            currentTarget = null;
+            currentTargetFacing = null;
+            currentTargetHitVec = null;
+            currentPlacePos = null;
         }
-
-        float yawDiff = MathHelper.wrapAngleTo180_float(bestYaw - event.getYaw());
-        float pitchDiff = bestPitch - event.getPitch();
-
-        float steppedYaw = event.getYaw() + MathHelper.clamp_float(yawDiff, -180f, 180f);
-        float steppedPitch = MathHelper.clamp_float(event.getPitch() + MathHelper.clamp_float(pitchDiff, -180f, 180f), -90f, 90f);
-
-        event.setRotation(steppedYaw, steppedPitch, ROT_PRIORITY);
-
-        if (!hasTarget || currentTarget == null || currentTargetFacing == null || currentTargetHitVec == null)
-            return;
-
-        if (now - lastPlaceTime < currentCooldownNanos) return;
-
-        ItemStack held = mc.thePlayer.inventory.getCurrentItem();
-        if (held == null || !(held.getItem() instanceof ItemBlock)) return;
-
-        mc.thePlayer.setSneaking(true);
-
-        mc.thePlayer.swingItem();
-        mc.playerController.onPlayerRightClick(mc.thePlayer, mc.theWorld, held, currentTarget, currentTargetFacing, currentTargetHitVec);
-
-        mc.thePlayer.setSneaking(false);
-
-        lastPlaceTime = now;
-        currentCooldownNanos = nextCooldownNanos();
-        pendingConfirmation.put(currentPlacePos, now);
-        placedBlocks.add(currentPlacePos);
-        hasTarget = false;
-        currentTarget = null;
-        currentTargetFacing = null;
-        currentTargetHitVec = null;
-        currentPlacePos = null;
     }
 
     private void handleQueueEmpty() {
@@ -429,9 +475,7 @@ public class BedDefender extends Module {
         if (result == null || result.typeOfHit != MovingObjectPosition.MovingObjectType.BLOCK) return true;
 
         BlockPos hit = result.getBlockPos();
-        if (hit.equals(expectedNeighbor)) return true;
-        if (hit.equals(bedFoot) || hit.equals(bedHead)) return true;
-        return placedBlocks.contains(hit);
+        return hit.equals(expectedNeighbor);
     }
 
     private Vec3 faceHitVec(BlockPos pos, EnumFacing side) {

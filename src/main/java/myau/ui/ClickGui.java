@@ -107,6 +107,8 @@ public class ClickGui extends GuiScreen {
         playerModules.add(Myau.moduleManager.getModule(AutoHeadHitter.class));
         playerModules.add(Myau.moduleManager.getModule(BedDefender.class));
         playerModules.add(Myau.moduleManager.getModule(AutoChest.class));
+        playerModules.add(Myau.moduleManager.getModule(AutoPot.class));
+        playerModules.add(Myau.moduleManager.getModule(ThrowPot.class));
 
         List<Module> miscModules = new ArrayList<>();
         miscModules.add(Myau.moduleManager.getModule(Spammer.class));

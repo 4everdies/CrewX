@@ -73,6 +73,8 @@ public class Myau {
         moduleManager.modules.put(AutoTool.class, new AutoTool());
         moduleManager.modules.put(AutoRecraft.class, new AutoRecraft());
         moduleManager.modules.put(AutoRefill.class, new AutoRefill());
+        moduleManager.modules.put(AutoPot.class, new AutoPot());
+        moduleManager.modules.put(ThrowPot.class, new ThrowPot());
         moduleManager.modules.put(SprintReset.class, new SprintReset());
         moduleManager.modules.put(DynamicIsland.class, new DynamicIsland());
         moduleManager.modules.put(Piercing.class, new Piercing());
