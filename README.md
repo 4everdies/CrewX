@@ -1,1 +1,2 @@
+https://imgur.com/a/lm1YZO3
 CrewX é um cheat para Minecraft Forge 1.8.9, baseado na Source do Myau, porém com muito mais módulos e melhorias. Ele é focado em servidores brasileiros e é desenvolvido pela CrackCrew, tendo como fundador o CrowlyAC e como desenvolvedores Forever, Carlo e Fonfon.
