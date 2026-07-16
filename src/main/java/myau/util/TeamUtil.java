@@ -16,6 +16,10 @@ import java.util.stream.Collectors;
 
 public class TeamUtil {
     private static final Minecraft mc = Minecraft.getMinecraft();
+    private static final java.util.Map<java.util.UUID, java.util.Deque<Integer>> PING_HISTORY = new java.util.HashMap<>();
+    private static final int PING_SAMPLES = 6;
+    private static final long STARTUP_DELAY = 3000;
+    private static long joinTime = System.currentTimeMillis();
 
     public static boolean isEntityLoaded(Entity entity) {
         if (entity == null) return false;
@@ -56,9 +60,6 @@ public class TeamUtil {
         return new Color(colorCode & 0xFFFFFF | (int)(alpha * 255) << 24, true);
     }
 
-    private static final java.util.Map<java.util.UUID, java.util.Deque<Integer>> PING_HISTORY = new java.util.HashMap<>();
-    private static final int PING_SAMPLES = 6;
-
     public static void samplePing(EntityPlayer player) {
         if (player == null) return;
         NetworkPlayerInfo info = mc.getNetHandler() != null ? mc.getNetHandler().getPlayerInfo(player.getUniqueID()) : null;
@@ -90,47 +91,106 @@ public class TeamUtil {
         if (player == TeamUtil.mc.thePlayer) {
             return false;
         }
+        
+        if (System.currentTimeMillis() - joinTime < STARTUP_DELAY) {
+            return false;
+        }
+        
         if (player.getHealth() <= 0.0F || player.isDead) {
             return true;
         }
+        
         NetworkPlayerInfo playerInfo = mc.getNetHandler().getPlayerInfo(player.getName());
         if (playerInfo == null) {
-            return true;
+            return false;
         }
+        
         samplePing(player);
         if (pingLooksBot(player)) {
             return true;
         }
+        
         if (!ServerUtil.isHypixel()) return false;
+        
         if (player.getName().startsWith("§k")) {
             return player.isInvisible();
         }
+        
         ScorePlayerTeam playerTeam = playerInfo.getPlayerTeam();
         if (playerTeam == null) return false;
+        
         if (!playerTeam.getTeamName().isEmpty()) return false;
+        
         return playerTeam.getColorPrefix().equals("§c");
+    }
+
+    private static String getPlayerTeamTag(EntityPlayer player) {
+        String name = player.getName();
+        if (name.contains("[VERMELHO]")) return "VERMELHO";
+        if (name.contains("[AZUL]")) return "AZUL";
+        if (name.contains("[AMARELO]")) return "AMARELO";
+        if (name.contains("[AQUA]")) return "AQUA";
+        if (name.contains("[ROXO]")) return "ROXO";
+        if (name.contains("[PRETO]")) return "PRETO";
+        if (name.contains("[CINZA]")) return "CINZA";
+        if (name.contains("[ROSA]")) return "ROSA";
+        if (name.contains("[VERDE]")) return "VERDE";
+        if (name.contains("[LARANJA]")) return "LARANJA";
+        if (name.contains("[BRANCO]")) return "BRANCO";
+        if (name.contains("[MARROM]")) return "MARROM";
+        return null;
+    }
+
+    private static String getTeamColorFromTag(String tag) {
+        switch (tag) {
+            case "VERMELHO": return "§c";
+            case "AZUL": return "§9";
+            case "AMARELO": return "§e";
+            case "AQUA": return "§b";
+            case "ROXO": return "§5";
+            case "PRETO": return "§0";
+            case "CINZA": return "§7";
+            case "ROSA": return "§d";
+            case "VERDE": return "§a";
+            case "LARANJA": return "§6";
+            case "BRANCO": return "§f";
+            case "MARROM": return "§3";
+            default: return null;
+        }
     }
 
     public static boolean isSameTeam(EntityPlayer player) {
         if (player == TeamUtil.mc.thePlayer) {
             return true;
         }
+        
+        String selfTag = getPlayerTeamTag(TeamUtil.mc.thePlayer);
+        String targetTag = getPlayerTeamTag(player);
+        
+        if (selfTag != null && targetTag != null) {
+            return selfTag.equals(targetTag);
+        }
+        
         NetworkPlayerInfo selfInfo = mc.getNetHandler().getPlayerInfo(TeamUtil.mc.thePlayer.getUniqueID());
         if (selfInfo == null) {
             return false;
         }
+        
         ScorePlayerTeam selfTeam = selfInfo.getPlayerTeam();
         if (selfTeam == null) {
             return false;
         }
+        
         NetworkPlayerInfo targetInfo = mc.getNetHandler().getPlayerInfo(player.getUniqueID());
         if (targetInfo == null) {
             return false;
         }
+        
         ScorePlayerTeam targetTeam = targetInfo.getPlayerTeam();
         if (targetTeam == null) {
             return false;
         }
+        
         return selfTeam.getColorPrefix().equals(targetTeam.getColorPrefix());
     }
 
@@ -138,17 +198,21 @@ public class TeamUtil {
         if (entity == TeamUtil.mc.thePlayer) {
             return true;
         }
+        
         NetworkPlayerInfo selfInfo = mc.getNetHandler().getPlayerInfo(TeamUtil.mc.thePlayer.getUniqueID());
         if (selfInfo == null) {
             return false;
         }
+        
         ScorePlayerTeam selfTeam = selfInfo.getPlayerTeam();
         if (selfTeam == null) {
             return false;
         }
+        
         if (selfTeam.getColorPrefix().length() < 2) {
             return false;
         }
+        
         EntityLivingBase nearestArmorStand = TeamUtil.mc.theWorld.findNearestEntityWithinAABB(EntityArmorStand.class, entity.getEntityBoundingBox(), entity);
         if (nearestArmorStand != null) {
             return nearestArmorStand.getName().contains(selfTeam.getColorPrefix().substring(0, 2));
@@ -160,8 +224,10 @@ public class TeamUtil {
         if (entity == TeamUtil.mc.thePlayer) {
             return false;
         }
+        
         EntityLivingBase armorStand = TeamUtil.mc.theWorld.findNearestEntityWithinAABB(EntityArmorStand.class, entity.getEntityBoundingBox(), entity);
         if (armorStand == null) return false;
+        
         String displayName = armorStand.getName();
         if (displayName.contains("RIGHT CLICK")) return true;
         if (displayName.contains("ITEM SHOP")) return true;
@@ -177,4 +243,4 @@ public class TeamUtil {
     public static boolean isTarget(EntityPlayer player) {
         return Myau.targetManager.isFriend(player.getName());
     }
-}
+            }
