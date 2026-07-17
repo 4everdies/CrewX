@@ -146,6 +146,7 @@ public class Myau {
         moduleManager.modules.put(Insults.class, new Insults());
         moduleManager.modules.put(AutoChest.class, new AutoChest());
         moduleManager.modules.put(Cape.class, new Cape());
+        moduleManager.modules.put(AntiBot.class, new AntiBot());
         commandManager.commands.add(new BindCommand());
         commandManager.commands.add(new ConfigCommand());
         commandManager.commands.add(new DenickCommand());

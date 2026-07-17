@@ -1,5 +1,6 @@
 package myau.module.modules;
 
+import myau.Myau;
 import myau.module.Module;
 import myau.util.ItemUtil;
 import myau.util.TeamUtil;
@@ -16,8 +17,9 @@ public class GhostHand extends Module {
     }
 
     public boolean shouldSkip(Entity entity) {
+        AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
         return entity instanceof EntityPlayer
-                && !TeamUtil.isBot((EntityPlayer) entity)
+                && !(antiBot.isEnabled() && antiBot.isBot((EntityPlayer) entity))
                 && (!this.teamsOnly.getValue() || TeamUtil.isSameTeam((EntityPlayer) entity))
                 && (!this.ignoreWeapons.getValue() || !ItemUtil.hasRawUnbreakingEnchant());
     }

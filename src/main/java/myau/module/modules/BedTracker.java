@@ -156,7 +156,11 @@ public class BedTracker extends Module {
                     .stream()
                     .filter(entity -> entity instanceof EntityPlayer)
                     .map(entity -> (EntityPlayer) entity)
-                    .filter(entityPlayer -> !TeamUtil.isBot(entityPlayer) && !this.whitelistedPlayers.contains(entityPlayer.getName()))
+                    .filter(entityPlayer -> {
+                        AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
+                        boolean isBot = antiBot.isEnabled() && antiBot.isBot(entityPlayer);
+                        return !isBot && !this.whitelistedPlayers.contains(entityPlayer.getName());
+                    })
                     .collect(Collectors.toList())) {
                 if (TeamUtil.isSameTeam(player)) {
                     this.whitelistedPlayers.add(player.getName());

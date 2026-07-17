@@ -46,7 +46,7 @@ public class HitBox extends Module {
     public final ModeProperty showHitbox = new ModeProperty("show-hitbox", 0, new String[]{"NONE", "PLAYERS", "MOBS", "ANIMALS", "ALL"});
     public final ColorProperty color = new ColorProperty("color", new Color(255, 255, 255).getRGB(), () -> this.showHitbox.getValue() != 0);
     public final BooleanProperty teams = new BooleanProperty("teams", true, () -> this.showHitbox.getValue() == 1 || this.showHitbox.getValue() == 4);
-    public final BooleanProperty botCheck = new BooleanProperty("bot-check", true, () -> this.showHitbox.getValue() == 1 || this.showHitbox.getValue() == 4);
+
 
     public HitBox() {
         super("HitBox", false);
@@ -145,7 +145,8 @@ public class HitBox extends Module {
                     if (this.teams.getValue() && TeamUtil.isSameTeam(player)) {
                         return false;
                     }
-                    if (this.botCheck.getValue() && TeamUtil.isBot(player)) {
+                    AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
+                    if (antiBot.isEnabled() && antiBot.isBot(player)) {
                         return false;
                     }
                     return true;
@@ -174,7 +175,8 @@ public class HitBox extends Module {
                     if (this.teams.getValue() && TeamUtil.isSameTeam(player)) {
                         return false;
                     }
-                    if (this.botCheck.getValue() && TeamUtil.isBot(player)) {
+                    AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
+                    if (antiBot.isEnabled() && antiBot.isBot(player)) {
                         return false;
                     }
                 }

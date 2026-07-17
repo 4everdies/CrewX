@@ -44,7 +44,8 @@ public class Radar extends Module {
         } else if (mc.getRenderViewEntity().getDistanceToEntity(entityPlayer) > 512.0F) {
             return false;
         } else if (entityPlayer != mc.thePlayer && entityPlayer != mc.getRenderViewEntity()) {
-            if (TeamUtil.isBot(entityPlayer)) {
+            AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
+            if (antiBot.isEnabled() && antiBot.isBot(entityPlayer)) {
                 return this.showBots.getValue();
             } else if (TeamUtil.isFriend(entityPlayer)) {
                 return this.showFriends.getValue();

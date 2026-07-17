@@ -9,6 +9,7 @@ import myau.mixin.IAccessorEntity;
 import myau.module.Module;
 import myau.util.MoveUtil;
 import myau.property.properties.FloatProperty;
+import myau.property.properties.ModeProperty;
 import myau.property.properties.PercentProperty;
 import net.minecraft.client.Minecraft;
 
@@ -17,6 +18,7 @@ public class Speed extends Module {
     public final FloatProperty multiplier = new FloatProperty("multiplier", 1.0F, 0.0F, 10.0F);
     public final FloatProperty friction = new FloatProperty("friction", 1.0F, 0.0F, 10.0F);
     public final PercentProperty strafe = new PercentProperty("strafe", 0);
+    public final ModeProperty speedMode = new ModeProperty("mode", 0, new String[]{"NORMAL", "LEGIT"});
 
     private boolean canBoost() {
         Scaffold scaffold = (Scaffold) Myau.moduleManager.modules.get(Scaffold.class);
@@ -35,6 +37,10 @@ public class Speed extends Module {
     @EventTarget(Priority.LOW)
     public void onStrafe(StrafeEvent event) {
         if (this.isEnabled() && this.canBoost()) {
+            if (speedMode.getValue() == 1) {
+                return;
+            }
+
             if (mc.thePlayer.onGround) {
                 mc.thePlayer.motionY = 0.42F;
                 MoveUtil.setSpeed(
@@ -51,7 +57,6 @@ public class Speed extends Module {
                     MoveUtil.addSpeed(
                             speed * (double) ((float) this.strafe.getValue().intValue() / 100.0F), MoveUtil.getMoveYaw()
                     );
-                    MoveUtil.setSpeed(speed);
                 }
             }
         }
@@ -60,7 +65,11 @@ public class Speed extends Module {
     @EventTarget(Priority.LOW)
     public void onLivingUpdate(LivingUpdateEvent event) {
         if (this.isEnabled() && this.canBoost()) {
-            mc.thePlayer.movementInput.jump = false;
+            if (speedMode.getValue() == 1) {
+                mc.thePlayer.movementInput.jump = true;
+            } else {
+                mc.thePlayer.movementInput.jump = false;
+            }
         }
     }
 }

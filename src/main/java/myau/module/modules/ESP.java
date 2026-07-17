@@ -65,7 +65,8 @@ public class ESP extends Module {
         if (entityPlayer == mc.thePlayer || entityPlayer == mc.getRenderViewEntity()) {
             return this.self.getValue() && mc.gameSettings.thirdPersonView != 0;
         }
-        if (TeamUtil.isBot(entityPlayer)) return this.bots.getValue();
+        AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
+        if (antiBot.isEnabled() && antiBot.isBot(entityPlayer)) return this.bots.getValue();
         if (TeamUtil.isFriend(entityPlayer)) return this.friends.getValue();
         return TeamUtil.isTarget(entityPlayer) ? this.enemies.getValue() : this.players.getValue();
     }

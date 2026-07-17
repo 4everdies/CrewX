@@ -124,6 +124,7 @@ public class ClickGui extends GuiScreen {
         miscModules.add(Myau.moduleManager.getModule(Insults.class));
         miscModules.add(Myau.moduleManager.getModule(Disabler.class));
         miscModules.add(Myau.moduleManager.getModule(HackerDetector.class));
+        miscModules.add(Myau.moduleManager.getModule(AntiBot.class));
 
         Comparator<Module> comparator = Comparator.comparing(m -> m.getName().toLowerCase());
         combatModules.sort(comparator);

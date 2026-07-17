@@ -43,7 +43,6 @@ public class LagRange extends Module {
     public final FloatProperty range = new FloatProperty("range", 10.0F, 3.0F, 100.0F);
     public final BooleanProperty weaponsOnly = new BooleanProperty("weapons-only", true);
     public final BooleanProperty allowTools = new BooleanProperty("allow-tools", false, this.weaponsOnly::getValue);
-    public final BooleanProperty botCheck = new BooleanProperty("bot-check", true);
     public final BooleanProperty teams = new BooleanProperty("teams", true);
     public final ModeProperty showPosition = new ModeProperty("show-position", 0, new String[]{"NONE", "DEFAULT", "HUD"});
 
@@ -56,7 +55,9 @@ public class LagRange extends Module {
             } else if (TeamUtil.isFriend(entityPlayer)) {
                 return false;
             } else {
-                return (!this.teams.getValue() || !TeamUtil.isSameTeam(entityPlayer)) && (!this.botCheck.getValue() || !TeamUtil.isBot(entityPlayer));
+                AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
+                boolean isBot = antiBot.isEnabled() && antiBot.isBot(entityPlayer);
+                return (!this.teams.getValue() || !TeamUtil.isSameTeam(entityPlayer)) && !isBot;
             }
         } else {
             return false;

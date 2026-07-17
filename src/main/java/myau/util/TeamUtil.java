@@ -16,32 +16,38 @@ import java.util.stream.Collectors;
 
 public class TeamUtil {
     private static final Minecraft mc = Minecraft.getMinecraft();
-    private static final java.util.Map<java.util.UUID, java.util.Deque<Integer>> PING_HISTORY = new java.util.HashMap<>();
-    private static final int PING_SAMPLES = 6;
-    private static final long STARTUP_DELAY = 3000;
-    private static long joinTime = System.currentTimeMillis();
+
+    public static boolean isKaizenServer() {
+        try {
+            if (mc.getCurrentServerData() != null) {
+                String serverIp = mc.getCurrentServerData().serverIP;
+                return serverIp != null && serverIp.toLowerCase().contains("kaizen");
+            }
+        } catch (Exception ignored) {}
+        return false;
+    }
 
     public static boolean isEntityLoaded(Entity entity) {
-        if (entity == null) return false;
-        return TeamUtil.mc.theWorld.loadedEntityList.contains(entity);
+        if (entity == null || mc.theWorld == null) return false;
+        return mc.theWorld.loadedEntityList.contains(entity);
     }
 
     public static List<Entity> getLoadedEntitiesSorted() {
-        return TeamUtil.mc.theWorld.loadedEntityList.stream().sorted((entity1, entity2) -> {
+        if (mc.theWorld == null) return java.util.Collections.emptyList();
+        
+        return mc.theWorld.loadedEntityList.stream().sorted((entity1, entity2) -> {
             double dist1 = mc.getRenderManager().getDistanceToCamera(entity1.posX, entity1.posY, entity1.posZ);
             double dist2 = mc.getRenderManager().getDistanceToCamera(entity2.posX, entity2.posY, entity2.posZ);
-            if (dist1 < dist2) {
-                return 1;
-            }
-            if (dist1 > dist2) {
-                return -1;
-            }
+            if (dist1 < dist2) return 1;
+            if (dist1 > dist2) return -1;
             return entity1.getUniqueID().toString().compareTo(entity2.getUniqueID().toString());
         }).collect(Collectors.toList());
     }
 
     public static float getHealthScore(EntityLivingBase entityLivingBase) {
-        return entityLivingBase.getHealth() * (20.0f / (float) entityLivingBase.getTotalArmorValue());
+        int armor = entityLivingBase.getTotalArmorValue();
+        float armorFactor = (armor == 0) ? 1.0f : (20.0f / (float) armor);
+        return entityLivingBase.getHealth() * armorFactor;
     }
 
     public static String stripName(Entity entity) {
@@ -54,180 +60,97 @@ public class TeamUtil {
         if (playerTeam != null) {
             String colorPrefix = FontRenderer.getFormatFromString(playerTeam.getColorPrefix());
             if (colorPrefix.length() >= 2) {
-                colorCode = TeamUtil.mc.fontRendererObj.getColorCode(colorPrefix.charAt(1));
+                colorCode = mc.fontRendererObj.getColorCode(colorPrefix.charAt(1));
             }
         }
-        return new Color(colorCode & 0xFFFFFF | (int)(alpha * 255) << 24, true);
+        return new Color((colorCode & 0xFFFFFF) | ((int)(alpha * 255) << 24), true);
     }
 
-    public static void samplePing(EntityPlayer player) {
-        if (player == null) return;
-        NetworkPlayerInfo info = mc.getNetHandler() != null ? mc.getNetHandler().getPlayerInfo(player.getUniqueID()) : null;
-        if (info == null) return;
-        java.util.Deque<Integer> deque = PING_HISTORY.get(player.getUniqueID());
-        if (deque == null) {
-            deque = new java.util.ArrayDeque<>();
-            PING_HISTORY.put(player.getUniqueID(), deque);
-        }
-        deque.addLast(info.getResponseTime());
-        while (deque.size() > PING_SAMPLES) deque.pollFirst();
-    }
-
-    private static boolean pingLooksBot(EntityPlayer player) {
-        java.util.Deque<Integer> deque = PING_HISTORY.get(player.getUniqueID());
-        if (deque == null || deque.size() < 3) return false;
-        int zeros = 0;
-        int variation = 0;
-        int prev = Integer.MIN_VALUE;
-        for (int v : deque) {
-            if (v <= 0) zeros++;
-            if (prev != Integer.MIN_VALUE && v != prev) variation++;
-            prev = v;
-        }
-        return zeros == deque.size() && variation == 0;
-    }
-
-    public static boolean isBot(EntityPlayer player) {
-        if (player == TeamUtil.mc.thePlayer) {
-            return false;
-        }
-        
-        if (System.currentTimeMillis() - joinTime < STARTUP_DELAY) {
-            return false;
-        }
-        
-        if (player.getHealth() <= 0.0F || player.isDead) {
-            return true;
-        }
-        
-        NetworkPlayerInfo playerInfo = mc.getNetHandler().getPlayerInfo(player.getName());
-        if (playerInfo == null) {
-            return false;
-        }
-        
-        samplePing(player);
-        if (pingLooksBot(player)) {
-            return true;
-        }
-        
-        if (!ServerUtil.isHypixel()) return false;
-        
-        if (player.getName().startsWith("§k")) {
-            return player.isInvisible();
-        }
-        
-        ScorePlayerTeam playerTeam = playerInfo.getPlayerTeam();
-        if (playerTeam == null) return false;
-        
-        if (!playerTeam.getTeamName().isEmpty()) return false;
-        
-        return playerTeam.getColorPrefix().equals("§c");
-    }
-
-    private static String getPlayerTeamTag(EntityPlayer player) {
-        String name = player.getName();
-        if (name.contains("[VERMELHO]")) return "VERMELHO";
-        if (name.contains("[AZUL]")) return "AZUL";
-        if (name.contains("[AMARELO]")) return "AMARELO";
-        if (name.contains("[AQUA]")) return "AQUA";
-        if (name.contains("[ROXO]")) return "ROXO";
-        if (name.contains("[PRETO]")) return "PRETO";
-        if (name.contains("[CINZA]")) return "CINZA";
-        if (name.contains("[ROSA]")) return "ROSA";
-        if (name.contains("[VERDE]")) return "VERDE";
-        if (name.contains("[LARANJA]")) return "LARANJA";
-        if (name.contains("[BRANCO]")) return "BRANCO";
-        if (name.contains("[MARROM]")) return "MARROM";
+    public static String getPlayerTeamTag(EntityPlayer player) {
+        String displayName = player.getDisplayName().getUnformattedText().toUpperCase();
+        if (displayName.contains("[VERMELHO]")) return "VERMELHO";
+        if (displayName.contains("[AZUL]")) return "AZUL";
+        if (displayName.contains("[AMARELO]")) return "AMARELO";
+        if (displayName.contains("[AQUA]")) return "AQUA";
+        if (displayName.contains("[ROXO]")) return "ROXO";
+        if (displayName.contains("[PRETO]")) return "PRETO";
+        if (displayName.contains("[CINZA]")) return "CINZA";
+        if (displayName.contains("[ROSA]")) return "ROSA";
+        if (displayName.contains("[VERDE]")) return "VERDE";
+        if (displayName.contains("[LARANJA]")) return "LARANJA";
+        if (displayName.contains("[BRANCO]")) return "BRANCO";
+        if (displayName.contains("[MARROM]")) return "MARROM";
         return null;
     }
 
-    private static String getTeamColorFromTag(String tag) {
-        switch (tag) {
-            case "VERMELHO": return "§c";
-            case "AZUL": return "§9";
-            case "AMARELO": return "§e";
-            case "AQUA": return "§b";
-            case "ROXO": return "§5";
-            case "PRETO": return "§0";
-            case "CINZA": return "§7";
-            case "ROSA": return "§d";
-            case "VERDE": return "§a";
-            case "LARANJA": return "§6";
-            case "BRANCO": return "§f";
-            case "MARROM": return "§3";
-            default: return null;
-        }
-    }
-
     public static boolean isSameTeam(EntityPlayer player) {
-        if (player == TeamUtil.mc.thePlayer) {
+        if (player == mc.thePlayer) {
             return true;
         }
-        
-        String selfTag = getPlayerTeamTag(TeamUtil.mc.thePlayer);
-        String targetTag = getPlayerTeamTag(player);
-        
-        if (selfTag != null && targetTag != null) {
-            return selfTag.equals(targetTag);
-        }
-        
-        NetworkPlayerInfo selfInfo = mc.getNetHandler().getPlayerInfo(TeamUtil.mc.thePlayer.getUniqueID());
-        if (selfInfo == null) {
+
+        if (isKaizenServer()) {
+            String selfTag = getPlayerTeamTag(mc.thePlayer);
+            String targetTag = getPlayerTeamTag(player);
+            if (selfTag != null && targetTag != null) {
+                return selfTag.equals(targetTag);
+            }
             return false;
         }
-        
+
+        NetworkPlayerInfo selfInfo = mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID());
+        if (selfInfo == null) return false;
+
         ScorePlayerTeam selfTeam = selfInfo.getPlayerTeam();
-        if (selfTeam == null) {
-            return false;
-        }
-        
+        if (selfTeam == null) return false;
+
         NetworkPlayerInfo targetInfo = mc.getNetHandler().getPlayerInfo(player.getUniqueID());
-        if (targetInfo == null) {
-            return false;
-        }
-        
+        if (targetInfo == null) return false;
+
         ScorePlayerTeam targetTeam = targetInfo.getPlayerTeam();
-        if (targetTeam == null) {
-            return false;
-        }
-        
-        return selfTeam.getColorPrefix().equals(targetTeam.getColorPrefix());
+        if (targetTeam == null) return false;
+
+        String selfPrefix = selfTeam.getColorPrefix();
+        String targetPrefix = targetTeam.getColorPrefix();
+
+        if (selfPrefix == null || targetPrefix == null) return false;
+
+        return selfPrefix.equals(targetPrefix);
     }
 
     public static boolean hasTeamColor(EntityLivingBase entity) {
-        if (entity == TeamUtil.mc.thePlayer) {
+        if (entity == mc.thePlayer) {
             return true;
         }
-        
-        NetworkPlayerInfo selfInfo = mc.getNetHandler().getPlayerInfo(TeamUtil.mc.thePlayer.getUniqueID());
-        if (selfInfo == null) {
-            return false;
+
+        if (isKaizenServer()) {
+            if (!(entity instanceof EntityPlayer)) return false;
+            return getPlayerTeamTag((EntityPlayer) entity) != null;
         }
-        
+
+        NetworkPlayerInfo selfInfo = mc.getNetHandler().getPlayerInfo(mc.thePlayer.getUniqueID());
+        if (selfInfo == null) return false;
+
         ScorePlayerTeam selfTeam = selfInfo.getPlayerTeam();
-        if (selfTeam == null) {
-            return false;
-        }
-        
-        if (selfTeam.getColorPrefix().length() < 2) {
-            return false;
-        }
-        
-        EntityLivingBase nearestArmorStand = TeamUtil.mc.theWorld.findNearestEntityWithinAABB(EntityArmorStand.class, entity.getEntityBoundingBox(), entity);
+        if (selfTeam == null) return false;
+
+        String selfPrefix = selfTeam.getColorPrefix();
+        if (selfPrefix == null || selfPrefix.length() < 2) return false;
+
+        EntityLivingBase nearestArmorStand = mc.theWorld.findNearestEntityWithinAABB(EntityArmorStand.class, entity.getEntityBoundingBox(), entity);
         if (nearestArmorStand != null) {
-            return nearestArmorStand.getName().contains(selfTeam.getColorPrefix().substring(0, 2));
+            return nearestArmorStand.getName().contains(selfPrefix.substring(0, 2));
         }
         return false;
     }
 
     public static boolean isShop(EntityLivingBase entity) {
-        if (entity == TeamUtil.mc.thePlayer) {
+        if (entity == mc.thePlayer || mc.theWorld == null) {
             return false;
         }
-        
-        EntityLivingBase armorStand = TeamUtil.mc.theWorld.findNearestEntityWithinAABB(EntityArmorStand.class, entity.getEntityBoundingBox(), entity);
+
+        EntityLivingBase armorStand = mc.theWorld.findNearestEntityWithinAABB(EntityArmorStand.class, entity.getEntityBoundingBox(), entity);
         if (armorStand == null) return false;
-        
+
         String displayName = armorStand.getName();
         if (displayName.contains("RIGHT CLICK")) return true;
         if (displayName.contains("ITEM SHOP")) return true;
@@ -243,4 +166,4 @@ public class TeamUtil {
     public static boolean isTarget(EntityPlayer player) {
         return Myau.targetManager.isFriend(player.getName());
     }
-            }
+}

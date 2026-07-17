@@ -54,7 +54,7 @@ public class KillAura extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final DecimalFormat df = new DecimalFormat("+0.0;-0.0", new DecimalFormatSymbols(Locale.US));
     private final TimerUtil timer = new TimerUtil();
-    private AttackData target = null;
+    public AttackData target = null;
     private int switchTick = 0;
     private boolean hitRegistered = false;
     private boolean blockingState = false;
@@ -87,7 +87,6 @@ public class KillAura extends Module {
     public final BooleanProperty weaponsOnly;
     public final BooleanProperty allowTools;
     public final BooleanProperty inventoryCheck;
-    public final BooleanProperty botCheck;
     public final BooleanProperty players;
     public final BooleanProperty bosses;
     public final BooleanProperty mobs;
@@ -261,7 +260,9 @@ public class KillAura extends Module {
                     }
                     if (!anyArmor) return false;
                 }
-                return (!this.teams.getValue() || !TeamUtil.isSameTeam((EntityPlayer) entityLivingBase)) && (!this.botCheck.getValue() || !TeamUtil.isBot((EntityPlayer) entityLivingBase));
+                AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
+                boolean isBot = antiBot.isEnabled() && antiBot.isBot((EntityPlayer) entityLivingBase);
+                return (!this.teams.getValue() || !TeamUtil.isSameTeam((EntityPlayer) entityLivingBase)) && !isBot;
             } else if (entityLivingBase instanceof EntityDragon || entityLivingBase instanceof EntityWither) {
                 return this.bosses.getValue();
             } else if (!(entityLivingBase instanceof EntityMob) && !(entityLivingBase instanceof EntitySlime)) {
@@ -370,7 +371,6 @@ public class KillAura extends Module {
         this.weaponsOnly = new BooleanProperty("weapons-only", true);
         this.allowTools = new BooleanProperty("allow-tools", false, this.weaponsOnly::getValue);
         this.inventoryCheck = new BooleanProperty("inventory-check", true);
-        this.botCheck = new BooleanProperty("bot-check", true);
         this.players = new BooleanProperty("players", true);
         this.bosses = new BooleanProperty("bosses", false);
         this.mobs = new BooleanProperty("mobs", false);

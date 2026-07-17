@@ -1,6 +1,7 @@
 package myau.module.modules;
 
 import com.google.common.base.Predicates;
+import myau.Myau;
 import myau.event.EventTarget;
 import myau.events.RaytraceEvent;
 import myau.module.Module;
@@ -68,7 +69,8 @@ public class Piercing extends Module {
         if (entity instanceof EntityPlayer) {
             EntityPlayer player = (EntityPlayer) entity;
             if (this.ignoreTeammates.getValue() && TeamUtil.isSameTeam(player)) return true;
-            if (TeamUtil.isBot(player) || TeamUtil.isFriend(player)) return true;
+            AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
+            if ((antiBot.isEnabled() && antiBot.isBot(player)) || TeamUtil.isFriend(player)) return true;
         }
         return false;
     }

@@ -30,7 +30,6 @@ public class AimAssist extends Module {
     public final IntProperty fov = new IntProperty("fov", 90, 30, 360);
     public final BooleanProperty weaponOnly = new BooleanProperty("weapons-only", true);
     public final BooleanProperty allowTools = new BooleanProperty("allow-tools", false, this.weaponOnly::getValue);
-    public final BooleanProperty botChecks = new BooleanProperty("bot-check", true);
     public final BooleanProperty team = new BooleanProperty("teams", true);
 
     private boolean isValidTarget(EntityPlayer entityPlayer) {
@@ -48,7 +47,9 @@ public class AimAssist extends Module {
             } else if (TeamUtil.isFriend(entityPlayer)) {
                 return false;
             } else {
-                return (!this.team.getValue() || !TeamUtil.isSameTeam(entityPlayer)) && (!this.botChecks.getValue() || !TeamUtil.isBot(entityPlayer));
+                myau.module.modules.AntiBot antiBot = (myau.module.modules.AntiBot) Myau.moduleManager.modules.get(myau.module.modules.AntiBot.class);
+                boolean isBot = antiBot.isEnabled() && antiBot.isBot(entityPlayer);
+                return (!this.team.getValue() || !TeamUtil.isSameTeam(entityPlayer)) && !isBot;
             }
         } else {
             return false;

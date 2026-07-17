@@ -1,5 +1,6 @@
 package myau.module.modules;
 
+import myau.Myau;
 import myau.event.EventTarget;
 import myau.events.RenderLivingEvent;
 import myau.module.Module;
@@ -38,7 +39,8 @@ public class Chams extends Module {
             return false;
         } else if (entityLivingBase instanceof EntityPlayer) {
             if (entityLivingBase != mc.thePlayer && entityLivingBase != mc.getRenderViewEntity()) {
-                if (TeamUtil.isBot((EntityPlayer) entityLivingBase)) {
+                AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
+                if (antiBot.isEnabled() && antiBot.isBot((EntityPlayer) entityLivingBase)) {
                     return this.bots.getValue();
                 } else if (TeamUtil.isFriend((EntityPlayer) entityLivingBase)) {
                     return this.friends.getValue();
