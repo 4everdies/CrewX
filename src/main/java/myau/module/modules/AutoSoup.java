@@ -1,5 +1,6 @@
 package myau.module.modules;
 
+import myau.Myau;
 import myau.event.EventTarget;
 import myau.event.types.EventType;
 import myau.events.LoadWorldEvent;
@@ -22,8 +23,7 @@ public class AutoSoup extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
 
     public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"AUTOMATIC", "MANUAL"});
-    public final IntProperty manualBind = new IntProperty("manual-bind", 0, 0, 255,
-            () -> this.mode.getValue() != 0);
+    public final IntProperty manualBind = new IntProperty("manual-bind", 0, 0, 255, () -> this.mode.getValue() != 0);
     public final IntProperty health = new IntProperty("health", 10, 1, 20);
     public final BooleanProperty dropSoup = new BooleanProperty("drop-soup", true);
     public final IntProperty healDelay = new IntProperty("heal-delay", 50, 1, 400);
@@ -35,6 +35,7 @@ public class AutoSoup extends Module {
     private int originalIndex = Integer.MIN_VALUE;
     private int step = 1;
     private boolean start = false;
+    private boolean auraWasEnabled = false;
 
     public AutoSoup() {
         super("AutoSoup", false);
@@ -69,6 +70,12 @@ public class AutoSoup extends Module {
         if (mc.currentScreen != null) return;
 
         if (start) {
+            Module killAura = Myau.moduleManager.getModule("KillAura");
+            if (step == 1 && killAura != null && killAura.isEnabled()) {
+                auraWasEnabled = true;
+                killAura.setEnabled(false);
+            }
+
             if (step >= 2 && step <= 3 && mc.thePlayer.inventory.currentItem != soupIndex) {
                 mc.thePlayer.inventory.currentItem = soupIndex;
             }
@@ -115,6 +122,9 @@ public class AutoSoup extends Module {
                     }
                     break;
                 case 5:
+                    if (killAura != null && auraWasEnabled) {
+                        killAura.setEnabled(true);
+                    }
                     reset();
                     break;
             }
@@ -127,6 +137,7 @@ public class AutoSoup extends Module {
                 if (auto || manual) {
                     originalIndex = mc.thePlayer.inventory.currentItem;
                     start = true;
+                    auraWasEnabled = false;
                     resetTimer();
                 }
             }
@@ -137,6 +148,7 @@ public class AutoSoup extends Module {
         this.originalIndex = Integer.MIN_VALUE;
         this.soupIndex = Integer.MIN_VALUE;
         this.start = false;
+        this.auraWasEnabled = false;
         this.step = 1;
         this.lastActionMs = 0L;
     }

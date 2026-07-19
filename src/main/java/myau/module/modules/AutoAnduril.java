@@ -42,7 +42,7 @@ public class AutoAnduril extends Module {
             if (!(currentItem.getItem() instanceof ItemSword) && mc.thePlayer.isUsingItem()) return false;
         }
         InvWalk invWalk = (InvWalk) Myau.moduleManager.modules.get(InvWalk.class);
-        return mc.currentScreen == null || mc.currentScreen instanceof myau.ui.ClickGui
+        return mc.currentScreen == null || mc.currentScreen instanceof myau.gui.ModernClickGui
                 || invWalk.isEnabled() && invWalk.canInvWalk();
     }
 

@@ -14,6 +14,9 @@ import myau.module.modules.*;
 import myau.property.Property;
 import myau.property.PropertyManager;
 
+import myau.clickgui.bridge.BridgeClient;
+import myau.clickgui.bridge.BridgeModule;
+
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -180,6 +183,8 @@ public class Myau {
             propertyManager.properties.put(module.getClass(), properties);
             EventManager.register(module);
         }
+        initClickGui();
+
         Config config = new Config("default", true);
         if (config.file.exists()) {
             config.load();
@@ -200,5 +205,114 @@ public class Myau {
         }
 
         AccountManager.init();
+    }
+
+    private void initClickGui() {
+        BridgeClient client = BridgeClient.getInstance();
+        client.init();
+
+        ArrayList<BridgeModule> bridgeModules = new ArrayList<>();
+
+        int[] categoryMap = new int[moduleManager.modules.size()];
+        int idx = 0;
+        for (Module module : moduleManager.modules.values()) {
+            categoryMap[idx] = getCategoryForModule(module);
+            idx++;
+        }
+
+        idx = 0;
+        for (Module module : moduleManager.modules.values()) {
+            bridgeModules.add(new BridgeModule(module, categoryMap[idx]));
+            idx++;
+        }
+
+        client.setModules(bridgeModules);
+    }
+
+    private int getCategoryForModule(Module module) {
+        if (module instanceof myau.module.modules.AimAssist ||
+            module instanceof myau.module.modules.Backtrack ||
+            module instanceof myau.module.modules.Fakelag ||
+            module instanceof myau.module.modules.AutoClicker ||
+            module instanceof myau.module.modules.KillAura ||
+            module instanceof myau.module.modules.Wtap ||
+            module instanceof myau.module.modules.Velocity ||
+            module instanceof myau.module.modules.Freeze ||
+            module instanceof myau.module.modules.Reach ||
+            module instanceof myau.module.modules.TargetStrafe ||
+            module instanceof myau.module.modules.NoHitDelay ||
+            module instanceof myau.module.modules.AntiFireball ||
+            module instanceof myau.module.modules.LagRange ||
+            module instanceof myau.module.modules.HitBox ||
+            module instanceof myau.module.modules.MoreKB ||
+            module instanceof myau.module.modules.HitSelect ||
+            module instanceof myau.module.modules.Piercing ||
+            module instanceof myau.module.modules.BlockHit ||
+            module instanceof myau.module.modules.Displace ||
+            module instanceof myau.module.modules.KnockbackDelay ||
+            module instanceof myau.module.modules.SprintReset) {
+            return 0;
+        }
+        if (module instanceof myau.module.modules.AntiAFK ||
+            module instanceof myau.module.modules.Fly ||
+            module instanceof myau.module.modules.Speed ||
+            module instanceof myau.module.modules.LongJump ||
+            module instanceof myau.module.modules.Sprint ||
+            module instanceof myau.module.modules.SafeWalk ||
+            module instanceof myau.module.modules.Jesus ||
+            module instanceof myau.module.modules.Blink ||
+            module instanceof myau.module.modules.NoFall ||
+            module instanceof myau.module.modules.NoSlow ||
+            module instanceof myau.module.modules.KeepSprint ||
+            module instanceof myau.module.modules.BridgeAssist ||
+            module instanceof myau.module.modules.NoJumpDelay ||
+            module instanceof myau.module.modules.AntiVoid) {
+            return 1;
+        }
+        if (module instanceof myau.module.modules.ESP ||
+            module instanceof myau.module.modules.Chams ||
+            module instanceof myau.module.modules.FullBright ||
+            module instanceof myau.module.modules.Tracers ||
+            module instanceof myau.module.modules.NameTags ||
+            module instanceof myau.module.modules.Xray ||
+            module instanceof myau.module.modules.TargetHUD ||
+            module instanceof myau.module.modules.Indicators ||
+            module instanceof myau.module.modules.BedESP ||
+            module instanceof myau.module.modules.ItemESP ||
+            module instanceof myau.module.modules.ViewClip ||
+            module instanceof myau.module.modules.NoHurtCam ||
+            module instanceof myau.module.modules.HUD ||
+            module instanceof myau.module.modules.GuiModule ||
+            module instanceof myau.module.modules.ChestESP ||
+            module instanceof myau.module.modules.Trajectories ||
+            module instanceof myau.module.modules.Radar ||
+            module instanceof myau.module.modules.DynamicIsland ||
+            module instanceof myau.module.modules.Notifications ||
+            module instanceof myau.module.modules.Cape) {
+            return 2;
+        }
+        if (module instanceof myau.module.modules.AutoHeal ||
+            module instanceof myau.module.modules.AutoTool ||
+            module instanceof myau.module.modules.ChestStealer ||
+            module instanceof myau.module.modules.InvManager ||
+            module instanceof myau.module.modules.InvWalk ||
+            module instanceof myau.module.modules.Scaffold ||
+            module instanceof myau.module.modules.AutoBlockIn ||
+            module instanceof myau.module.modules.SpeedMine ||
+            module instanceof myau.module.modules.FastPlace ||
+            module instanceof myau.module.modules.GhostHand ||
+            module instanceof myau.module.modules.MCF ||
+            module instanceof myau.module.modules.AntiDebuff ||
+            module instanceof myau.module.modules.AutoRecraft ||
+            module instanceof myau.module.modules.AutoRefill ||
+            module instanceof myau.module.modules.AutoSoup ||
+            module instanceof myau.module.modules.AutoHeadHitter ||
+            module instanceof myau.module.modules.BedDefender ||
+            module instanceof myau.module.modules.AutoChest ||
+            module instanceof myau.module.modules.AutoPot ||
+            module instanceof myau.module.modules.ThrowPot) {
+            return 3;
+        }
+        return 4;
     }
 }

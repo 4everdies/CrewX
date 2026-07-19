@@ -39,7 +39,6 @@ public class OutlineShader extends Shader {
 
     @Override
     public void onUse() {
-        GL20.glUseProgram(this.programId);
         int texLoc = this.getUniformLocationCached("texture");
         GL20.glUniform1i(texLoc, 0);
         int sizeLoc = this.getUniformLocationCached("size");

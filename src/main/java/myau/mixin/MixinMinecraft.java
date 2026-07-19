@@ -51,7 +51,7 @@ public abstract class MixinMinecraft {
     )
     private void postStartGame(CallbackInfo callbackInfo) {
         new Myau();
-        Display.setTitle("CrewX " + Myau.version);
+        Display.setTitle("CrewX @crackcrew");
     }
 
     @Inject(
