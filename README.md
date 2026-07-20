@@ -9,7 +9,6 @@
 [![Stars](https://img.shields.io/github/stars/4everdies/CrewX?style=for-the-badge&color=7891FF)](https://github.com/4everdies/CrewX/stargazers)
 [![Forks](https://img.shields.io/github/forks/4everdies/CrewX?style=for-the-badge&color=7891FF)](https://github.com/4everdies/CrewX/network/members)
 [![Issues](https://img.shields.io/github/issues/4everdies/CrewX?style=for-the-badge&color=7891FF)](https://github.com/4everdies/CrewX/issues)
-[![License](https://img.shields.io/badge/License-MIT-7891FF?style=for-the-badge)](LICENSE)
 
 *if you fw the project make sure to drop a star ⭐️*
 
