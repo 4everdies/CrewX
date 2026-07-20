@@ -32,8 +32,8 @@ public class AntiFireball extends Module {
     public final IntProperty fov = new IntProperty("fov", 360, 1, 360);
     public final BooleanProperty rotations = new BooleanProperty("rotations", true);
     public final BooleanProperty swing = new BooleanProperty("swing", true);
-    public final ModeProperty moveFix = new ModeProperty("move-fix", 1, new String[]{"NONE", "SILENT", "STRICT"});
-    public final ModeProperty showTarget = new ModeProperty("show-target", 0, new String[]{"NONE", "DEFAULT", "HUD"});
+    public final ModeProperty moveFix = new ModeProperty("move-fix", 1, new String[]{"None", "Silent", "Strict"});
+    public final ModeProperty showTarget = new ModeProperty("show-target", 0, new String[]{"None", "Default", "HUD"});
 
     private boolean isValidTarget(EntityFireball entityFireball) {
         return !entityFireball.getEntityBoundingBox().hasNaN() && RotationUtil.distanceToEntity(entityFireball) <= (double) this.range.getValue() + 3.0

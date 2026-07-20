@@ -27,7 +27,7 @@ public class NoFall extends Module {
     private final TimerUtil scoreboardResetTimer = new TimerUtil();
     private boolean slowFalling = false;
     private boolean lastOnGround = false;
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"PACKET", "BLINK", "NO_GROUND", "SPOOF"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Packet", "Blink", "NoGround", "Spoof"});
     public final FloatProperty distance = new FloatProperty("distance", 3.0F, 0.0F, 20.0F);
     public final IntProperty delay = new IntProperty("delay", 0, 0, 10000);
 

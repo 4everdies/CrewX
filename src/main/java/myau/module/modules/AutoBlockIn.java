@@ -37,7 +37,7 @@ public class AutoBlockIn extends Module {
     public final IntProperty rotationTolerance = new IntProperty("rotation-tolerance", 25, 5, 100);
     public final BooleanProperty itemSpoof = new BooleanProperty("item-spoof", true);
     public final BooleanProperty showProgress = new BooleanProperty("show-progress", true);
-    public final ModeProperty moveFix = new ModeProperty("move-fix", 1, new String[]{"NONE", "SILENT", "STRICT"});
+    public final ModeProperty moveFix = new ModeProperty("move-fix", 1, new String[]{"None", "Silent", "Strict"});
 
     private float serverYaw;
     private float serverPitch;
@@ -189,7 +189,7 @@ public class AutoBlockIn extends Module {
 
                 MovingObjectPosition mop = rayTraceBlock(aimYaw, aimPitch, range.getValue());
 
-                if (mop != null 
+                if (mop != null
                         && mop.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK
                         && mop.getBlockPos().equals(targetBlock)
                         && mop.sideHit == targetFacing) {
@@ -432,7 +432,7 @@ public class AutoBlockIn extends Module {
                     float[] rot = getRotationsWrapped(eye, hitPos.xCoord, hitPos.yCoord, hitPos.zCoord);
 
                     MovingObjectPosition mop = rayTraceBlock(rot[0], rot[1], reach);
-                    if (mop != null 
+                    if (mop != null
                             && mop.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK
                             && mop.getBlockPos().equals(supportBlock)
                             && mop.sideHit == facing) {
@@ -494,7 +494,7 @@ public class AutoBlockIn extends Module {
                         float[] rot = getRotationsWrapped(eye, hitPos.xCoord, hitPos.yCoord, hitPos.zCoord);
 
                         MovingObjectPosition mop = rayTraceBlock(rot[0], rot[1], reach);
-                        if (mop != null 
+                        if (mop != null
                                 && mop.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK
                                 && mop.getBlockPos().equals(support)
                                 && mop.sideHit == facing.getOpposite()) {
@@ -555,8 +555,8 @@ public class AutoBlockIn extends Module {
 
     private boolean isAir(BlockPos pos) {
         Block block = mc.theWorld.getBlockState(pos).getBlock();
-        return block == Blocks.air 
-            || block == Blocks.water 
+        return block == Blocks.air
+            || block == Blocks.water
             || block == Blocks.flowing_water
             || block == Blocks.lava
             || block == Blocks.flowing_lava

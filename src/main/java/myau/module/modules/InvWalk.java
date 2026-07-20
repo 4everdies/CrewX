@@ -50,7 +50,7 @@ public class InvWalk extends Module {
         put(mc.gameSettings.keyBindSprint, false);
     }};
 
-    public final ModeProperty mode = new ModeProperty("mode", 1, new String[]{"VANILLA", "LEGIT", "HYPIXEL", "LEGIT+"});
+    public final ModeProperty mode = new ModeProperty("mode", 1, new String[]{"Vanilla", "Legit", "Hypixel", "Legit+"});
     public final BooleanProperty guiEnabled = new BooleanProperty("click-gui", true);
     public final IntProperty openDelay = new IntProperty("open-delay", 0, 0, 20, () -> mode.getValue() == 3);
     public final IntProperty closeDelay = new IntProperty("close-delay", 4, 0, 20, () -> mode.getValue() == 3);

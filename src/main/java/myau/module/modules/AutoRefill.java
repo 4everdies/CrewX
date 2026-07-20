@@ -24,7 +24,7 @@ public class AutoRefill extends Module {
 
     public final IntProperty refilMinDelay = new IntProperty("min-delay", 3, 1, 400);
     public final IntProperty refilMaxDelay = new IntProperty("max-delay", 5, 1, 400);
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"AUTOMATIC", "MANUAL", "BOTH"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Automatic", "Manual", "Both"});
     public final IntProperty manualBind = new IntProperty("manual-bind", 0, 0, 255,
             () -> this.mode.getValue() != 0);
     public final IntProperty startWith = new IntProperty("start-with", 4, 0, 9);

@@ -69,18 +69,18 @@ public class BedNuker extends Module {
     private boolean readyToBreak = false;
     private boolean breaking = false;
     private boolean waitingForStart = false;
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"LEGIT", "SWAP"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Legit", "Swap"});
     public final FloatProperty range = new FloatProperty("range", 4.5F, 3.0F, 6.0F);
     public final PercentProperty speed = new PercentProperty("speed", 0);
     public final BooleanProperty groundSpeed = new BooleanProperty("ground-spoof", false);
-    public final ModeProperty ignoreVelocity = new ModeProperty("ignore-velocity", 0, new String[]{"NONE", "CANCEL", "DELAY"});
+    public final ModeProperty ignoreVelocity = new ModeProperty("ignore-velocity", 0, new String[]{"None", "Cancel", "Delay"});
     public final BooleanProperty surroundings = new BooleanProperty("surroundings", true);
     public final BooleanProperty toolCheck = new BooleanProperty("tool-check", true);
     public final BooleanProperty whiteList = new BooleanProperty("whitelist", true);
     public final BooleanProperty swing = new BooleanProperty("swing", true);
-    public final ModeProperty moveFix = new ModeProperty("move-fix", 1, new String[]{"NONE", "SILENT", "STRICT"});
-    public final ModeProperty showTarget = new ModeProperty("show-target", 1, new String[]{"NONE", "DEFAULT", "HUD"});
-    public final ModeProperty showProgress = new ModeProperty("show-progress", 1, new String[]{"NONE", "DEFAULT", "HUD"});
+    public final ModeProperty moveFix = new ModeProperty("move-fix", 1, new String[]{"None", "Silent", "Strict"});
+    public final ModeProperty showTarget = new ModeProperty("show-target", 1, new String[]{"None", "Default", "HUD"});
+    public final ModeProperty showProgress = new ModeProperty("show-progress", 1, new String[]{"None", "Default", "HUD"});
 
     private void resetBreaking() {
         if (this.targetBed != null) {

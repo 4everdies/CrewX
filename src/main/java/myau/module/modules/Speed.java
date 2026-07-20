@@ -18,7 +18,7 @@ public class Speed extends Module {
     public final FloatProperty multiplier = new FloatProperty("multiplier", 1.0F, 0.0F, 10.0F);
     public final FloatProperty friction = new FloatProperty("friction", 1.0F, 0.0F, 10.0F);
     public final PercentProperty strafe = new PercentProperty("strafe", 0);
-    public final ModeProperty speedMode = new ModeProperty("mode", 0, new String[]{"NORMAL", "LEGIT"});
+    public final ModeProperty speedMode = new ModeProperty("mode", 0, new String[]{"Normal", "Legit"});
 
     private boolean canBoost() {
         Scaffold scaffold = (Scaffold) Myau.moduleManager.modules.get(Scaffold.class);

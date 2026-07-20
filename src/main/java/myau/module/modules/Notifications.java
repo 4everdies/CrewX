@@ -20,7 +20,7 @@ public class Notifications extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static Notifications INSTANCE;
 
-    public final ModeProperty position = new ModeProperty("position", 0, new String[]{"BOTTOM_RIGHT", "TOP_RIGHT", "BOTTOM_LEFT", "TOP_LEFT"});
+    public final ModeProperty position = new ModeProperty("position", 0, new String[]{"Bottom Right", "Top Right", "Bottom Left", "Top Left"});
     public final IntProperty duration = new IntProperty("duration-ms", 2000, 500, 8000);
     public final IntProperty anim = new IntProperty("anim-ms", 250, 0, 1000);
     public final BooleanProperty shadow = new BooleanProperty("shadow", true);

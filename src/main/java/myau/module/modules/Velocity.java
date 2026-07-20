@@ -18,7 +18,7 @@ public class Velocity extends Module {
     private boolean pendingExplosion = false;
     private boolean allowNext = true;
 
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"VANILLA", "GRIM_JUMP", "JUMP_RESET"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Vanilla", "Grim Jump", "JumpReset"});
     public final PercentProperty chance = new PercentProperty("chance", 100);
     public final PercentProperty horizontal = new PercentProperty("horizontal", 0);
     public final PercentProperty vertical = new PercentProperty("vertical", 100);

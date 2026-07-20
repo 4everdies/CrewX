@@ -21,14 +21,14 @@ public class Fly extends Module {
     private long disableTimer = 0L;
     private boolean waitingToDisableBlink = false;
     private boolean isFlyDisabled = false;
-    
+
     private long enableTimer = 0L;
     private boolean waitingToEnableFly = false;
     private boolean isFlyPhysicallyEnabled = false;
 
     public final FloatProperty hSpeed = new FloatProperty("horizontal-speed", 1.0F, 0.0F, 100.0F);
     public final FloatProperty vSpeed = new FloatProperty("vertical-speed", 1.0F, 0.0F, 100.0F);
-    public final ModeProperty flyMode = new ModeProperty("mode", 0, new String[]{"NORMAL", "KAIZEN"});
+    public final ModeProperty flyMode = new ModeProperty("mode", 0, new String[]{"Normal", "Kaizen"});
 
     public Fly() {
         super("Fly", false);
@@ -108,7 +108,7 @@ public class Fly extends Module {
     public void onDisabled() {
         isFlyPhysicallyEnabled = false;
         waitingToEnableFly = false;
-        
+
         if (isKaizenMode && isBlinkActive && !waitingToDisableBlink) {
             isFlyDisabled = true;
             waitingToDisableBlink = true;
@@ -123,7 +123,7 @@ public class Fly extends Module {
     public void disableFlyAndBlink() {
         isFlyPhysicallyEnabled = false;
         waitingToEnableFly = false;
-        
+
         if (isKaizenMode && isBlinkActive && !waitingToDisableBlink) {
             this.setEnabled(false);
             isFlyDisabled = true;

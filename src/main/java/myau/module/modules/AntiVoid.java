@@ -23,7 +23,7 @@ public class AntiVoid extends Module {
     private boolean isInVoid = false;
     private boolean wasInVoid = false;
     private double[] lastSafePosition = null;
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"BLINK"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Blink"});
     public final FloatProperty distance = new FloatProperty("distance", 5.0F, 0.0F, 16.0F);
 
     private void resetBlink() {

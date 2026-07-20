@@ -15,19 +15,9 @@ import myau.property.properties.ModeProperty;
 import myau.property.properties.PercentProperty;
 import myau.property.properties.TextProperty;
 
-/**
- * Value wrappers that read and write straight through to the backing {@link Property}.
- *
- * The previous bridge copied property values into plain Value objects once, at startup,
- * and never wrote anything back - so every slider, toggle and dropdown in the click gui
- * was purely cosmetic. These subclasses override the accessors the gui already uses,
- * so the gui edits live module state (and therefore gets saved by Config too).
- */
 public final class BoundValues {
     private BoundValues() {
     }
-
-    /** Every bound value exposes the property it is attached to (used for live visibility). */
     public interface Bound {
         Property<?> getProperty();
     }
@@ -139,7 +129,6 @@ public final class BoundValues {
 
         @Override
         public void setMode(Value mode) {
-            // called from the ModeValue constructor before our fields exist
             if (this.property == null || mode == null) {
                 super.setMode(mode);
                 return;

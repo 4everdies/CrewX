@@ -36,13 +36,13 @@ import org.lwjgl.opengl.GL11;
 
 public class ModernClickGui extends GuiScreen {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final File POS_FILE = new File("./config/Myau/", "gui_position.json");
+    private static final File POS_FILE = new File("./config/CrewX/", "gui_position.json");
     private static final int SIDEBAR_WIDTH = 120;
     private static final int HEADER_HEIGHT = 32;
     private static final int MODULE_ITEM_HEIGHT = 28;
-    private static final int SETTING_ITEM_HEIGHT = 24;
-    private static final int WINDOW_WIDTH = 500;
-    private static final int WINDOW_HEIGHT = 320;
+
+    private int windowWidth;
+    private int windowHeight;
     private int windowX;
     private int windowY;
     private boolean dragging = false;
@@ -76,8 +76,8 @@ public class ModernClickGui extends GuiScreen {
         drawDefaultBackground();
 
         if (dragging) {
-            windowX = clamp(mouseX - dragOffX, 0, Math.max(0, width - WINDOW_WIDTH));
-            windowY = clamp(mouseY - dragOffY, 0, Math.max(0, height - WINDOW_HEIGHT));
+            windowX = clamp(mouseX - dragOffX, 0, Math.max(0, width - windowWidth));
+            windowY = clamp(mouseY - dragOffY, 0, Math.max(0, height - windowHeight));
         }
 
         if (draggingSlider != null) {
@@ -86,7 +86,7 @@ public class ModernClickGui extends GuiScreen {
 
         if (draggingModuleScrollbar) {
             int scrollbarY = windowY + HEADER_HEIGHT + 1 + 10;
-            int scrollbarH = WINDOW_HEIGHT - HEADER_HEIGHT - 1 - 20;
+            int scrollbarH = windowHeight - HEADER_HEIGHT - 1 - 20;
             List<BridgeModule> modules = getModulesForCategory(selectedCategory);
             int totalH = modules.size() * MODULE_ITEM_HEIGHT;
             float maxS = Math.max(0, totalH - scrollbarH);
@@ -97,7 +97,7 @@ public class ModernClickGui extends GuiScreen {
             if (maxS > 0 && scrollbarH > thumbH) moduleScrollTarget = newThumbPos / (scrollbarH - thumbH) * maxS;
         } else if (draggingSettingScrollbar) {
             int scrollbarY = windowY + HEADER_HEIGHT + 1 + 38;
-            int scrollbarH = WINDOW_HEIGHT - HEADER_HEIGHT - 1 - 38;
+            int scrollbarH = windowHeight - HEADER_HEIGHT - 1 - 38;
             int totalH = 0;
             if (selectedModule != null) {
                 for (Value v : selectedModule.getVisibleSettings()) {
@@ -133,27 +133,27 @@ public class ModernClickGui extends GuiScreen {
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        RoundedUtils.drawRoundedRect(windowX - 3, windowY - 3, WINDOW_WIDTH + 6, WINDOW_HEIGHT + 6, 0x50000000, 8);
-        RoundedUtils.drawRoundedRect(windowX, windowY, WINDOW_WIDTH, WINDOW_HEIGHT, COLOR_WINDOW_BG, 6);
-        RoundedUtils.drawRoundedRect(windowX, windowY, WINDOW_WIDTH, HEADER_HEIGHT, COLOR_HEADER_BG, 6);
-        RenderUtils.drawRect(windowX, windowY + HEADER_HEIGHT - 5, windowX + WINDOW_WIDTH, windowY + HEADER_HEIGHT, COLOR_HEADER_BG);
+        RoundedUtils.drawRoundedRect(windowX - 3, windowY - 3, windowWidth + 6, windowHeight + 6, 0x50000000, 8);
+        RoundedUtils.drawRoundedRect(windowX, windowY, windowWidth, windowHeight, COLOR_WINDOW_BG, 6);
+        RoundedUtils.drawRoundedRect(windowX, windowY, windowWidth, HEADER_HEIGHT, COLOR_HEADER_BG, 6);
+        RenderUtils.drawRect(windowX, windowY + HEADER_HEIGHT - 5, windowX + windowWidth, windowY + HEADER_HEIGHT, COLOR_HEADER_BG);
 
         Fonts.drawString("CrewX", windowX + 12, windowY + 10, COLOR_ACCENT, "");
 
-        RenderUtils.drawRect(windowX, windowY + HEADER_HEIGHT, windowX + WINDOW_WIDTH, windowY + HEADER_HEIGHT + 1, COLOR_SEPARATOR);
+        RenderUtils.drawRect(windowX, windowY + HEADER_HEIGHT, windowX + windowWidth, windowY + HEADER_HEIGHT + 1, COLOR_SEPARATOR);
 
         drawSidebar(mouseX, mouseY);
 
         int contentX = windowX + SIDEBAR_WIDTH;
         int contentY = windowY + HEADER_HEIGHT + 1;
-        RenderUtils.drawRect(contentX, contentY, contentX + 1, contentY + WINDOW_HEIGHT - HEADER_HEIGHT - 1, COLOR_SEPARATOR);
+        RenderUtils.drawRect(contentX, contentY, contentX + 1, contentY + windowHeight - HEADER_HEIGHT - 1, COLOR_SEPARATOR);
 
-        int moduleWidth = (int) (WINDOW_WIDTH * 0.33);
-        drawModuleList(contentX + 1, contentY, moduleWidth - 1, WINDOW_HEIGHT - HEADER_HEIGHT - 1, mouseX, mouseY);
+        int moduleWidth = (int) (windowWidth * 0.33);
+        drawModuleList(contentX + 1, contentY, moduleWidth - 1, windowHeight - HEADER_HEIGHT - 1, mouseX, mouseY);
 
         int settingsX = contentX + moduleWidth;
-        RenderUtils.drawRect(settingsX, contentY, settingsX + 1, contentY + WINDOW_HEIGHT - HEADER_HEIGHT - 1, COLOR_SEPARATOR);
-        drawSettings(settingsX + 1, contentY, WINDOW_WIDTH - SIDEBAR_WIDTH - moduleWidth - 1, WINDOW_HEIGHT - HEADER_HEIGHT - 1, mouseX, mouseY);
+        RenderUtils.drawRect(settingsX, contentY, settingsX + 1, contentY + windowHeight - HEADER_HEIGHT - 1, COLOR_SEPARATOR);
+        drawSettings(settingsX + 1, contentY, windowWidth - SIDEBAR_WIDTH - moduleWidth - 1, windowHeight - HEADER_HEIGHT - 1, mouseX, mouseY);
 
         GL11.glPopAttrib();
     }
@@ -161,7 +161,7 @@ public class ModernClickGui extends GuiScreen {
     private void drawSidebar(int mouseX, int mouseY) {
         int sx = windowX;
         int sy = windowY + HEADER_HEIGHT + 1;
-        int sh = WINDOW_HEIGHT - HEADER_HEIGHT - 1;
+        int sh = windowHeight - HEADER_HEIGHT - 1;
         RoundedUtils.drawRoundedRect(sx, sy, SIDEBAR_WIDTH, sh, COLOR_SIDEBAR_BG, 0);
 
         int cy = sy + 10;
@@ -283,15 +283,12 @@ public class ModernClickGui extends GuiScreen {
     private static final int PICKER_SB_HEIGHT = 54;
     private static final int PICKER_HUE_HEIGHT = 10;
     private static final int PICKER_HEIGHT = PICKER_SB_HEIGHT + PICKER_HUE_HEIGHT + 12;
-
-    /** Draws the saturation/brightness square and the hue strip for an expanded color setting. */
     private void drawColorPicker(ColorValue cv, int x, int y, int w) {
         SettingState ss = getState(cv);
         float[] hsb = ss.hsb(cv.getColor1());
 
         int sbY = y + 4;
         int pureHue = 0xFF000000 | Color.HSBtoRGB(hsb[0], 1f, 1f);
-        // white -> hue horizontally, then black overlay vertically
         RenderUtils.drawGradientRect(x, sbY, x + w, sbY + PICKER_SB_HEIGHT,
                 0xFFFFFFFF, pureHue, pureHue, 0xFFFFFFFF);
         RenderUtils.drawGradientRect(x, sbY, x + w, sbY + PICKER_SB_HEIGHT,
@@ -320,8 +317,6 @@ public class ModernClickGui extends GuiScreen {
         ss.componentW = w;
         ss.pickerY = sbY;
     }
-
-    /** Applies a click/drag inside an expanded color picker. */
     private void updateColorPicker(ColorValue cv, int mouseX, int mouseY) {
         SettingState ss = getState(cv);
         if (ss.componentW <= 0) return;
@@ -499,14 +494,14 @@ public class ModernClickGui extends GuiScreen {
 
         clearTransient();
 
-        int closeX = windowX + WINDOW_WIDTH - 24;
+        int closeX = windowX + windowWidth - 24;
         int closeY = windowY + 7;
         if (mouseX >= closeX && mouseX <= closeX + 18 && mouseY >= closeY && mouseY <= closeY + 18) {
             mc.displayGuiScreen(null);
             return;
         }
 
-        if (mouseX >= windowX && mouseX <= windowX + WINDOW_WIDTH && mouseY >= windowY && mouseY <= windowY + HEADER_HEIGHT) {
+        if (mouseX >= windowX && mouseX <= windowX + windowWidth && mouseY >= windowY && mouseY <= windowY + HEADER_HEIGHT) {
             dragging = true;
             dragOffX = mouseX - windowX;
             dragOffY = mouseY - windowY;
@@ -528,18 +523,18 @@ public class ModernClickGui extends GuiScreen {
             sy += 30;
         }
 
-        int modScrollX = windowX + SIDEBAR_WIDTH + (int)(WINDOW_WIDTH * 0.33) - 8;
+        int modScrollX = windowX + SIDEBAR_WIDTH + (int)(windowWidth * 0.33) - 8;
         int modScrollY = windowY + HEADER_HEIGHT + 1 + 10;
-        int modScrollH = WINDOW_HEIGHT - HEADER_HEIGHT - 1 - 20;
+        int modScrollH = windowHeight - HEADER_HEIGHT - 1 - 20;
 
         if (mouseX >= modScrollX - 2 && mouseX <= modScrollX + 6 && mouseY >= modScrollY && mouseY <= modScrollY + modScrollH) {
             draggingModuleScrollbar = true;
             return;
         }
 
-        int setScrollX = windowX + WINDOW_WIDTH - 8;
+        int setScrollX = windowX + windowWidth - 8;
         int setScrollY = windowY + HEADER_HEIGHT + 1 + 38;
-        int setScrollH = WINDOW_HEIGHT - HEADER_HEIGHT - 1 - 38;
+        int setScrollH = windowHeight - HEADER_HEIGHT - 1 - 38;
 
         if (mouseX >= setScrollX - 2 && mouseX <= setScrollX + 6 && mouseY >= setScrollY && mouseY <= setScrollY + setScrollH) {
             draggingSettingScrollbar = true;
@@ -548,7 +543,7 @@ public class ModernClickGui extends GuiScreen {
 
         int contentX = windowX + SIDEBAR_WIDTH + 1;
         int contentY = windowY + HEADER_HEIGHT + 1;
-        int moduleW = (int) (WINDOW_WIDTH * 0.33) - 1;
+        int moduleW = (int) (windowWidth * 0.33) - 1;
 
         if (!handleModuleClick(contentX, contentY, moduleW, mouseX, mouseY, mouseButton)) {
             if (mouseButton == 0 && mouseX >= contentX && mouseX <= contentX + moduleW) {
@@ -556,7 +551,7 @@ public class ModernClickGui extends GuiScreen {
                 dragScrollLastY = mouseY;
             }
         }
-        handleSettingClick(contentX + moduleW, contentY, WINDOW_WIDTH - SIDEBAR_WIDTH - moduleW, WINDOW_HEIGHT - HEADER_HEIGHT - 1, mouseX, mouseY);
+        handleSettingClick(contentX + moduleW, contentY, windowWidth - SIDEBAR_WIDTH - moduleW, windowHeight - HEADER_HEIGHT - 1, mouseX, mouseY);
     }
 
     private boolean handleModuleClick(int x, int y, int w, int mouseX, int mouseY, int btn) {
@@ -689,7 +684,7 @@ public class ModernClickGui extends GuiScreen {
             int scroll = wheel > 0 ? -20 : 20;
             int mx = Mouse.getEventX() * width / mc.displayWidth;
             int contentX = windowX + SIDEBAR_WIDTH + 1;
-            int moduleW = (int) (WINDOW_WIDTH * 0.33) - 1;
+            int moduleW = (int) (windowWidth * 0.33) - 1;
             if (mx >= contentX && mx <= contentX + moduleW) {
                 moduleScrollTarget += scroll;
             } else {
@@ -749,8 +744,10 @@ public class ModernClickGui extends GuiScreen {
 
     @Override
     public void initGui() {
-        windowX = (width - WINDOW_WIDTH) / 2;
-        windowY = (height - WINDOW_HEIGHT) / 2;
+        windowWidth = Math.min(500, width - 20);
+        windowHeight = Math.min(340, height - 20);
+        windowX = (width - windowWidth) / 2;
+        windowY = (height - windowHeight) / 2;
         loadPosition();
         if (selectedModule == null) {
             List<BridgeModule> mods = getModulesForCategory(selectedCategory);
@@ -771,8 +768,8 @@ public class ModernClickGui extends GuiScreen {
         try (BufferedReader r = new BufferedReader(new FileReader(POS_FILE))) {
             GuiPos p = GSON.fromJson(r, GuiPos.class);
             if (p != null) {
-                windowX = clamp(p.x, 0, Math.max(0, width - WINDOW_WIDTH));
-                windowY = clamp(p.y, 0, Math.max(0, height - WINDOW_HEIGHT));
+                windowX = clamp(p.x, 0, Math.max(0, width - windowWidth));
+                windowY = clamp(p.y, 0, Math.max(0, height - windowHeight));
             }
         } catch (Exception ignored) {}
     }
@@ -884,11 +881,6 @@ public class ModernClickGui extends GuiScreen {
         boolean pickerDragHue = false;
         private float[] hsbCache = null;
         private int hsbSource = -1;
-
-        /**
-         * HSB is cached so that dragging into a corner (where saturation or brightness hits
-         * zero and the rgb value stops carrying hue) does not reset the hue under the cursor.
-         */
         float[] hsb(int rgb) {
             if (hsbCache == null || hsbSource != rgb) {
                 hsbCache = Color.RGBtoHSB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, null);
@@ -909,7 +901,6 @@ public class ModernClickGui extends GuiScreen {
 
         void update(int mouseX) {
             if (value instanceof ColorValue) {
-                // vertical position matters for the picker, so read the live mouse Y
                 ScaledResolution sr = new ScaledResolution(mc);
                 int my = sr.getScaledHeight() - Mouse.getY() * sr.getScaledHeight() / mc.displayHeight - 1;
                 updateColorPicker((ColorValue) value, mouseX, my);

@@ -27,7 +27,7 @@ public class AutoHeadHitter extends Module {
     public final IntProperty     speed             = new IntProperty    ("speed",                100, 30, 100);
     public final IntProperty     rotTol            = new IntProperty    ("rot-tolerance",         30,  5, 180);
     public final BooleanProperty swing             = new BooleanProperty("swing",               true);
-    public final ModeProperty    moveFix           = new ModeProperty   ("move-fix",               1, new String[]{"NONE", "SILENT"});
+    public final ModeProperty    moveFix           = new ModeProperty   ("move-fix",               1, new String[]{"None", "Silent"});
     public final IntProperty     forwardDirection  = new IntProperty    ("forward-direction",      4,  1,  5);
     public final IntProperty     sidewaysDirection = new IntProperty    ("sideways-direction",     1,  1,  2);
     public final IntProperty     airTickThreshold  = new IntProperty    ("air-tick-threshold",     3,  0,  6);

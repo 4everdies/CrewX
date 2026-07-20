@@ -25,8 +25,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public class BedESP extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     public final CopyOnWriteArraySet<BlockPos> beds = new CopyOnWriteArraySet<>();
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"DEFAULT", "FULL"});
-    public final ModeProperty color = new ModeProperty("color", 0, new String[]{"CUSTOM", "HUD"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Default", "Full"});
+    public final ModeProperty color = new ModeProperty("color", 0, new String[]{"Custom", "HUD"});
     public final ColorProperty customColor;
     public final PercentProperty opacity;
     public final BooleanProperty outline;

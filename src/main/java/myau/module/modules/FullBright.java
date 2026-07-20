@@ -13,7 +13,7 @@ public class FullBright extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private float prevGamma = Float.NaN;
     private boolean appliedNightVision = false;
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"GAMMA", "EFFECT"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Gamma", "Effect"});
 
     public FullBright() {
         super("Fullbright", false, true);

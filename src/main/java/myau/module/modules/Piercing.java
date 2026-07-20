@@ -25,7 +25,7 @@ import net.minecraft.util.Vec3;
 public class Piercing extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
 
-    public final ModeProperty sortMode = new ModeProperty("sort-mode", 0, new String[]{"HURTTIME", "HEALTH"});
+    public final ModeProperty sortMode = new ModeProperty("sort-mode", 0, new String[]{"Hurt time", "Health"});
     public final BooleanProperty ignoreBlocks = new BooleanProperty("ignore-blocks", false);
     public final BooleanProperty ignoreTeammates = new BooleanProperty("ignore-teammates", true);
     public final BooleanProperty ignoreNonPlayers = new BooleanProperty("ignore-non-players", true);

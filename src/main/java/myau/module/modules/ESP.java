@@ -36,9 +36,9 @@ public class ESP extends Module {
     private boolean outline = true;
     private boolean glow = true;
 
-    public final ModeProperty mode = new ModeProperty("mode", 2, new String[]{"NONE", "2D", "3D", "OUTLINE", "FAKECORNER", "FAKE2D"});
-    public final ModeProperty color = new ModeProperty("color", 0, new String[]{"DEFAULT", "TEAMS", "HUD"});
-    public final ModeProperty healthBar = new ModeProperty("health-bar", 0, new String[]{"NONE", "2D", "RAVEN"});
+    public final ModeProperty mode = new ModeProperty("mode", 2, new String[]{"None", "2D", "3D", "Outline", "FakeCorner", "Fake2D"});
+    public final ModeProperty color = new ModeProperty("color", 0, new String[]{"Default", "Teams", "HUD"});
+    public final ModeProperty healthBar = new ModeProperty("health-bar", 0, new String[]{"None", "2D", "Raven"});
     public final BooleanProperty players = new BooleanProperty("players", true);
     public final BooleanProperty friends = new BooleanProperty("friends", true);
     public final BooleanProperty enemies = new BooleanProperty("enemies", true);

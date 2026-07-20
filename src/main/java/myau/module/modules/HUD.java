@@ -32,24 +32,17 @@ import java.util.stream.Collectors;
 
 public class HUD extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
-
-    /** Horizontal gap between the module name and each suffix. Used by both measuring and drawing. */
     private static final float SUFFIX_GAP = 3.0F;
-
     private List<Module> activeModules = new ArrayList<>();
     private final Map<Module, Anim> anims = new LinkedHashMap<>();
     private long lastFrameTime = System.currentTimeMillis();
-
-    /** Per-module animation state: fade/slide progress plus the smoothed vertical position. */
     private static final class Anim {
         float progress;
         float y;
         boolean placed;
     }
-
-    // ---------------------------------------------------------------- colour
     public final ModeProperty colorMode = new ModeProperty(
-            "color", 3, new String[]{"RAINBOW", "CHROMA", "ASTOLFO", "CUSTOM1", "CUSTOM2", "CUSTOM3"}
+            "color", 3, new String[]{"Rainbow", "Chroma", "Astolfo", "Custom1", "Custom2", "Custom3"}
     );
     public final FloatProperty colorSpeed = new FloatProperty("color-speed", 1.0F, 0.5F, 1.5F,
             () -> this.colorMode.getValue() != 3);
@@ -61,66 +54,48 @@ public class HUD extends Module {
             () -> this.colorMode.getValue() >= 4);
     public final ColorProperty custom3 = new ColorProperty("custom-color-3", Color.WHITE.getRGB(),
             () -> this.colorMode.getValue() == 5);
-    public final ModeProperty waveMode = new ModeProperty("wave-mode", 0, new String[]{"NONE", "VERTICAL", "HORIZONTAL"});
+    public final ModeProperty waveMode = new ModeProperty("wave-mode", 0, new String[]{"None", "Vertical", "Horizontal"});
     public final PercentProperty waveSpread = new PercentProperty("wave-spread", 100, 5, 300,
             () -> this.waveMode.getValue() != 0);
-
-    // ---------------------------------------------------------------- layout
-    public final ModeProperty posX = new ModeProperty("position-x", 0, new String[]{"LEFT", "RIGHT"});
-    public final ModeProperty posY = new ModeProperty("position-y", 0, new String[]{"TOP", "BOTTOM"});
+    public final ModeProperty posX = new ModeProperty("position-x", 0, new String[]{"Left", "Right"});
+    public final ModeProperty posY = new ModeProperty("position-y", 0, new String[]{"Top", "Bottom"});
     public final IntProperty offsetX = new IntProperty("offset-x", 2, 0, 255);
     public final IntProperty offsetY = new IntProperty("offset-y", 2, 0, 255);
     public final FloatProperty scale = new FloatProperty("scale", 1.0F, 0.5F, 1.5F);
-    public final ModeProperty sortMode = new ModeProperty("sort", 0, new String[]{"WIDTH", "ALPHABETICAL", "TOGGLE_ORDER"});
+    public final ModeProperty sortMode = new ModeProperty("sort", 0, new String[]{"Width", "Alphabetical", "Toggle Order"});
     public final IntProperty lineSpacing = new IntProperty("line-spacing", 0, 0, 10);
-
-    // ------------------------------------------------------------ background
-    public final ModeProperty backgroundMode = new ModeProperty("background", 1, new String[]{"NONE", "SOLID", "GRADIENT"});
+    public final ModeProperty backgroundMode = new ModeProperty("background", 1, new String[]{"None", "Solid", "Gradient"});
     public final PercentProperty backgroundAlpha = new PercentProperty("background-alpha", 25,
             () -> this.backgroundMode.getValue() != 0);
     public final ModeProperty backgroundColorMode = new ModeProperty("background-color", 0,
-            new String[]{"BLACK", "THEME", "CUSTOM"}, () -> this.backgroundMode.getValue() != 0);
+            new String[]{"Black", "Theme", "Custom"}, () -> this.backgroundMode.getValue() != 0);
     public final ColorProperty customBackgroundColor = new ColorProperty("custom-background-color", Color.BLACK.getRGB(),
             () -> this.backgroundMode.getValue() != 0 && this.backgroundColorMode.getValue() == 2);
     public final IntProperty backgroundThickness = new IntProperty("background-thickness", 2, 1, 15);
     public final IntProperty backgroundCurve = new IntProperty("background-curve", 3, 0, 10);
     public final BooleanProperty joinBands = new BooleanProperty("join-bands", true,
             () -> this.backgroundMode.getValue() != 0);
-
-    // --------------------------------------------------------------- outline
     public final PercentProperty outlineThickness = new PercentProperty("outline-thickness", 0, 0, 5, null);
-    public final ModeProperty outlineColorMode = new ModeProperty("outline-color", 0, new String[]{"THEME", "CUSTOM"},
+    public final ModeProperty outlineColorMode = new ModeProperty("outline-color", 0, new String[]{"Theme", "Custom"},
             () -> this.outlineThickness.getValue() > 0);
     public final ColorProperty customOutlineColor = new ColorProperty("custom-outline-color", Color.WHITE.getRGB(),
             () -> this.outlineThickness.getValue() > 0 && this.outlineColorMode.getValue() == 1);
-
-    // ------------------------------------------------------------- accent bar
     public final BooleanProperty showBar = new BooleanProperty("bar", true);
     public final IntProperty barWidth = new IntProperty("bar-width", 2, 1, 5, () -> this.showBar.getValue());
-
-    // ------------------------------------------------------------------ glow
     public final BooleanProperty glowEnabled = new BooleanProperty("glow", false);
     public final FloatProperty glowSize = new FloatProperty("glow-size", 2.0F, 0.5F, 10.0F,
             () -> this.glowEnabled.getValue());
-
-    // ------------------------------------------------------------- animation
     public final BooleanProperty animations = new BooleanProperty("animations", true);
     public final FloatProperty animationSpeed = new FloatProperty("animation-speed", 1.0F, 0.2F, 3.0F,
             () -> this.animations.getValue());
-
-    // ------------------------------------------------------------------ text
     public final BooleanProperty shadow = new BooleanProperty("shadow", true);
     public final BooleanProperty suffixes = new BooleanProperty("suffixes", true);
     public final BooleanProperty lowerCase = new BooleanProperty("lower-case", false);
-
-    // ------------------------------------------------------------- watermark
     public final BooleanProperty watermark = new BooleanProperty("watermark", false);
     public final TextProperty watermarkText = new TextProperty("watermark-text", "CrewX",
             () -> this.watermark.getValue());
     public final BooleanProperty watermarkFps = new BooleanProperty("watermark-fps", true,
             () -> this.watermark.getValue());
-
-    // ------------------------------------------------------------------ misc
     public final BooleanProperty chatOutline = new BooleanProperty("chat-outline", true);
     public final BooleanProperty blinkTimer = new BooleanProperty("blink-timer", true);
     public final BooleanProperty toggleSound = new BooleanProperty("toggle-sounds", true);
@@ -129,8 +104,6 @@ public class HUD extends Module {
     public HUD() {
         super("HUD", false, true);
     }
-
-    // ================================================================ helpers
 
     private String getModuleName(Module module) {
         String moduleName = module.getName();
@@ -143,7 +116,6 @@ public class HUD extends Module {
     private String[] getModuleSuffix(Module module) {
         String[] source = module.getSuffix();
         if (source == null) return new String[0];
-        // copy before touching it - getSuffix() may hand back an array the module reuses
         String[] result = new String[source.length];
         for (int i = 0; i < source.length; i++) {
             String value = source[i] == null ? "" : source[i];
@@ -223,8 +195,6 @@ public class HUD extends Module {
                 hsb[2] * (this.colorBrightness.getValue().floatValue() / 100.0F)
         );
     }
-
-    /** Colour for module {@code index}, honouring VERTICAL wave (per-line offset). */
     private Color getLineColor(long time, int index) {
         if (this.waveMode.getValue() == 1) {
             return this.getColor(time, index * (this.waveSpread.getValue() / 100.0D));
@@ -260,8 +230,6 @@ public class HUD extends Module {
         return (a << 24) | (rgb & 0xFFFFFF);
     }
 
-    // ================================================================== ticks
-
     @EventTarget
     public void onTick(TickEvent event) {
         if (this.isEnabled() && event.getType() == EventType.POST) {
@@ -286,8 +254,6 @@ public class HUD extends Module {
     public void onDisabled() {
         this.anims.clear();
     }
-
-    // ================================================================= render
 
     @EventTarget
     public void onRender2D(Render2DEvent event) {
@@ -325,44 +291,32 @@ public class HUD extends Module {
         float curve = this.backgroundCurve.getValue();
         float bgAlpha = this.backgroundAlpha.getValue().floatValue() / 100.0F;
         if (this.backgroundMode.getValue() == 0) bgAlpha = 0.0F;
-
         boolean rightAlign = this.posX.getValue() == 1;
         boolean bottomAlign = this.posY.getValue() == 1;
         float baseX = this.offsetX.getValue();
         float baseY = this.offsetY.getValue();
-
         GlStateManager.pushMatrix();
         GlStateManager.scale(scaleValue, scaleValue, 1.0F);
         GlStateManager.disableDepth();
-
-        // ---- watermark sits above the list and pushes it down
         float listTopPad = 0.0F;
         if (this.watermark.getValue()) {
             listTopPad = this.drawWatermark(now, screenW, screenH, baseX, baseY, rightAlign, bottomAlign, curve, bgAlpha);
         }
-
-        // ---- advance animation state
         this.updateAnimations(delta);
-
         int count = this.activeModules.size();
         List<Module> renderOrder = new ArrayList<>(this.activeModules);
         for (Module m : this.anims.keySet()) {
             if (!this.activeModules.contains(m)) renderOrder.add(m);
         }
-
         float maxWidth = this.getMaxModuleWidth();
-
         for (Module module : renderOrder) {
             Anim anim = this.anims.get(module);
             if (anim == null || anim.progress <= 0.005F) continue;
-
             int index = this.activeModules.indexOf(module);
             String moduleName = this.getModuleName(module);
             String[] moduleSuffix = this.getModuleSuffix(module);
             float textW = mc.fontRendererObj.getStringWidth(moduleName);
             float totalWidth = this.calculateStringWidth(moduleName, moduleSuffix);
-
-            // target vertical slot; fading-out entries keep whatever y they had
             if (index >= 0) {
                 float targetY = bottomAlign
                         ? screenH - baseY - listTopPad - (count - index) * lineH
@@ -374,41 +328,30 @@ public class HUD extends Module {
                     anim.y = this.approach(anim.y, targetY, delta);
                 }
             }
-
             float ease = this.ease(anim.progress);
             float slide = (1.0F - ease) * (totalWidth + pad * 2.0F + 6.0F);
-
             float modX = rightAlign
                     ? screenW - baseX - totalWidth + slide
                     : baseX - slide;
             float modY = anim.y;
-
             Color themeColor = this.getLineColor(now, Math.max(index, 0));
             int lineColor = withAlpha(themeColor.getRGB(), ease);
-
             float boxX1 = modX - pad;
             float boxX2 = modX + totalWidth + pad;
             float boxY1 = modY - 1.0F;
             float boxY2 = modY + fontH - 1.0F;
-
             RenderUtil.enableRenderState();
-
-            // glow
             if (this.glowEnabled.getValue() && bgAlpha > 0.0F) {
                 float g = this.glowSize.getValue();
                 int glowColor = withAlpha(themeColor.getRGB(), bgAlpha * 0.4F * ease);
                 drawRoundedRect(boxX1 - g, boxY1 - g, boxX2 + g, boxY2 + g, curve + g, glowColor);
             }
-
-            // connective band so stacked rows read as one panel
             if (this.joinBands.getValue() && bgAlpha > 0.0F && index > 0) {
                 int bandColor = withAlpha(this.getBackgroundBaseColor(themeColor), bgAlpha * ease);
                 float bandX1 = rightAlign ? boxX2 : boxX1;
                 float bandX2 = rightAlign ? screenW - baseX + pad : baseX + maxWidth + pad;
                 RenderUtil.drawRect(bandX1, modY - 1.0F, bandX2, modY + lineH - 1.0F, bandColor);
             }
-
-            // background
             if (bgAlpha > 0.0F) {
                 int base = this.getBackgroundBaseColor(themeColor);
                 if (this.backgroundMode.getValue() == 2) {
@@ -423,8 +366,6 @@ public class HUD extends Module {
                     drawRoundedRect(boxX1, boxY1, boxX2, boxY2, curve, withAlpha(base, bgAlpha * ease));
                 }
             }
-
-            // outline
             if (this.outlineThickness.getValue() > 0 && bgAlpha > 0.0F) {
                 Color outlineCol = this.getOutlineColor(themeColor);
                 RenderUtil.setColor(withAlpha(outlineCol.getRGB(), ease));
@@ -435,18 +376,13 @@ public class HUD extends Module {
                 GL11.glDisable(GL11.GL_LINE_SMOOTH);
                 GlStateManager.resetColor();
             }
-
-            // accent bar - now follows the alignment instead of always sitting on the left
             if (this.showBar.getValue()) {
                 float bw = this.barWidth.getValue();
                 float barX1 = rightAlign ? boxX2 : boxX1 - bw;
                 float barX2 = rightAlign ? boxX2 + bw : boxX1;
                 RenderUtil.drawRect(barX1, boxY1, barX2, boxY2, lineColor);
             }
-
             RenderUtil.disableRenderState();
-
-            // text
             float textX = modX;
             if (this.waveMode.getValue() == 2) {
                 this.drawWaveText(moduleName, textX, modY, now, Math.max(index, 0), ease);
@@ -455,7 +391,6 @@ public class HUD extends Module {
             } else {
                 mc.fontRendererObj.drawString(moduleName, textX, modY, lineColor, false);
             }
-
             if (this.suffixes.getValue() && moduleSuffix.length > 0) {
                 float suffixX = textX + textW + SUFFIX_GAP;
                 int suffixColor = withAlpha(ChatColors.GRAY.toAwtColor(), ease);
@@ -469,8 +404,6 @@ public class HUD extends Module {
                 }
             }
         }
-
-        // ---- blink packet counter
         if (this.blinkTimer.getValue()) {
             BlinkModules blinkingModule = Myau.blinkManager.getBlinkingModule();
             if (blinkingModule != BlinkModules.NONE && blinkingModule != BlinkModules.AUTO_BLOCK) {
@@ -494,8 +427,6 @@ public class HUD extends Module {
         GlStateManager.enableDepth();
         GlStateManager.popMatrix();
     }
-
-    /** Draws the watermark pill and returns how much vertical room the module list must skip. */
     private float drawWatermark(long now, float screenW, float screenH, float baseX, float baseY,
                                 boolean rightAlign, boolean bottomAlign, float curve, float bgAlpha) {
         String label = this.watermarkText.getValue();
@@ -535,8 +466,6 @@ public class HUD extends Module {
         }
         return fontH + 4.0F;
     }
-
-    /** HORIZONTAL wave: each glyph gets its own point on the colour cycle. */
     private void drawWaveText(String text, float x, float y, long now, int index, float alpha) {
         float spread = this.waveSpread.getValue() / 100.0F;
         float cursor = x;
@@ -552,8 +481,6 @@ public class HUD extends Module {
             cursor += mc.fontRendererObj.getStringWidth(ch);
         }
     }
-
-    // ============================================================= animation
 
     private void updateAnimations(float delta) {
         for (Module module : this.activeModules) {
@@ -575,7 +502,6 @@ public class HUD extends Module {
         }
     }
 
-    /** Frame-rate independent exponential approach. */
     private float approach(float current, float target, float delta) {
         if (!this.animations.getValue()) return target;
         float factor = 1.0F - (float) Math.exp(-delta * 12.0F * this.animationSpeed.getValue());
@@ -596,8 +522,6 @@ public class HUD extends Module {
         }
         return max;
     }
-
-    // ================================================================ shapes
 
     private static void drawHorizontalGradient(float x1, float y1, float x2, float y2, int left, int right) {
         GlStateManager.enableBlend();

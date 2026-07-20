@@ -43,7 +43,7 @@ public class HitBox extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private MovingObjectPosition targetEntity = null;
     public final FloatProperty multiplier = new FloatProperty("multiplier", 1.2F, 1.0F, 5.0F);
-    public final ModeProperty showHitbox = new ModeProperty("show-hitbox", 0, new String[]{"NONE", "PLAYERS", "MOBS", "ANIMALS", "ALL"});
+    public final ModeProperty showHitbox = new ModeProperty("show-hitbox", 0, new String[]{"None", "Players", "Mobs", "Animals", "All"});
     public final ColorProperty color = new ColorProperty("color", new Color(255, 255, 255).getRGB(), () -> this.showHitbox.getValue() != 0);
     public final BooleanProperty teams = new BooleanProperty("teams", true, () -> this.showHitbox.getValue() == 1 || this.showHitbox.getValue() == 4);
 

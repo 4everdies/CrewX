@@ -29,7 +29,7 @@ public class TargetStrafe extends Module {
     public final IntProperty points = new IntProperty("points", 6, 3, 24);
     public final BooleanProperty requirePress = new BooleanProperty("require-press", true);
     public final BooleanProperty speedOnly = new BooleanProperty("speed-only", true);
-    public final ModeProperty showTarget = new ModeProperty("show-target", 1, new String[]{"NONE", "DEFAULT", "HUD"});
+    public final ModeProperty showTarget = new ModeProperty("show-target", 1, new String[]{"None", "Default", "HUD"});
 
     private boolean canStrafe() {
         if (this.speedOnly.getValue()) {

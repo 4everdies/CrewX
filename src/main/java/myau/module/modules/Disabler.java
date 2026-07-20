@@ -14,7 +14,7 @@ import net.minecraft.network.play.client.C16PacketClientStatus;
 public class Disabler extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
 
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"HYPIXEL_PORTAL", "WATCHDOG", "NCP", "VERUS", "VULCAN"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Hypixel Portal", "Watchdog", "NCP", "Verus", "Vulcan"});
     public final BooleanProperty cancelGroundSpoof = new BooleanProperty("ground-spoof", false);
 
     public Disabler() {

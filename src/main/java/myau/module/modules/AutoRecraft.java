@@ -31,7 +31,7 @@ public class AutoRecraft extends Module {
     public final IntProperty startMaxDelay = new IntProperty("start-max-delay", 42, 1, 400);
     public final IntProperty recraftMinDelay = new IntProperty("recraft-min-delay", 30, 1, 400);
     public final IntProperty recraftMaxDelay = new IntProperty("recraft-max-delay", 42, 1, 400);
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"AUTOMATIC", "MANUAL", "BOTH"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Automatic", "Manual", "Both"});
     public final IntProperty manualBind = new IntProperty("manual-bind", 0, 0, 255,
             () -> this.mode.getValue() != 0);
     public final IntProperty startWith = new IntProperty("start-with", 3, 0, 41);

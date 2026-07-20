@@ -15,7 +15,7 @@ import net.minecraft.util.MovingObjectPosition;
 
 public class MoreKB extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"legit", "legit fast", "less packet", "packet", "double packet"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Legit", "Legit Fast", "Less Packet", "Packet", "Double Packet"});
     public final BooleanProperty intelligent = new BooleanProperty("intelligent", false);
     public final BooleanProperty onlyGround = new BooleanProperty("only-ground", true);
     private boolean shouldSprintReset;

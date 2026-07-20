@@ -346,10 +346,10 @@ public class KillAura extends Module {
     public KillAura() {
         super("KillAura", false);
         this.lastTickProcessed = 0;
-        this.mode = new ModeProperty("mode", 0, new String[]{"SINGLE", "SWITCH"});
-        this.sort = new ModeProperty("sort", 0, new String[]{"DISTANCE", "HEALTH", "HURT_TIME", "FOV"});
+        this.mode = new ModeProperty("mode", 0, new String[]{"Single", "Switch"});
+        this.sort = new ModeProperty("sort", 0, new String[]{"Distance", "Health", "HurtTime", "Fov"});
         this.autoBlock = new ModeProperty(
-                "auto-block", 2, new String[]{"NONE", "VANILLA", "SPOOF", "HYPIXEL", "BLINK", "INTERACT", "SWAP", "LEGIT", "FAKE"}
+                "auto-block", 2, new String[]{"None", "Vanilla", "Spoof", "Hypixel", "Blink", "Interact", "Swap", "Legit", "Fake"}
         );
         this.autoBlockRequirePress = new BooleanProperty("auto-block-require-press", false);
         this.autoBlockMinCPS = new FloatProperty("auto-block-min-aps", 8.0F, 1.0F, 20.0F);
@@ -361,8 +361,8 @@ public class KillAura extends Module {
         this.minCPS = new IntProperty("min-aps", 14, 1, 20);
         this.maxCPS = new IntProperty("max-aps", 14, 1, 20);
         this.switchDelay = new IntProperty("switch-delay", 150, 0, 1000);
-        this.rotations = new ModeProperty("rotations", 2, new String[]{"NONE", "LEGIT", "SILENT", "LOCK_VIEW"});
-        this.moveFix = new ModeProperty("move-fix", 1, new String[]{"NONE", "SILENT", "STRICT"});
+        this.rotations = new ModeProperty("rotations", 2, new String[]{"None", "Legit", "Silent", "Lock View"});
+        this.moveFix = new ModeProperty("move-fix", 1, new String[]{"None", "Silent", "Strict"});
         this.smoothing = new PercentProperty("smoothing", 0);
         this.angleStep = new IntProperty("angle-step", 90, 30, 180);
         this.throughWalls = new BooleanProperty("through-walls", true);
@@ -381,8 +381,8 @@ public class KillAura extends Module {
         this.msCheck = new BooleanProperty("ms-check", false);
         this.maxPing = new IntProperty("max-ping", 300, 50, 1000, () -> this.msCheck.getValue());
         this.armorCheck = new BooleanProperty("armor-check", false);
-        this.showTarget = new ModeProperty("show-target", 0, new String[]{"NONE", "DEFAULT", "HUD"});
-        this.debugLog = new ModeProperty("debug-log", 0, new String[]{"NONE", "HEALTH"});
+        this.showTarget = new ModeProperty("show-target", 0, new String[]{"None", "Default", "HUD"});
+        this.debugLog = new ModeProperty("debug-log", 0, new String[]{"None", "Health"});
     }
 
     public EntityLivingBase getTarget() {

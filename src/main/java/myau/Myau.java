@@ -207,9 +207,11 @@ public class Myau {
         AccountManager.init();
     }
 
-    private void initClickGui() {
+    public static void initClickGui() {
         BridgeClient client = BridgeClient.getInstance();
-        client.init();
+        if (client.getThemeManager() == null) {
+            client.init();
+        }
 
         ArrayList<BridgeModule> bridgeModules = new ArrayList<>();
 
@@ -229,7 +231,7 @@ public class Myau {
         client.setModules(bridgeModules);
     }
 
-    private int getCategoryForModule(Module module) {
+    public static int getCategoryForModule(Module module) {
         if (module instanceof myau.module.modules.AimAssist ||
             module instanceof myau.module.modules.Backtrack ||
             module instanceof myau.module.modules.Fakelag ||

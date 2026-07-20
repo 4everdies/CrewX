@@ -14,7 +14,7 @@ import net.minecraft.network.play.client.C0BPacketEntityAction;
 
 public class SprintReset extends Module {
 
-    public final ModeProperty mode = new ModeProperty("mode", 2, new String[]{"PACKET", "LEGIT", "SILENT"});
+    public final ModeProperty mode = new ModeProperty("mode", 2, new String[]{"Packet", "Legit", "Silent"});
     public final BooleanProperty onlyWhileSprinting = new BooleanProperty("only-while-sprinting", true);
     public final BooleanProperty onlyWhileMoving = new BooleanProperty("only-while-moving", true);
     public final BooleanProperty resetOnCrit = new BooleanProperty("reset-on-crit", true);

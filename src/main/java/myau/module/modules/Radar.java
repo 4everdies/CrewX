@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 
 public class Radar extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
-    public final ModeProperty colorMode = new ModeProperty("color", 0, new String[]{"DEFAULT", "TEAMS", "HUD"});
+    public final ModeProperty colorMode = new ModeProperty("color", 0, new String[]{"Default", "Teams", "Hud"});
     public final IntProperty position = new IntProperty("position", 0, 0, 4);
     public final IntProperty offsetX = new IntProperty("offset-x", 60, 0, 1000, () -> position.getValue() != 4);
     public final IntProperty offsetY = new IntProperty("offset-y", 60, 0, 1000, () -> position.getValue() != 4);

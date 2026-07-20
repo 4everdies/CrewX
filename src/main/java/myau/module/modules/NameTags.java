@@ -49,8 +49,8 @@ public class NameTags extends Module {
     public final PercentProperty backgroundOpacity = new PercentProperty("background", 25);
     public final FloatProperty borderWidth = new FloatProperty("border-width", 0.0F, 0.0F, 8.0F);
     public final BooleanProperty shadow = new BooleanProperty("shadow", true);
-    public final ModeProperty distanceMode = new ModeProperty("distance", 0, new String[]{"NONE", "DEFAULT", "VAPE"});
-    public final ModeProperty healthMode = new ModeProperty("health", 2, new String[]{"NONE", "HP", "HEARTS", "TAB"});
+    public final ModeProperty distanceMode = new ModeProperty("distance", 0, new String[]{"None", "Default", "Vape"});
+    public final ModeProperty healthMode = new ModeProperty("health", 2, new String[]{"None", "HP", "Hearts", "Tab"});
     public final BooleanProperty armor = new BooleanProperty("armor", true);
     public final BooleanProperty effects = new BooleanProperty("effects", true);
     public final BooleanProperty players = new BooleanProperty("players", true);

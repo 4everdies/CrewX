@@ -25,7 +25,7 @@ public class Config {
         if (name.equals("!") || name.equals("default")) {
             this.name = "default";
         }
-        this.file = new File("./config/Myau/", String.format("%s.json", this.name));
+        this.file = new File("./config/CrewX/", String.format("%s.json", this.name));
         try {
             file.getParentFile().mkdirs();
             if (newConfig) {
@@ -101,6 +101,7 @@ public class Config {
                 }
             }
             ChatUtil.sendFormatted(String.format("%sConfig has been loaded (&a&o%s&r)&r", Myau.clientName, file.getName()));
+            Myau.initClickGui();
         } catch (FileNotFoundException e) {
             ChatUtil.sendFormatted(String.format("%sConfig file not found (&c&o%s&r)&r", Myau.clientName, file.getName()));
         } catch (JsonSyntaxException e) {

@@ -24,9 +24,6 @@ public class BridgeModule {
         List<Property<?>> props = MyauBridge.getProperties(module);
         if (props == null) return;
         for (Property<?> prop : props) {
-            // NOTE: visibility is deliberately NOT filtered here any more. It is a live
-            // condition (e.g. "only show custom-color-2 while color mode is CUSTOM2"), so
-            // filtering once at startup permanently hid conditional settings.
             if (prop instanceof BooleanProperty) {
                 settings.add(new BoundValues.BoolValue(this, (BooleanProperty) prop));
             } else if (prop instanceof FloatProperty) {
@@ -63,13 +60,9 @@ public class BridgeModule {
             return null;
         }
     }
-
-    /** All settings, including ones currently hidden by their visibility condition. */
     public List<Value> getSettings() {
         return settings;
     }
-
-    /** Settings the gui should actually draw right now, re-evaluated every frame. */
     public List<Value> getVisibleSettings() {
         List<Value> visible = new ArrayList<>(settings.size());
         for (Value v : settings) {

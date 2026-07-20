@@ -7,6 +7,6 @@ import java.io.File;
 
 public class TargetManager extends PlayerFileManager {
     public TargetManager() {
-        super(new File("./config/Myau/", "enemies.txt"), new Color(ChatColors.DARK_RED.toAwtColor()));
+        super(new File("./config/CrewX/", "enemies.txt"), new Color(ChatColors.DARK_RED.toAwtColor()));
     }
 }

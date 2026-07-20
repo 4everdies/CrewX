@@ -29,7 +29,7 @@ public class LongJump extends Module {
     private boolean readyToUseFireball = false;
     private boolean fireballLaunched = false;
     private int savedHotbarSlot = -1;
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"FIREBALL", "FIREBALL_MANUAL", "FIREBALL_HIGH", "FIREBALL_FLAT"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Fireball", "Fireball Manual", "Fireball High", "Fireball Flat"});
     public final FloatProperty motion = new FloatProperty("motion", 1.0F, 1.0F, 20.0F);
     public final FloatProperty speedMotion = new FloatProperty("speed-motion", 1.0F, 1.0F, 20.0F);
     public final PercentProperty strafe = new PercentProperty("strafe", 0);

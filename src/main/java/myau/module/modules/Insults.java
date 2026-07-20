@@ -16,7 +16,7 @@ import java.util.Random;
 
 public class Insults extends Module {
 
-    public final ModeProperty chatMode = new ModeProperty("chat-mode", 0, new String[]{"NORMAL", "/G", "/TELL"});
+    public final ModeProperty chatMode = new ModeProperty("chat-mode", 0, new String[]{"Normal", "/G", "/TELL"});
 
     private final Map<EntityLivingBase, Long> attackedEntities = new HashMap<>();
     private final Random random = new Random();

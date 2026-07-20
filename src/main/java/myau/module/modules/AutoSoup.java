@@ -22,7 +22,7 @@ import org.lwjgl.input.Keyboard;
 public class AutoSoup extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
 
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"AUTOMATIC", "MANUAL"});
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Automatic", "Manual"});
     public final IntProperty manualBind = new IntProperty("manual-bind", 0, 0, 255, () -> this.mode.getValue() != 0);
     public final IntProperty health = new IntProperty("health", 10, 1, 20);
     public final BooleanProperty dropSoup = new BooleanProperty("drop-soup", true);
