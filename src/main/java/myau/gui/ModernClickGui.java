@@ -2,19 +2,18 @@ package myau.gui;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.awt.Color;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import myau.clickgui.bridge.BridgeClient;
 import myau.clickgui.bridge.BridgeModule;
 import myau.clickgui.font.Fonts;
@@ -26,7 +25,7 @@ import myau.clickgui.value.settings.ColorValue;
 import myau.clickgui.value.settings.ModeValue;
 import myau.clickgui.value.settings.NumberValue;
 import myau.clickgui.value.settings.RangeValue;
-
+import myau.clickgui.value.settings.StringValue;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
@@ -101,8 +100,7 @@ public class ModernClickGui extends GuiScreen {
             int scrollbarH = WINDOW_HEIGHT - HEADER_HEIGHT - 1 - 38;
             int totalH = 0;
             if (selectedModule != null) {
-                for (Value v : selectedModule.getSettings()) {
-                    if (v instanceof ColorValue) continue;
+                for (Value v : selectedModule.getVisibleSettings()) {
                     totalH += getSettingHeight(v) + 6;
                 }
             }
@@ -210,7 +208,7 @@ public class ModernClickGui extends GuiScreen {
             Fonts.drawString(label, x + 24, my + 8, tc, "");
 
             if (mod.getKey() != 0 && mod != listeningModule) {
-                String keyName = Keyboard.getKeyName(mod.getKey());
+                String keyName = getKeyName(mod.getKey());
                 int kw = (int) Fonts.getWidth(keyName, "");
                 int bgW = kw + 10;
                 int bgH = 18;
@@ -242,10 +240,9 @@ public class ModernClickGui extends GuiScreen {
         int settingsY = y + 38;
         int availH = h - (settingsY - y);
 
-        List<Value> settings = selectedModule.getSettings();
+        List<Value> settings = selectedModule.getVisibleSettings();
         int totalH = 0;
         for (Value v : settings) {
-            if (v instanceof ColorValue) continue;
             totalH += getSettingHeight(v) + 6;
         }
 
@@ -258,7 +255,6 @@ public class ModernClickGui extends GuiScreen {
 
         int currentY = settingsY - (int) settingScroll;
         for (Value v : settings) {
-            if (v instanceof ColorValue) continue;
             drawSetting(v, x + 12, currentY, w - 24, mouseX, mouseY);
             currentY += getSettingHeight(v) + 6;
         }
@@ -275,9 +271,73 @@ public class ModernClickGui extends GuiScreen {
             }
             return 30;
         }
+        if (v instanceof ColorValue) {
+            SettingState ss = getState(v);
+            return ss.dropdownOpen ? 22 + PICKER_HEIGHT : 22;
+        }
+        if (v instanceof StringValue) return 40;
         if (v instanceof NumberValue || v instanceof RangeValue) return 34;
         return 22;
     }
+
+    private static final int PICKER_SB_HEIGHT = 54;
+    private static final int PICKER_HUE_HEIGHT = 10;
+    private static final int PICKER_HEIGHT = PICKER_SB_HEIGHT + PICKER_HUE_HEIGHT + 12;
+
+    /** Draws the saturation/brightness square and the hue strip for an expanded color setting. */
+    private void drawColorPicker(ColorValue cv, int x, int y, int w) {
+        SettingState ss = getState(cv);
+        float[] hsb = ss.hsb(cv.getColor1());
+
+        int sbY = y + 4;
+        int pureHue = 0xFF000000 | Color.HSBtoRGB(hsb[0], 1f, 1f);
+        // white -> hue horizontally, then black overlay vertically
+        RenderUtils.drawGradientRect(x, sbY, x + w, sbY + PICKER_SB_HEIGHT,
+                0xFFFFFFFF, pureHue, pureHue, 0xFFFFFFFF);
+        RenderUtils.drawGradientRect(x, sbY, x + w, sbY + PICKER_SB_HEIGHT,
+                0x00000000, 0x00000000, 0xFF000000, 0xFF000000);
+
+        int cursorX = (int) (x + hsb[1] * w);
+        int cursorY = (int) (sbY + (1f - hsb[2]) * PICKER_SB_HEIGHT);
+        RenderUtils.drawCircle(cursorX, cursorY, 4f, 0xFF000000);
+        RenderUtils.drawCircle(cursorX, cursorY, 3f, 0xFFFFFFFF);
+
+        int hueY = sbY + PICKER_SB_HEIGHT + 6;
+        int steps = 12;
+        for (int i = 0; i < steps; i++) {
+            float h1 = (float) i / steps;
+            float h2 = (float) (i + 1) / steps;
+            int c1 = 0xFF000000 | Color.HSBtoRGB(h1, 1f, 1f);
+            int c2 = 0xFF000000 | Color.HSBtoRGB(h2, 1f, 1f);
+            double sx = x + (double) w * i / steps;
+            double ex = x + (double) w * (i + 1) / steps;
+            RenderUtils.drawGradientRect(sx, hueY, ex, hueY + PICKER_HUE_HEIGHT, c1, c2, c2, c1);
+        }
+        int hueX = (int) (x + hsb[0] * w);
+        RoundedUtils.drawRoundedRect(hueX - 2, hueY - 2, 4, PICKER_HUE_HEIGHT + 4, 0xFFFFFFFF, 2);
+
+        ss.componentX = x;
+        ss.componentW = w;
+        ss.pickerY = sbY;
+    }
+
+    /** Applies a click/drag inside an expanded color picker. */
+    private void updateColorPicker(ColorValue cv, int mouseX, int mouseY) {
+        SettingState ss = getState(cv);
+        if (ss.componentW <= 0) return;
+        float[] hsb = ss.hsb(cv.getColor1());
+        float pct = clamp((float) (mouseX - ss.componentX) / ss.componentW, 0f, 1f);
+
+        if (ss.pickerDragHue) {
+            hsb[0] = pct;
+        } else {
+            hsb[1] = pct;
+            hsb[2] = 1f - clamp((float) (mouseY - ss.pickerY) / PICKER_SB_HEIGHT, 0f, 1f);
+        }
+        ss.storeHsb(hsb);
+        cv.setColor1(Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]) & 0xFFFFFF);
+    }
+
 
     private void drawSetting(Value v, int x, int y, int w, int mouseX, int mouseY) {
         Fonts.drawString(v.getName(), x, y + 3, COLOR_TEXT, "");
@@ -349,6 +409,55 @@ public class ModernClickGui extends GuiScreen {
             return;
         }
 
+        if (v instanceof ColorValue) {
+            ColorValue cv = (ColorValue) v;
+            SettingState cs = getState(v);
+            int rgb = cv.getColor1();
+            String hex = String.format("#%06X", rgb);
+
+            int swW = 22, swH = 14;
+            int swX = x + w - swW;
+            int swY = y + 2;
+            RoundedUtils.drawRoundedRect(swX - 1, swY - 1, swW + 2, swH + 2, 0xFF3C3C3C, 4);
+            RoundedUtils.drawRoundedRect(swX, swY, swW, swH, 0xFF000000 | rgb, 3);
+
+            int hw = (int) Fonts.getWidth(hex, "");
+            Fonts.drawString(hex, swX - hw - 8, y + 3, COLOR_TEXT_SECONDARY, "");
+
+            if (cs.dropdownOpen) {
+                drawColorPicker(cv, x, y + 22, w);
+            }
+            return;
+        }
+
+        if (v instanceof StringValue) {
+            StringValue sv = (StringValue) v;
+            boolean editing = editingString != null && editingString.value == v;
+            String shown = editing ? editingBuffer : sv.getValue();
+
+            int boxY = y + 16;
+            int boxH = 20;
+            RoundedUtils.drawRoundedRect(x, boxY, w, boxH, editing ? 0xFF262626 : 0xFF1E1E1E, 4);
+            if (editing) {
+                RoundedUtils.drawRoundedOutlinedRect(x, boxY, w, boxH, COLOR_ACCENT, 4, 1);
+            }
+
+            String display = shown;
+            while (Fonts.getWidth(display, "") > w - 14 && display.length() > 1) {
+                display = display.substring(1);
+            }
+            if (display.isEmpty() && !editing) {
+                Fonts.drawString("(empty)", x + 7, boxY + 6, 0xFF5A5A5A, "");
+            } else {
+                Fonts.drawString(editing ? display + "_" : display, x + 7, boxY + 6, COLOR_TEXT, "");
+            }
+
+            SettingState ts = getState(v);
+            ts.componentX = x;
+            ts.componentW = w;
+            return;
+        }
+
         if (v instanceof ModeValue) {
             ModeValue mv = (ModeValue) v;
             String val = mv.getMode();
@@ -382,6 +491,12 @@ public class ModernClickGui extends GuiScreen {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
+        if (listeningModule != null) {
+            listeningModule.setKey(mouseButton - 100);
+            listeningModule = null;
+            return;
+        }
+
         clearTransient();
 
         int closeX = windowX + WINDOW_WIDTH - 24;
@@ -472,8 +587,7 @@ public class ModernClickGui extends GuiScreen {
         int settingsY = y + 38;
         int currentY = settingsY - (int) settingScroll;
 
-        for (Value v : selectedModule.getSettings()) {
-            if (v instanceof ColorValue) continue;
+        for (Value v : selectedModule.getVisibleSettings()) {
             int sh = getSettingHeight(v);
 
             if (v instanceof BooleanValue) {
@@ -498,6 +612,40 @@ public class ModernClickGui extends GuiScreen {
                 if (mouseX >= x + 12 && mouseX <= x + 12 + w - 24 && mouseY >= sliderY - 2 && mouseY <= sliderY + 7) {
                     draggingSlider = new DraggingSlider(v);
                     updateRange(rv, mouseX, x + 12, w - 24);
+                    return;
+                }
+            } else if (v instanceof ColorValue) {
+                ColorValue cv = (ColorValue) v;
+                SettingState cs = getState(v);
+                if (cs.dropdownOpen) {
+                    int sbY = currentY + 22 + 4;
+                    int hueY = sbY + PICKER_SB_HEIGHT + 6;
+                    if (mouseX >= x + 12 && mouseX <= x + 12 + w - 24) {
+                        if (mouseY >= sbY && mouseY <= sbY + PICKER_SB_HEIGHT) {
+                            cs.pickerY = sbY;
+                            cs.pickerDragHue = false;
+                            draggingSlider = new DraggingSlider(v);
+                            updateColorPicker(cv, mouseX, mouseY);
+                            return;
+                        }
+                        if (mouseY >= hueY - 2 && mouseY <= hueY + PICKER_HUE_HEIGHT + 2) {
+                            cs.pickerY = sbY;
+                            cs.pickerDragHue = true;
+                            draggingSlider = new DraggingSlider(v);
+                            updateColorPicker(cv, mouseX, mouseY);
+                            return;
+                        }
+                    }
+                }
+                if (mouseX >= x + 12 && mouseX <= x + 12 + w - 24 && mouseY >= currentY && mouseY <= currentY + 20) {
+                    cs.dropdownOpen = !cs.dropdownOpen;
+                    return;
+                }
+            } else if (v instanceof StringValue) {
+                int boxY = currentY + 16;
+                if (mouseX >= x + 12 && mouseX <= x + 12 + w - 24 && mouseY >= boxY && mouseY <= boxY + 20) {
+                    editingString = new EditingString(v);
+                    editingBuffer = ((StringValue) v).getValue();
                     return;
                 }
             } else if (v instanceof ModeValue) {
@@ -557,7 +705,9 @@ public class ModernClickGui extends GuiScreen {
                 editingString = null;
                 editingBuffer = "";
             } else if (keyCode == Keyboard.KEY_RETURN) {
-                editingString.value.setName(editingBuffer);
+                if (editingString.value instanceof StringValue) {
+                    ((StringValue) editingString.value).setValue(editingBuffer);
+                }
                 editingString = null;
                 editingBuffer = "";
             } else if (keyCode == Keyboard.KEY_BACK) {
@@ -650,6 +800,9 @@ public class ModernClickGui extends GuiScreen {
         draggingModuleScrollbar = false;
         draggingSettingScrollbar = false;
         if (editingString != null) {
+            if (editingString.value instanceof StringValue) {
+                ((StringValue) editingString.value).setValue(editingBuffer);
+            }
             editingString = null;
             editingBuffer = "";
         }
@@ -686,6 +839,14 @@ public class ModernClickGui extends GuiScreen {
         return settingStates.computeIfAbsent(v.getId(), k -> new SettingState());
     }
 
+    private String getKeyName(int key) {
+        if (key < 0) {
+            return "MB" + (key + 101);
+        }
+        String name = Keyboard.getKeyName(key);
+        return name != null ? name : "Unknown";
+    }
+
     private String formatNum(double d) {
         BigDecimal bd = new BigDecimal(d);
         bd = bd.setScale(d % 1 == 0 ? 0 : 1, RoundingMode.HALF_UP);
@@ -719,6 +880,27 @@ public class ModernClickGui extends GuiScreen {
         boolean dropdownOpen = false;
         int componentX;
         int componentW;
+        int pickerY;
+        boolean pickerDragHue = false;
+        private float[] hsbCache = null;
+        private int hsbSource = -1;
+
+        /**
+         * HSB is cached so that dragging into a corner (where saturation or brightness hits
+         * zero and the rgb value stops carrying hue) does not reset the hue under the cursor.
+         */
+        float[] hsb(int rgb) {
+            if (hsbCache == null || hsbSource != rgb) {
+                hsbCache = Color.RGBtoHSB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, null);
+                hsbSource = rgb;
+            }
+            return new float[]{hsbCache[0], hsbCache[1], hsbCache[2]};
+        }
+
+        void storeHsb(float[] hsb) {
+            hsbCache = new float[]{hsb[0], hsb[1], hsb[2]};
+            hsbSource = Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]) & 0xFFFFFF;
+        }
     }
 
     private class DraggingSlider {
@@ -726,6 +908,13 @@ public class ModernClickGui extends GuiScreen {
         DraggingSlider(Value v) { this.value = v; }
 
         void update(int mouseX) {
+            if (value instanceof ColorValue) {
+                // vertical position matters for the picker, so read the live mouse Y
+                ScaledResolution sr = new ScaledResolution(mc);
+                int my = sr.getScaledHeight() - Mouse.getY() * sr.getScaledHeight() / mc.displayHeight - 1;
+                updateColorPicker((ColorValue) value, mouseX, my);
+                return;
+            }
             if (value instanceof NumberValue) {
                 NumberValue nv = (NumberValue) value;
                 SettingState ss = getState(nv);

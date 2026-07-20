@@ -11,9 +11,11 @@ import myau.property.properties.BooleanProperty;
 import myau.property.properties.FloatProperty;
 import myau.property.properties.IntProperty;
 import myau.util.RenderUtil;
+import myau.util.TeamUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.client.C02PacketUseEntity;
 import net.minecraft.util.AxisAlignedBB;
@@ -76,24 +78,38 @@ public class Backtrack extends Module {
         }
     }
 
+    private boolean isValidTarget(EntityLivingBase entity) {
+        if (entity == null) return false;
+        if (entity instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) entity;
+            if (TeamUtil.isSameTeam(player)) return false;
+            AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
+            if (antiBot != null && antiBot.isEnabled() && antiBot.isBot(player)) return false;
+        }
+        return true;
+    }
+
     private EntityLivingBase resolveTarget() {
         KillAura killAura = (KillAura) Myau.moduleManager.modules.get(KillAura.class);
         if (killAura != null && killAura.isEnabled()) {
             EntityLivingBase t = killAura.getTarget();
-            if (t != null) return t;
+            if (t != null && isValidTarget(t)) return t;
         }
 
         if (this.manualTarget != null && !this.manualTarget.isDead) {
             long age = System.currentTimeMillis() - this.manualTargetTime;
             if (age <= this.manualWindow.getValue()) {
-                return this.manualTarget;
+                if (isValidTarget(this.manualTarget)) {
+                    return this.manualTarget;
+                }
             } else {
                 this.manualTarget = null;
             }
         }
 
         if (mc.pointedEntity instanceof EntityLivingBase
-                && mc.pointedEntity != mc.thePlayer) {
+                && mc.pointedEntity != mc.thePlayer
+                && isValidTarget((EntityLivingBase) mc.pointedEntity)) {
             return (EntityLivingBase) mc.pointedEntity;
         }
 

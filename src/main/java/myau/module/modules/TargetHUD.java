@@ -43,7 +43,7 @@ public class TargetHUD extends Module {
     private long lastUpdate = System.currentTimeMillis();
     private boolean dragging = false;
     private int dragX, dragY;
-    public final ModeProperty colorMode = new ModeProperty("Color Mode", 0, new String[]{"Health", "HUD", "Rise Gradient"});
+    public final ModeProperty colorMode = new ModeProperty("Color Mode", 0, new String[]{"Health", "HUD", "Gradient"});
     public final FloatProperty scale = new FloatProperty("Scale", 1.0f, 0.5f, 1.5f);
     public final IntProperty offX = new IntProperty("Position X", 100, 0, 2000);
     public final IntProperty offY = new IntProperty("Position Y", 100, 0, 2000);
@@ -221,12 +221,12 @@ public class TargetHUD extends Module {
     private Color getDisplayColor(float health, float maxHealth) {
         float ratio = Math.max(0.0f, Math.min(1.0f, health / maxHealth));
         switch (colorMode.getValue()) {
-            case 1: 
+            case 1:
                 HUD hud = (HUD) Myau.moduleManager.modules.get(HUD.class);
                 return hud != null ? hud.getColor(System.currentTimeMillis()) : Color.CYAN;
-            case 2: 
+            case 2:
                 return ColorUtil.interpolate((float)(Math.sin(System.currentTimeMillis() / 400.0) + 1) / 2.0f, new Color(80, 140, 255), new Color(180, 80, 255));
-            default: 
+            default:
                 return ColorUtil.getHealthBlend(ratio);
         }
     }

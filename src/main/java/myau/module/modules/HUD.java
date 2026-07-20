@@ -16,51 +16,121 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.WorldRenderer;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class HUD extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
+
+    /** Horizontal gap between the module name and each suffix. Used by both measuring and drawing. */
+    private static final float SUFFIX_GAP = 3.0F;
+
     private List<Module> activeModules = new ArrayList<>();
-    private List<float[]> moduleRects = new ArrayList<>();
+    private final Map<Module, Anim> anims = new LinkedHashMap<>();
+    private long lastFrameTime = System.currentTimeMillis();
+
+    /** Per-module animation state: fade/slide progress plus the smoothed vertical position. */
+    private static final class Anim {
+        float progress;
+        float y;
+        boolean placed;
+    }
+
+    // ---------------------------------------------------------------- colour
     public final ModeProperty colorMode = new ModeProperty(
             "color", 3, new String[]{"RAINBOW", "CHROMA", "ASTOLFO", "CUSTOM1", "CUSTOM2", "CUSTOM3"}
     );
-    public final FloatProperty colorSpeed = new FloatProperty("color-speed", 1.0F, 0.5F, 1.5F);
+    public final FloatProperty colorSpeed = new FloatProperty("color-speed", 1.0F, 0.5F, 1.5F,
+            () -> this.colorMode.getValue() != 3);
     public final PercentProperty colorSaturation = new PercentProperty("color-saturation", 50);
     public final PercentProperty colorBrightness = new PercentProperty("color-brightness", 100);
-    public final ColorProperty custom1 = new ColorProperty("custom-color-1", Color.WHITE.getRGB(), () -> this.colorMode.getValue() == 3 || this.colorMode.getValue() == 4 || this.colorMode.getValue() == 5);
-    public final ColorProperty custom2 = new ColorProperty("custom-color-2", Color.WHITE.getRGB(), () -> this.colorMode.getValue() == 4 || this.colorMode.getValue() == 5);
-    public final ColorProperty custom3 = new ColorProperty("custom-color-3", Color.WHITE.getRGB(), () -> this.colorMode.getValue() == 5);
+    public final ColorProperty custom1 = new ColorProperty("custom-color-1", Color.WHITE.getRGB(),
+            () -> this.colorMode.getValue() >= 3);
+    public final ColorProperty custom2 = new ColorProperty("custom-color-2", Color.WHITE.getRGB(),
+            () -> this.colorMode.getValue() >= 4);
+    public final ColorProperty custom3 = new ColorProperty("custom-color-3", Color.WHITE.getRGB(),
+            () -> this.colorMode.getValue() == 5);
+    public final ModeProperty waveMode = new ModeProperty("wave-mode", 0, new String[]{"NONE", "VERTICAL", "HORIZONTAL"});
+    public final PercentProperty waveSpread = new PercentProperty("wave-spread", 100, 5, 300,
+            () -> this.waveMode.getValue() != 0);
+
+    // ---------------------------------------------------------------- layout
     public final ModeProperty posX = new ModeProperty("position-x", 0, new String[]{"LEFT", "RIGHT"});
     public final ModeProperty posY = new ModeProperty("position-y", 0, new String[]{"TOP", "BOTTOM"});
     public final IntProperty offsetX = new IntProperty("offset-x", 2, 0, 255);
     public final IntProperty offsetY = new IntProperty("offset-y", 2, 0, 255);
     public final FloatProperty scale = new FloatProperty("scale", 1.0F, 0.5F, 1.5F);
-    public final PercentProperty backgroundAlpha = new PercentProperty("background-alpha", 25);
+    public final ModeProperty sortMode = new ModeProperty("sort", 0, new String[]{"WIDTH", "ALPHABETICAL", "TOGGLE_ORDER"});
+    public final IntProperty lineSpacing = new IntProperty("line-spacing", 0, 0, 10);
+
+    // ------------------------------------------------------------ background
+    public final ModeProperty backgroundMode = new ModeProperty("background", 1, new String[]{"NONE", "SOLID", "GRADIENT"});
+    public final PercentProperty backgroundAlpha = new PercentProperty("background-alpha", 25,
+            () -> this.backgroundMode.getValue() != 0);
+    public final ModeProperty backgroundColorMode = new ModeProperty("background-color", 0,
+            new String[]{"BLACK", "THEME", "CUSTOM"}, () -> this.backgroundMode.getValue() != 0);
+    public final ColorProperty customBackgroundColor = new ColorProperty("custom-background-color", Color.BLACK.getRGB(),
+            () -> this.backgroundMode.getValue() != 0 && this.backgroundColorMode.getValue() == 2);
     public final IntProperty backgroundThickness = new IntProperty("background-thickness", 2, 1, 15);
     public final IntProperty backgroundCurve = new IntProperty("background-curve", 3, 0, 10);
-    public final PercentProperty outlineThickness = new PercentProperty("outline-thickness", 0);
-    public final ModeProperty outlineColorMode = new ModeProperty("outline-color", 0, new String[]{"THEME", "CUSTOM"});
-    public final ColorProperty customOutlineColor = new ColorProperty("custom-outline-color", Color.WHITE.getRGB(), () -> this.outlineColorMode.getValue() == 1);
-    public final ModeProperty waveMode = new ModeProperty("wave-mode", 0, new String[]{"NONE", "VERTICAL", "HORIZONTAL"});
-    public final BooleanProperty joinBands = new BooleanProperty("join-bands", true);
-    public final BooleanProperty glowEnabled = new BooleanProperty("glow", false);
-    public final FloatProperty glowSize = new FloatProperty("glow-size", 2.0F, 0.5F, 10.0F);
+    public final BooleanProperty joinBands = new BooleanProperty("join-bands", true,
+            () -> this.backgroundMode.getValue() != 0);
+
+    // --------------------------------------------------------------- outline
+    public final PercentProperty outlineThickness = new PercentProperty("outline-thickness", 0, 0, 5, null);
+    public final ModeProperty outlineColorMode = new ModeProperty("outline-color", 0, new String[]{"THEME", "CUSTOM"},
+            () -> this.outlineThickness.getValue() > 0);
+    public final ColorProperty customOutlineColor = new ColorProperty("custom-outline-color", Color.WHITE.getRGB(),
+            () -> this.outlineThickness.getValue() > 0 && this.outlineColorMode.getValue() == 1);
+
+    // ------------------------------------------------------------- accent bar
     public final BooleanProperty showBar = new BooleanProperty("bar", true);
+    public final IntProperty barWidth = new IntProperty("bar-width", 2, 1, 5, () -> this.showBar.getValue());
+
+    // ------------------------------------------------------------------ glow
+    public final BooleanProperty glowEnabled = new BooleanProperty("glow", false);
+    public final FloatProperty glowSize = new FloatProperty("glow-size", 2.0F, 0.5F, 10.0F,
+            () -> this.glowEnabled.getValue());
+
+    // ------------------------------------------------------------- animation
+    public final BooleanProperty animations = new BooleanProperty("animations", true);
+    public final FloatProperty animationSpeed = new FloatProperty("animation-speed", 1.0F, 0.2F, 3.0F,
+            () -> this.animations.getValue());
+
+    // ------------------------------------------------------------------ text
     public final BooleanProperty shadow = new BooleanProperty("shadow", true);
     public final BooleanProperty suffixes = new BooleanProperty("suffixes", true);
     public final BooleanProperty lowerCase = new BooleanProperty("lower-case", false);
+
+    // ------------------------------------------------------------- watermark
+    public final BooleanProperty watermark = new BooleanProperty("watermark", false);
+    public final TextProperty watermarkText = new TextProperty("watermark-text", "CrewX",
+            () -> this.watermark.getValue());
+    public final BooleanProperty watermarkFps = new BooleanProperty("watermark-fps", true,
+            () -> this.watermark.getValue());
+
+    // ------------------------------------------------------------------ misc
     public final BooleanProperty chatOutline = new BooleanProperty("chat-outline", true);
     public final BooleanProperty blinkTimer = new BooleanProperty("blink-timer", true);
     public final BooleanProperty toggleSound = new BooleanProperty("toggle-sounds", true);
     public final BooleanProperty toggleAlerts = new BooleanProperty("toggle-alerts", false);
+
+    public HUD() {
+        super("HUD", false, true);
+    }
+
+    // ================================================================ helpers
 
     private String getModuleName(Module module) {
         String moduleName = module.getName();
@@ -71,52 +141,53 @@ public class HUD extends Module {
     }
 
     private String[] getModuleSuffix(Module module) {
-        String[] moduleSuffix = module.getSuffix();
-        if (this.lowerCase.getValue()) {
-            for (int i = 0; i < moduleSuffix.length; i++) {
-                moduleSuffix[i] = moduleSuffix[i].toLowerCase();
-            }
+        String[] source = module.getSuffix();
+        if (source == null) return new String[0];
+        // copy before touching it - getSuffix() may hand back an array the module reuses
+        String[] result = new String[source.length];
+        for (int i = 0; i < source.length; i++) {
+            String value = source[i] == null ? "" : source[i];
+            result[i] = this.lowerCase.getValue() ? value.toLowerCase(Locale.ROOT) : value;
         }
-        return moduleSuffix;
+        return result;
     }
 
     private int getModuleWidth(Module module) {
-        return this.calculateStringWidth(
-                this.getModuleName(module), this.getModuleSuffix(module)
-        );
+        return this.calculateStringWidth(this.getModuleName(module), this.getModuleSuffix(module));
     }
 
     private int calculateStringWidth(String string, String[] arr) {
         int width = mc.fontRendererObj.getStringWidth(string);
         if (this.suffixes.getValue()) {
             for (String str : arr) {
-                width += 3 + mc.fontRendererObj.getStringWidth(str);
+                width += (int) SUFFIX_GAP + mc.fontRendererObj.getStringWidth(str);
             }
         }
         return width;
     }
 
-    private float getColorCycle(long long3, long long4) {
+    private float getColorCycle(long time, double offsetUnits) {
         long speed = (long) (3000.0 / Math.pow(Math.min(Math.max(0.5F, this.colorSpeed.getValue()), 1.5F), 3.0));
-        return 1.0F - (float) (Math.abs(long3 - long4 * 300L) % speed) / (float) speed;
-    }
-
-    public HUD() {
-        super("HUD", false, true);
+        double delta = Math.abs(time - offsetUnits * 300.0) % speed;
+        return 1.0F - (float) (delta / speed);
     }
 
     public Color getColor(long time) {
-        return this.getColor(time, 0L);
+        return this.getColor(time, 0.0D);
     }
 
     public Color getColor(long time, long offset) {
+        return this.getColor(time, (double) offset);
+    }
+
+    public Color getColor(long time, double offset) {
         Color color = Color.white;
         switch (this.colorMode.getValue()) {
             case 0:
                 color = ColorUtil.fromHSB(this.getColorCycle(time, offset), 1.0F, 1.0F);
                 break;
             case 1:
-                color = ColorUtil.fromHSB(this.getColorCycle(time / 3L, 0L), 1.0F, 1.0F);
+                color = ColorUtil.fromHSB(this.getColorCycle(time / 3L, 0.0D), 1.0F, 1.0F);
                 break;
             case 2:
                 float cycle = this.getColorCycle(time, offset);
@@ -153,18 +224,12 @@ public class HUD extends Module {
         );
     }
 
-    private Color getColorWithWave(long time, long moduleIndex, int totalModules) {
-        int wave = this.waveMode.getValue();
-        if (wave == 0 || totalModules <= 1) {
-            return this.getColor(time, moduleIndex);
+    /** Colour for module {@code index}, honouring VERTICAL wave (per-line offset). */
+    private Color getLineColor(long time, int index) {
+        if (this.waveMode.getValue() == 1) {
+            return this.getColor(time, index * (this.waveSpread.getValue() / 100.0D));
         }
-        long waveOffset;
-        if (wave == 1) {
-            waveOffset = (long) (moduleIndex * 300L);
-        } else {
-            waveOffset = (long) (moduleIndex * 300L);
-        }
-        return this.getColor(time, waveOffset);
+        return this.getColor(time);
     }
 
     private Color getOutlineColor(Color themeColor) {
@@ -179,15 +244,50 @@ public class HUD extends Module {
         );
     }
 
+    private int getBackgroundBaseColor(Color themeColor) {
+        switch (this.backgroundColorMode.getValue()) {
+            case 1:
+                return ColorUtil.darker(themeColor, 0.25F).getRGB() & 0xFFFFFF;
+            case 2:
+                return this.customBackgroundColor.getValue() & 0xFFFFFF;
+            default:
+                return 0;
+        }
+    }
+
+    private static int withAlpha(int rgb, float alpha) {
+        int a = (int) (Math.max(0.0F, Math.min(1.0F, alpha)) * 255.0F);
+        return (a << 24) | (rgb & 0xFFFFFF);
+    }
+
+    // ================================================================== ticks
+
     @EventTarget
     public void onTick(TickEvent event) {
         if (this.isEnabled() && event.getType() == EventType.POST) {
-            this.activeModules = Myau.moduleManager.modules.values().stream()
+            List<Module> visible = Myau.moduleManager.modules.values().stream()
                     .filter(module -> module.isEnabled() && !module.isHidden())
-                    .sorted(Comparator.comparingInt(this::getModuleWidth).reversed())
                     .collect(Collectors.<Module>toList());
+
+            switch (this.sortMode.getValue()) {
+                case 1:
+                    visible.sort(Comparator.comparing((Module m) -> this.getModuleName(m).toLowerCase(Locale.ROOT)));
+                    break;
+                case 2:
+                    break;
+                default:
+                    visible.sort(Comparator.<Module>comparingInt(this::getModuleWidth).reversed());
+            }
+            this.activeModules = visible;
         }
     }
+
+    @Override
+    public void onDisabled() {
+        this.anims.clear();
+    }
+
+    // ================================================================= render
 
     @EventTarget
     public void onRender2D(Render2DEvent event) {
@@ -211,153 +311,179 @@ public class HUD extends Module {
             return;
         }
 
+        long now = System.currentTimeMillis();
+        float delta = Math.min(0.1F, (now - this.lastFrameTime) / 1000.0F);
+        this.lastFrameTime = now;
+
         ScaledResolution sr = new ScaledResolution(mc);
-        float screenW = sr.getScaledWidth();
-        float screenH = sr.getScaledHeight();
-        float height = (float) mc.fontRendererObj.FONT_HEIGHT;
-        float lineH = height + this.backgroundThickness.getValue();
+        float scaleValue = this.scale.getValue();
+        float screenW = sr.getScaledWidth() / scaleValue;
+        float screenH = sr.getScaledHeight() / scaleValue;
+        float fontH = mc.fontRendererObj.FONT_HEIGHT;
+        float pad = this.backgroundThickness.getValue();
+        float lineH = fontH + pad + this.lineSpacing.getValue();
         float curve = this.backgroundCurve.getValue();
         float bgAlpha = this.backgroundAlpha.getValue().floatValue() / 100.0F;
-        float glowSz = this.glowSize.getValue();
+        if (this.backgroundMode.getValue() == 0) bgAlpha = 0.0F;
 
-        GlStateManager.pushMatrix();
-        GlStateManager.scale(this.scale.getValue(), this.scale.getValue(), 0.0F);
-
-        long l = System.currentTimeMillis();
-        int totalModules = this.activeModules.size();
-
-        this.moduleRects.clear();
-
-        float baseX = this.offsetX.getValue();
-        float baseY = this.offsetY.getValue();
         boolean rightAlign = this.posX.getValue() == 1;
         boolean bottomAlign = this.posY.getValue() == 1;
+        float baseX = this.offsetX.getValue();
+        float baseY = this.offsetY.getValue();
 
-        for (int i = 0; i < totalModules; i++) {
-            Module module = this.activeModules.get(i);
+        GlStateManager.pushMatrix();
+        GlStateManager.scale(scaleValue, scaleValue, 1.0F);
+        GlStateManager.disableDepth();
+
+        // ---- watermark sits above the list and pushes it down
+        float listTopPad = 0.0F;
+        if (this.watermark.getValue()) {
+            listTopPad = this.drawWatermark(now, screenW, screenH, baseX, baseY, rightAlign, bottomAlign, curve, bgAlpha);
+        }
+
+        // ---- advance animation state
+        this.updateAnimations(delta);
+
+        int count = this.activeModules.size();
+        List<Module> renderOrder = new ArrayList<>(this.activeModules);
+        for (Module m : this.anims.keySet()) {
+            if (!this.activeModules.contains(m)) renderOrder.add(m);
+        }
+
+        float maxWidth = this.getMaxModuleWidth();
+
+        for (Module module : renderOrder) {
+            Anim anim = this.anims.get(module);
+            if (anim == null || anim.progress <= 0.005F) continue;
+
+            int index = this.activeModules.indexOf(module);
             String moduleName = this.getModuleName(module);
             String[] moduleSuffix = this.getModuleSuffix(module);
             float textW = mc.fontRendererObj.getStringWidth(moduleName);
             float totalWidth = this.calculateStringWidth(moduleName, moduleSuffix);
 
-            float modX;
-            float modY;
-            if (rightAlign) {
-                modX = screenW / this.scale.getValue() - baseX - totalWidth;
-            } else {
-                modX = baseX;
+            // target vertical slot; fading-out entries keep whatever y they had
+            if (index >= 0) {
+                float targetY = bottomAlign
+                        ? screenH - baseY - listTopPad - (count - index) * lineH
+                        : baseY + listTopPad + index * lineH;
+                if (!anim.placed) {
+                    anim.y = targetY;
+                    anim.placed = true;
+                } else {
+                    anim.y = this.approach(anim.y, targetY, delta);
+                }
             }
-            if (bottomAlign) {
-                modY = screenH / this.scale.getValue() - baseY - (totalModules - i) * lineH;
-            } else {
-                modY = baseY + i * lineH;
-            }
-            Color themeColor = this.getColorWithWave(l, i, totalModules);
-            int colorRGB = themeColor.getRGB();
+
+            float ease = this.ease(anim.progress);
+            float slide = (1.0F - ease) * (totalWidth + pad * 2.0F + 6.0F);
+
+            float modX = rightAlign
+                    ? screenW - baseX - totalWidth + slide
+                    : baseX - slide;
+            float modY = anim.y;
+
+            Color themeColor = this.getLineColor(now, Math.max(index, 0));
+            int lineColor = withAlpha(themeColor.getRGB(), ease);
+
+            float boxX1 = modX - pad;
+            float boxX2 = modX + totalWidth + pad;
+            float boxY1 = modY - 1.0F;
+            float boxY2 = modY + fontH - 1.0F;
+
             RenderUtil.enableRenderState();
-            if (this.glowEnabled.getValue() && bgAlpha > 0) {
-                int glowAlpha = (int) (bgAlpha * 255 * 0.4F);
-                int glowColor = (glowAlpha << 24) | (colorRGB & 0x00FFFFFF);
-                float gX1 = modX - glowSz + (rightAlign ? 0 : 0);
-                float gX2 = modX + totalWidth + glowSz + (rightAlign ? 0 : 0);
-                float gY1 = modY - 1 - glowSz;
-                float gY2 = modY + height - 1 + glowSz;
-                if (curve > 0) {
-                    drawRoundedRect(gX1, gY1, gX2, gY2, curve, glowColor);
+
+            // glow
+            if (this.glowEnabled.getValue() && bgAlpha > 0.0F) {
+                float g = this.glowSize.getValue();
+                int glowColor = withAlpha(themeColor.getRGB(), bgAlpha * 0.4F * ease);
+                drawRoundedRect(boxX1 - g, boxY1 - g, boxX2 + g, boxY2 + g, curve + g, glowColor);
+            }
+
+            // connective band so stacked rows read as one panel
+            if (this.joinBands.getValue() && bgAlpha > 0.0F && index > 0) {
+                int bandColor = withAlpha(this.getBackgroundBaseColor(themeColor), bgAlpha * ease);
+                float bandX1 = rightAlign ? boxX2 : boxX1;
+                float bandX2 = rightAlign ? screenW - baseX + pad : baseX + maxWidth + pad;
+                RenderUtil.drawRect(bandX1, modY - 1.0F, bandX2, modY + lineH - 1.0F, bandColor);
+            }
+
+            // background
+            if (bgAlpha > 0.0F) {
+                int base = this.getBackgroundBaseColor(themeColor);
+                if (this.backgroundMode.getValue() == 2) {
+                    int solid = withAlpha(base, bgAlpha * ease);
+                    int fade = withAlpha(base, 0.0F);
+                    if (rightAlign) {
+                        drawHorizontalGradient(boxX1, boxY1, boxX2, boxY2, fade, solid);
+                    } else {
+                        drawHorizontalGradient(boxX1, boxY1, boxX2, boxY2, solid, fade);
+                    }
                 } else {
-                    RenderUtil.drawRect(gX1, gY1, gX2, gY2, glowColor);
+                    drawRoundedRect(boxX1, boxY1, boxX2, boxY2, curve, withAlpha(base, bgAlpha * ease));
                 }
             }
-            if (this.joinBands.getValue() && bgAlpha > 0 && i > 0) {
-                int bandAlpha = (int) (bgAlpha * 255);
-                int bandColor = (bandAlpha << 24);
-                float bandX1 = rightAlign ? modX + totalWidth : modX;
-                float bandX2 = rightAlign ? screenW / this.scale.getValue() - baseX : baseX + this.getMaxModuleWidth();
-                float bandY1 = modY;
-                float bandY2 = modY + lineH;
-                RenderUtil.drawRect(bandX1, bandY1, bandX2, bandY2, bandColor);
-            }
-            if (bgAlpha > 0) {
-                int bgAlphaInt = (int) (bgAlpha * 255);
-                int bgColor = (bgAlphaInt << 24);
-                float bgX1 = modX - this.backgroundThickness.getValue();
-                float bgX2 = modX + totalWidth + this.backgroundThickness.getValue();
-                float bgY1 = modY - 1;
-                float bgY2 = modY + height - 1;
-                if (curve > 0) {
-                    drawRoundedRect(bgX1, bgY1, bgX2, bgY2, curve, bgColor);
-                } else {
-                    RenderUtil.drawRect(bgX1, bgY1, bgX2, bgY2, bgColor);
-                }
-            }
-            if (this.outlineThickness.getValue() > 0 && bgAlpha > 0) {
+
+            // outline
+            if (this.outlineThickness.getValue() > 0 && bgAlpha > 0.0F) {
                 Color outlineCol = this.getOutlineColor(themeColor);
-                float olX1 = modX - this.backgroundThickness.getValue();
-                float olX2 = modX + totalWidth + this.backgroundThickness.getValue();
-                float olY1 = modY - 1;
-                float olY2 = modY + height - 1;
-                RenderUtil.enableRenderState();
-                RenderUtil.setColor(outlineCol.getRGB());
-                GL11.glLineWidth(this.outlineThickness.getValue() * this.scale.getValue());
+                RenderUtil.setColor(withAlpha(outlineCol.getRGB(), ease));
+                GL11.glLineWidth(this.outlineThickness.getValue() * scaleValue);
                 GL11.glEnable(GL11.GL_LINE_SMOOTH);
                 GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
-                if (curve > 0) {
-                    drawRoundedOutline(olX1, olY1, olX2, olY2, curve, this.outlineThickness.getValue() * this.scale.getValue());
-                } else {
-                    GL11.glBegin(GL11.GL_LINE_LOOP);
-                    GL11.glVertex2f(olX1, olY1);
-                    GL11.glVertex2f(olX2, olY1);
-                    GL11.glVertex2f(olX2, olY2);
-                    GL11.glVertex2f(olX1, olY2);
-                    GL11.glEnd();
-                }
+                drawRoundedOutline(boxX1, boxY1, boxX2, boxY2, curve);
                 GL11.glDisable(GL11.GL_LINE_SMOOTH);
                 GlStateManager.resetColor();
             }
-            if (this.showBar.getValue()) {
-                float barW = this.shadow.getValue() ? 2.0F : 1.0F;
-                float barX1 = rightAlign ? modX - barW - 1 : modX - barW - 1;
-                float barX2 = rightAlign ? modX - 1 : modX - 1;
-                RenderUtil.drawRect(barX1, modY - 1, barX2, modY + height - 1, colorRGB);
-            }
-            RenderUtil.disableRenderState();
-            GlStateManager.disableDepth();
-            float textX = rightAlign ? modX : modX;
-            float textY = modY;
 
-            if (this.shadow.getValue()) {
-                mc.fontRendererObj.drawStringWithShadow(moduleName, textX, textY, colorRGB);
+            // accent bar - now follows the alignment instead of always sitting on the left
+            if (this.showBar.getValue()) {
+                float bw = this.barWidth.getValue();
+                float barX1 = rightAlign ? boxX2 : boxX1 - bw;
+                float barX2 = rightAlign ? boxX2 + bw : boxX1;
+                RenderUtil.drawRect(barX1, boxY1, barX2, boxY2, lineColor);
+            }
+
+            RenderUtil.disableRenderState();
+
+            // text
+            float textX = modX;
+            if (this.waveMode.getValue() == 2) {
+                this.drawWaveText(moduleName, textX, modY, now, Math.max(index, 0), ease);
+            } else if (this.shadow.getValue()) {
+                mc.fontRendererObj.drawStringWithShadow(moduleName, textX, modY, lineColor);
             } else {
-                mc.fontRendererObj.drawString(moduleName, textX, textY, colorRGB, false);
+                mc.fontRendererObj.drawString(moduleName, textX, modY, lineColor, false);
             }
 
             if (this.suffixes.getValue() && moduleSuffix.length > 0) {
-                float suffixX = textX + textW + 3.0F;
+                float suffixX = textX + textW + SUFFIX_GAP;
+                int suffixColor = withAlpha(ChatColors.GRAY.toAwtColor(), ease);
                 for (String string : moduleSuffix) {
                     if (this.shadow.getValue()) {
-                        mc.fontRendererObj.drawStringWithShadow(string, suffixX, textY, ChatColors.GRAY.toAwtColor());
+                        mc.fontRendererObj.drawStringWithShadow(string, suffixX, modY, suffixColor);
                     } else {
-                        mc.fontRendererObj.drawString(string, suffixX, textY, ChatColors.GRAY.toAwtColor(), false);
+                        mc.fontRendererObj.drawString(string, suffixX, modY, suffixColor, false);
                     }
-                    suffixX += (float) mc.fontRendererObj.getStringWidth(string) + (this.shadow.getValue() ? 3.0F : 2.0F);
+                    suffixX += mc.fontRendererObj.getStringWidth(string) + SUFFIX_GAP;
                 }
             }
-
-            this.moduleRects.add(new float[]{modX - this.backgroundThickness.getValue(), modY - 1, modX + totalWidth + this.backgroundThickness.getValue(), modY + height - 1});
         }
+
+        // ---- blink packet counter
         if (this.blinkTimer.getValue()) {
             BlinkModules blinkingModule = Myau.blinkManager.getBlinkingModule();
             if (blinkingModule != BlinkModules.NONE && blinkingModule != BlinkModules.AUTO_BLOCK) {
                 long movementPacketSize = Myau.blinkManager.countMovement();
                 if (movementPacketSize > 0L) {
+                    String label = String.valueOf(movementPacketSize);
                     GlStateManager.enableBlend();
                     GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
                     mc.fontRendererObj.drawString(
-                            String.valueOf(movementPacketSize),
-                            screenW / 2.0F / this.scale.getValue()
-                                    - (float) mc.fontRendererObj.getStringWidth(String.valueOf(movementPacketSize)) / 2.0F,
-                            screenH / 5.0F * 3.0F / this.scale.getValue(),
-                            this.getColor(l, (long) totalModules).getRGB() & 16777215 | -1090519040,
+                            label,
+                            screenW / 2.0F - mc.fontRendererObj.getStringWidth(label) / 2.0F,
+                            screenH / 5.0F * 3.0F,
+                            this.getColor(now, (double) count).getRGB() & 0xFFFFFF | 0xBF000000,
                             this.shadow.getValue()
                     );
                     GlStateManager.disableBlend();
@@ -369,8 +495,101 @@ public class HUD extends Module {
         GlStateManager.popMatrix();
     }
 
+    /** Draws the watermark pill and returns how much vertical room the module list must skip. */
+    private float drawWatermark(long now, float screenW, float screenH, float baseX, float baseY,
+                                boolean rightAlign, boolean bottomAlign, float curve, float bgAlpha) {
+        String label = this.watermarkText.getValue();
+        if (label == null || label.isEmpty()) label = "CrewX";
+        String detail = "";
+        if (this.watermarkFps.getValue()) {
+            detail = " " + Minecraft.getDebugFPS() + " fps";
+        }
+
+        float fontH = mc.fontRendererObj.FONT_HEIGHT;
+        float pad = this.backgroundThickness.getValue() + 2.0F;
+        float labelW = mc.fontRendererObj.getStringWidth(label);
+        float detailW = mc.fontRendererObj.getStringWidth(detail);
+        float totalW = labelW + detailW;
+
+        float x = rightAlign ? screenW - baseX - totalW : baseX;
+        float y = bottomAlign ? screenH - baseY - fontH - 1.0F : baseY;
+
+        Color themeColor = this.getColor(now);
+        RenderUtil.enableRenderState();
+        if (bgAlpha > 0.0F) {
+            drawRoundedRect(x - pad, y - 2.0F, x + totalW + pad, y + fontH,
+                    curve, withAlpha(this.getBackgroundBaseColor(themeColor), bgAlpha));
+        }
+        RenderUtil.disableRenderState();
+
+        if (this.shadow.getValue()) {
+            mc.fontRendererObj.drawStringWithShadow(label, x, y, themeColor.getRGB());
+            if (!detail.isEmpty()) {
+                mc.fontRendererObj.drawStringWithShadow(detail, x + labelW, y, ChatColors.GRAY.toAwtColor());
+            }
+        } else {
+            mc.fontRendererObj.drawString(label, x, y, themeColor.getRGB(), false);
+            if (!detail.isEmpty()) {
+                mc.fontRendererObj.drawString(detail, x + labelW, y, ChatColors.GRAY.toAwtColor(), false);
+            }
+        }
+        return fontH + 4.0F;
+    }
+
+    /** HORIZONTAL wave: each glyph gets its own point on the colour cycle. */
+    private void drawWaveText(String text, float x, float y, long now, int index, float alpha) {
+        float spread = this.waveSpread.getValue() / 100.0F;
+        float cursor = x;
+        for (int i = 0; i < text.length(); i++) {
+            String ch = String.valueOf(text.charAt(i));
+            Color c = this.getColor(now, index * spread + i * spread * 0.35D);
+            int col = withAlpha(c.getRGB(), alpha);
+            if (this.shadow.getValue()) {
+                mc.fontRendererObj.drawStringWithShadow(ch, cursor, y, col);
+            } else {
+                mc.fontRendererObj.drawString(ch, cursor, y, col, false);
+            }
+            cursor += mc.fontRendererObj.getStringWidth(ch);
+        }
+    }
+
+    // ============================================================= animation
+
+    private void updateAnimations(float delta) {
+        for (Module module : this.activeModules) {
+            this.anims.computeIfAbsent(module, m -> new Anim());
+        }
+        java.util.Iterator<Map.Entry<Module, Anim>> it = this.anims.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<Module, Anim> entry = it.next();
+            Anim anim = entry.getValue();
+            boolean visible = this.activeModules.contains(entry.getKey());
+            if (!this.animations.getValue()) {
+                anim.progress = visible ? 1.0F : 0.0F;
+            } else {
+                anim.progress = this.approach(anim.progress, visible ? 1.0F : 0.0F, delta);
+            }
+            if (!visible && anim.progress <= 0.005F) {
+                it.remove();
+            }
+        }
+    }
+
+    /** Frame-rate independent exponential approach. */
+    private float approach(float current, float target, float delta) {
+        if (!this.animations.getValue()) return target;
+        float factor = 1.0F - (float) Math.exp(-delta * 12.0F * this.animationSpeed.getValue());
+        float next = current + (target - current) * factor;
+        return Math.abs(target - next) < 0.002F ? target : next;
+    }
+
+    private float ease(float t) {
+        t = Math.max(0.0F, Math.min(1.0F, t));
+        return 1.0F - (1.0F - t) * (1.0F - t);
+    }
+
     private float getMaxModuleWidth() {
-        float max = 0;
+        float max = 0.0F;
         for (Module m : this.activeModules) {
             float w = this.calculateStringWidth(this.getModuleName(m), this.getModuleSuffix(m));
             if (w > max) max = w;
@@ -378,41 +597,49 @@ public class HUD extends Module {
         return max;
     }
 
+    // ================================================================ shapes
+
+    private static void drawHorizontalGradient(float x1, float y1, float x2, float y2, int left, int right) {
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        Tessellator tessellator = Tessellator.getInstance();
+        WorldRenderer wr = tessellator.getWorldRenderer();
+        wr.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
+        wr.pos(x1, y2, 0.0D).color((left >> 16 & 255) / 255.0F, (left >> 8 & 255) / 255.0F, (left & 255) / 255.0F, (left >>> 24) / 255.0F).endVertex();
+        wr.pos(x2, y2, 0.0D).color((right >> 16 & 255) / 255.0F, (right >> 8 & 255) / 255.0F, (right & 255) / 255.0F, (right >>> 24) / 255.0F).endVertex();
+        wr.pos(x2, y1, 0.0D).color((right >> 16 & 255) / 255.0F, (right >> 8 & 255) / 255.0F, (right & 255) / 255.0F, (right >>> 24) / 255.0F).endVertex();
+        wr.pos(x1, y1, 0.0D).color((left >> 16 & 255) / 255.0F, (left >> 8 & 255) / 255.0F, (left & 255) / 255.0F, (left >>> 24) / 255.0F).endVertex();
+        tessellator.draw();
+        GlStateManager.shadeModel(GL11.GL_FLAT);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+    }
+
     private static void drawRoundedRect(float x1, float y1, float x2, float y2, float radius, int color) {
         radius = Math.min(radius, Math.min((x2 - x1) / 2.0F, (y2 - y1) / 2.0F));
-        if (radius <= 0) {
+        if (radius <= 0.0F) {
             RenderUtil.drawRect(x1, y1, x2, y2, color);
             return;
         }
         float r = radius;
-        int segments = Math.max(8, (int) (r * 2));
+        int quarter = Math.max(4, (int) (r * 2.0F) / 4 + 2);
         RenderUtil.setColor(color);
         GL11.glBegin(GL11.GL_TRIANGLE_FAN);
         GL11.glVertex2f((x1 + x2) / 2.0F, (y1 + y2) / 2.0F);
-        for (int i = 0; i <= segments / 4; i++) {
-            double angle = Math.PI + (Math.PI / 2.0) * ((double) i / (segments / 4.0));
-            GL11.glVertex2f((float) (x1 + r + Math.cos(angle) * r), (float) (y1 + r + Math.sin(angle) * r));
-        }
-        for (int i = 0; i <= segments / 4; i++) {
-            double angle = -Math.PI / 2.0 + (Math.PI / 2.0) * ((double) i / (segments / 4.0));
-            GL11.glVertex2f((float) (x2 - r + Math.cos(angle) * r), (float) (y1 + r + Math.sin(angle) * r));
-        }
-        for (int i = 0; i <= segments / 4; i++) {
-            double angle = 0 + (Math.PI / 2.0) * ((double) i / (segments / 4.0));
-            GL11.glVertex2f((float) (x2 - r + Math.cos(angle) * r), (float) (y2 - r + Math.sin(angle) * r));
-        }
-        for (int i = 0; i <= segments / 4; i++) {
-            double angle = Math.PI / 2.0 + (Math.PI / 2.0) * ((double) i / (segments / 4.0));
-            GL11.glVertex2f((float) (x1 + r + Math.cos(angle) * r), (float) (y2 - r + Math.sin(angle) * r));
-        }
+        appendArc(x1 + r, y1 + r, r, Math.PI, quarter);
+        appendArc(x2 - r, y1 + r, r, -Math.PI / 2.0, quarter);
+        appendArc(x2 - r, y2 - r, r, 0.0, quarter);
+        appendArc(x1 + r, y2 - r, r, Math.PI / 2.0, quarter);
         GL11.glVertex2f(x1, y1 + r);
         GL11.glEnd();
         GlStateManager.resetColor();
     }
 
-    private static void drawRoundedOutline(float x1, float y1, float x2, float y2, float radius, float lineWidth) {
+    private static void drawRoundedOutline(float x1, float y1, float x2, float y2, float radius) {
         radius = Math.min(radius, Math.min((x2 - x1) / 2.0F, (y2 - y1) / 2.0F));
-        if (radius <= 0) {
+        if (radius <= 0.0F) {
             GL11.glBegin(GL11.GL_LINE_LOOP);
             GL11.glVertex2f(x1, y1);
             GL11.glVertex2f(x2, y1);
@@ -422,24 +649,19 @@ public class HUD extends Module {
             return;
         }
         float r = radius;
-        int segments = Math.max(8, (int) (r * 2));
+        int quarter = Math.max(4, (int) (r * 2.0F) / 4 + 2);
         GL11.glBegin(GL11.GL_LINE_LOOP);
-        for (int i = 0; i <= segments / 4; i++) {
-            double angle = Math.PI + (Math.PI / 2.0) * ((double) i / (segments / 4.0));
-            GL11.glVertex2f((float) (x1 + r + Math.cos(angle) * r), (float) (y1 + r + Math.sin(angle) * r));
-        }
-        for (int i = 0; i <= segments / 4; i++) {
-            double angle = -Math.PI / 2.0 + (Math.PI / 2.0) * ((double) i / (segments / 4.0));
-            GL11.glVertex2f((float) (x2 - r + Math.cos(angle) * r), (float) (y1 + r + Math.sin(angle) * r));
-        }
-        for (int i = 0; i <= segments / 4; i++) {
-            double angle = 0 + (Math.PI / 2.0) * ((double) i / (segments / 4.0));
-            GL11.glVertex2f((float) (x2 - r + Math.cos(angle) * r), (float) (y2 - r + Math.sin(angle) * r));
-        }
-        for (int i = 0; i <= segments / 4; i++) {
-            double angle = Math.PI / 2.0 + (Math.PI / 2.0) * ((double) i / (segments / 4.0));
-            GL11.glVertex2f((float) (x1 + r + Math.cos(angle) * r), (float) (y2 - r + Math.sin(angle) * r));
-        }
+        appendArc(x1 + r, y1 + r, r, Math.PI, quarter);
+        appendArc(x2 - r, y1 + r, r, -Math.PI / 2.0, quarter);
+        appendArc(x2 - r, y2 - r, r, 0.0, quarter);
+        appendArc(x1 + r, y2 - r, r, Math.PI / 2.0, quarter);
         GL11.glEnd();
+    }
+
+    private static void appendArc(float cx, float cy, float r, double startAngle, int steps) {
+        for (int i = 0; i <= steps; i++) {
+            double angle = startAngle + (Math.PI / 2.0) * ((double) i / steps);
+            GL11.glVertex2f((float) (cx + Math.cos(angle) * r), (float) (cy + Math.sin(angle) * r));
+        }
     }
 }
