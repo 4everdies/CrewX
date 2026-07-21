@@ -9,7 +9,9 @@ import myau.events.UpdateEvent;
 import myau.module.Module;
 import myau.util.KeyBindUtil;
 import myau.util.MoveUtil;
+import myau.util.PacketUtil;
 import myau.property.properties.FloatProperty;
+import net.minecraft.network.play.client.C0BPacketEntityAction;
 import myau.property.properties.ModeProperty;
 import net.minecraft.client.Minecraft;
 
@@ -91,6 +93,10 @@ public class Fly extends Module {
         waitingToDisableBlink = false;
         disableTimer = 0L;
         isFlyDisabled = false;
+
+        // Agacha e logo em seguida desagacha
+        PacketUtil.sendPacket(new C0BPacketEntityAction(mc.thePlayer, C0BPacketEntityAction.Action.START_SNEAKING));
+        PacketUtil.sendPacket(new C0BPacketEntityAction(mc.thePlayer, C0BPacketEntityAction.Action.STOP_SNEAKING));
 
         if (isKaizenMode) {
             Myau.blinkManager.setBlinkState(true, BlinkModules.BLINK);
