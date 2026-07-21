@@ -16,7 +16,7 @@ import java.util.Random;
 
 public class Insults extends Module {
 
-    public final ModeProperty chatMode = new ModeProperty("chat-mode", 0, new String[]{"Normal", "/G", "/TELL"});
+    public final ModeProperty chatMode = new ModeProperty("chat-mode", 0, new String[]{"NORMAL", "/G", "/TELL"});
 
     private final Map<EntityLivingBase, Long> attackedEntities = new HashMap<>();
     private final Random random = new Random();
@@ -46,7 +46,17 @@ public class Insults extends Module {
         "EI %s, você sabia que a egirltrans é tão burra que não sabe instalar o CheatBreaker de fontes oficiais, e então fala que é vírus? #CCW",
         "%s eu vou fazer macumba pra você morrer #CCW",
         "Exu te abençoe %s #CCW",
-        "SAY WALLAHI BRO %s #CCW"
+        "SAY WALLAHI BRO %s #CCW",
+        "%s, você é a prova viva de que o cérebro é um órgão completamente opcional #CCW",
+        "Eu diria para você melhorar %s, mas um transplante de cérebro não vende no Mercado Livre #CCW",
+        "Cuidado com os hackers russos %s, doxei sua casa e o endereço deu num lixão! #CCW",
+        "Seu psicólogo desistiu de você né %s? #CCW",
+        "Você é o motivo do 4bortØ ser debatido %s. #CCW",
+        "Seu futuro é mais escuro que o porão do Diddy %s. #CCW",
+        "O %s desliga o monitor quando joga pra ter uma desculpa? #CCW",
+        "O %s é o motivo pelo qual as pessoas preferem o isolamento social. #CCW",
+        "A misantropi4 faz sentido quando a gente vê o %s tentando jogar. #CCW",
+        "Sua única contribuição pro planeta vai ser virar adubo %s. #CCW"
     };
 
     public Insults() {
