@@ -117,6 +117,8 @@ public class Myau {
         moduleManager.modules.put(KeepSprint.class, new KeepSprint());
         moduleManager.modules.put(HitBox.class, new HitBox());
         moduleManager.modules.put(KillAura.class, new KillAura());
+        moduleManager.modules.put(Criticals.class, new Criticals());
+        moduleManager.modules.put(BowAimbot.class, new BowAimbot());
         moduleManager.modules.put(LagRange.class, new LagRange());
         moduleManager.modules.put(LightningTracker.class, new LightningTracker());
         moduleManager.modules.put(LongJump.class, new LongJump());
@@ -252,7 +254,9 @@ public class Myau {
             module instanceof myau.module.modules.BlockHit ||
             module instanceof myau.module.modules.Displace ||
             module instanceof myau.module.modules.KnockbackDelay ||
-            module instanceof myau.module.modules.SprintReset) {
+            module instanceof myau.module.modules.SprintReset ||
+            module instanceof myau.module.modules.Criticals ||
+            module instanceof myau.module.modules.BowAimbot) {
             return 0;
         }
         if (module instanceof myau.module.modules.AntiAFK ||

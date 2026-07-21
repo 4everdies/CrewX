@@ -3,19 +3,29 @@ package myau.module.modules;
 import myau.event.EventTarget;
 import myau.event.types.EventType;
 import myau.events.PacketEvent;
+import myau.events.TickEvent;
 import myau.module.Module;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.ModeProperty;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.Packet;
 import net.minecraft.network.play.client.C03PacketPlayer;
 import net.minecraft.network.play.client.C0BPacketEntityAction;
 import net.minecraft.network.play.client.C16PacketClientStatus;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 public class Disabler extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
 
-    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Hypixel Portal", "Watchdog", "NCP", "Verus", "Vulcan"});
-    public final BooleanProperty cancelGroundSpoof = new BooleanProperty("ground-spoof", false);
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Hypixel Portal", "Watchdog", "NCP", "Verus", "Vulcan", "Kaizen"});
+    public final BooleanProperty cancelGroundSpoof = new BooleanProperty("ground spoof", false);
+
+    private final List<Packet<?>> kaizenBuffer = new ArrayList<>();
+    private int kaizenTicks = 0;
+    private boolean kaizenFlushing = false;
 
     public Disabler() {
         super("Disabler", false);
@@ -25,6 +35,15 @@ public class Disabler extends Module {
     public void onPacket(PacketEvent event) {
         if (!this.isEnabled() || event.getType() != EventType.SEND || mc.thePlayer == null) return;
         Object p = event.getPacket();
+
+        if (mode.getValue() == 5) {
+            if (kaizenFlushing) return;
+            event.setCancelled(true);
+            if (p instanceof Packet) {
+                kaizenBuffer.add((Packet<?>) p);
+            }
+            return;
+        }
 
         switch (mode.getValue()) {
             case 0:
@@ -54,6 +73,27 @@ public class Disabler extends Module {
                 }
                 break;
         }
+    }
+
+    @EventTarget
+    public void onTick(TickEvent event) {
+        if (event.getType() != EventType.PRE || !isEnabled() || mode.getValue() != 5 || mc.thePlayer == null) return;
+        kaizenTicks++;
+        if (kaizenTicks >= 30) {
+            kaizenTicks = 0;
+            flushKaizen();
+        }
+    }
+
+    private void flushKaizen() {
+        if (kaizenBuffer.isEmpty()) return;
+        kaizenFlushing = true;
+        Collections.shuffle(kaizenBuffer);
+        for (Packet<?> p : kaizenBuffer) {
+            mc.getNetHandler().getNetworkManager().sendPacket(p, null);
+        }
+        kaizenBuffer.clear();
+        kaizenFlushing = false;
     }
 
     @Override
