@@ -16,7 +16,7 @@ import java.util.Random;
 
 public class Insults extends Module {
 
-    public final ModeProperty chatMode = new ModeProperty("chat-mode", 0, new String[]{"Normal", "/G", "/TELL"});
+    public final ModeProperty chatMode = new ModeProperty("chat-mode", 0, new String[]{"NORMAL", "/G", "/TELL"});
 
     private final Map<EntityLivingBase, Long> attackedEntities = new HashMap<>();
     private final Random random = new Random();
@@ -42,8 +42,6 @@ public class Insults extends Module {
         "A STAFF VAI ME BANIR E EU VOLTAREI EM 5 SEGUNDOS HAHAHAHAH %s DESISTA #CCW",
         "Cansado de perder pra cheaters? %s entre agora mesmo gg|crackcrew #CCW",
         "%s meu cheat é melhor que o OWL client, entre já gg|crackcrew #CCW",
-        "Ei %s, sabia que a ex-staff alaninha do Hylex na verdade não é mulher, e aliás ela gosta de menores de idade também... #CCW",
-        "EI %s, você sabia que a egirltrans é tão burra que não sabe instalar o CheatBreaker de fontes oficiais, e então fala que é vírus? #CCW",
         "%s eu vou fazer macumba pra você morrer #CCW",
         "Exu te abençoe %s #CCW",
         "SAY WALLAHI BRO %s #CCW",
@@ -56,7 +54,8 @@ public class Insults extends Module {
         "O %s desliga o monitor quando joga pra ter uma desculpa? #CCW",
         "O %s é o motivo pelo qual as pessoas preferem o isolamento social. #CCW",
         "A misantropi4 faz sentido quando a gente vê o %s tentando jogar. #CCW",
-        "Sua única contribuição pro planeta vai ser virar adubo %s. #CCW"
+        "Sua única contribuição pro planeta vai ser virar adubo %s. #CCW",
+        "Por favor não se vitimize no Discord igual a egirltrans %s #CCW"
     };
 
     public Insults() {
