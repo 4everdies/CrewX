@@ -7,6 +7,6 @@ import myau.property.Property;
 
 public class MyauBridge {
     public static List<Property<?>> getProperties(Module module) {
-        return Myau.propertyManager.properties.get(module.getClass());
+        return Myau.propertyManager.properties.get(module);
     }
 }

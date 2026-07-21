@@ -14,7 +14,7 @@ import java.util.LinkedHashMap;
 
 public class ModuleManager {
     private boolean sound = false;
-    public final LinkedHashMap<Class<?>, Module> modules = new LinkedHashMap<>();
+    public final LinkedHashMap<Object, Module> modules = new LinkedHashMap<>();
 
     public Module getModule(String string) {
         return this.modules.values().stream().filter(mD -> mD.getName().equalsIgnoreCase(string)).findFirst().orElse(null);

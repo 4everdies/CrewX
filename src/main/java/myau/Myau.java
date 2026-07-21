@@ -35,6 +35,7 @@ public class Myau {
     public static FriendManager friendManager;
     public static TargetManager targetManager;
     public static PropertyManager propertyManager;
+    public static myau.script.ScriptManager scriptManager;
     public static ModuleManager moduleManager;
     public static CommandManager commandManager;
 
@@ -81,7 +82,6 @@ public class Myau {
         moduleManager.modules.put(SprintReset.class, new SprintReset());
         moduleManager.modules.put(DynamicIsland.class, new DynamicIsland());
         moduleManager.modules.put(Piercing.class, new Piercing());
-        moduleManager.modules.put(Disabler.class, new Disabler());
         moduleManager.modules.put(HackerDetector.class, new HackerDetector());
         moduleManager.modules.put(AutoSoup.class, new AutoSoup());
         moduleManager.modules.put(BedNuker.class, new BedNuker());
@@ -163,6 +163,7 @@ public class Myau {
         commandManager.commands.add(new ListCommand());
         commandManager.commands.add(new ModuleCommand());
         commandManager.commands.add(new PlayerCommand());
+        commandManager.commands.add(new ScriptCommand());
         commandManager.commands.add(new ShowCommand());
         commandManager.commands.add(new TargetCommand());
         commandManager.commands.add(new ToggleCommand());
@@ -182,9 +183,12 @@ public class Myau {
                     properties.add((Property<?>) obj);
                 }
             }
-            propertyManager.properties.put(module.getClass(), properties);
+            propertyManager.properties.put(module, properties);
             EventManager.register(module);
         }
+        scriptManager = new myau.script.ScriptManager();
+        scriptManager.init();
+
         initClickGui();
 
         Config config = new Config("default", true);
@@ -318,6 +322,9 @@ public class Myau {
             module instanceof myau.module.modules.AutoPot ||
             module instanceof myau.module.modules.ThrowPot) {
             return 3;
+        }
+        if (module instanceof myau.script.ScriptModule) {
+            return 5;
         }
         return 4;
     }

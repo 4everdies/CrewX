@@ -61,6 +61,8 @@ public class ModernClickGui extends GuiScreen {
     private int dragScrollLastY;
     private boolean draggingModuleScrollbar = false;
     private boolean draggingSettingScrollbar = false;
+    private int scriptBtnX1, scriptBtnY1, scriptBtnW, scriptBtnH = 22;
+    private int scriptBtnX2;
     private final Map<String, SettingState> settingStates = new HashMap<>();
     private static final int COLOR_WINDOW_BG = 0xFA111111;
     private static final int COLOR_HEADER_BG = 0xFF141414;
@@ -165,7 +167,7 @@ public class ModernClickGui extends GuiScreen {
         RoundedUtils.drawRoundedRect(sx, sy, SIDEBAR_WIDTH, sh, COLOR_SIDEBAR_BG, 0);
 
         int cy = sy + 10;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 6; i++) {
             boolean sel = selectedCategory == i;
             boolean hov = mouseX >= sx && mouseX <= sx + SIDEBAR_WIDTH && mouseY >= cy && mouseY <= cy + 26;
             if (sel || hov) {
@@ -184,16 +186,51 @@ public class ModernClickGui extends GuiScreen {
     private void drawModuleList(int x, int y, int w, int h, int mouseX, int mouseY) {
         RenderUtils.drawRect(x, y, x + w, y + h, COLOR_CONTENT_BG);
 
+        int listTop = y + 10;
+        int listAvail = h - 20;
+        int toolbarH = 0;
+
+        if (selectedCategory == 5) {
+            toolbarH = 34;
+            listTop = y + 8 + toolbarH;
+            listAvail = h - 16 - toolbarH;
+
+            int margin = 8;
+            int gap = 6;
+            int bh = scriptBtnH;
+            int by = y + 8 + (toolbarH - bh) / 2;
+            int usable = Math.max(0, w - (margin * 2));
+            int bw = Math.max(24, (usable - gap) / 2);
+
+            scriptBtnW = bw;
+            scriptBtnY1 = by;
+            scriptBtnX1 = x + margin;
+            scriptBtnX2 = scriptBtnX1 + bw + gap;
+
+            boolean hovF = mouseX >= scriptBtnX1 && mouseX <= scriptBtnX1 + bw && mouseY >= by && mouseY <= by + bh;
+            boolean hovR = mouseX >= scriptBtnX2 && mouseX <= scriptBtnX2 + bw && mouseY >= by && mouseY <= by + bh;
+
+            RoundedUtils.drawRoundedRect(scriptBtnX1, by, bw, bh, hovF ? 0xFF2A2A3A : 0xFF202020, 4);
+            RoundedUtils.drawRoundedOutlinedRect(scriptBtnX1, by, bw, bh, 0xFF3C3C4C, 4, 1);
+            Fonts.drawStringCentered("Folder", scriptBtnX1 + bw / 2.0, by + bh / 2.0, COLOR_TEXT, "");
+
+            RoundedUtils.drawRoundedRect(scriptBtnX2, by, bw, bh, hovR ? 0xFF2A2A3A : 0xFF202020, 4);
+            RoundedUtils.drawRoundedOutlinedRect(scriptBtnX2, by, bw, bh, 0xFF3C3C4C, 4, 1);
+            Fonts.drawStringCentered("Reload", scriptBtnX2 + bw / 2.0, by + bh / 2.0, COLOR_TEXT, "");
+
+            RenderUtils.drawRect(x + margin, y + 8 + toolbarH - 1, x + w - margin, y + 8 + toolbarH, COLOR_SEPARATOR);
+        }
+
         List<BridgeModule> modules = getModulesForCategory(selectedCategory);
         int totalH = modules.size() * MODULE_ITEM_HEIGHT;
-        int maxScroll = Math.max(0, totalH - (h - 20));
+        int maxScroll = Math.max(0, totalH - listAvail);
         moduleScrollTarget = clamp(moduleScrollTarget, 0, maxScroll);
 
         RenderUtils.enableScisor();
         ScaledResolution sr = new ScaledResolution(mc);
-        RenderUtils.scissor(sr, x, y + 10, w, h - 20);
+        RenderUtils.scissor(sr, x, listTop, w, listAvail);
 
-        int my = y + 10 - (int) moduleScroll;
+        int my = listTop - (int) moduleScroll;
         for (BridgeModule mod : modules) {
             boolean sel = mod == selectedModule;
             boolean hov = mouseX >= x && mouseX <= x + w && mouseY >= my && mouseY <= my + MODULE_ITEM_HEIGHT;
@@ -221,7 +258,7 @@ public class ModernClickGui extends GuiScreen {
         }
 
         RenderUtils.disableScisor();
-        if (totalH > h - 20) drawScrollbar(x + w - 8, y + 10, h - 20, totalH, moduleScroll);
+        if (totalH > listAvail) drawScrollbar(x + w - 8, listTop, listAvail, totalH, moduleScroll);
     }
 
     private void drawSettings(int x, int y, int w, int h, int mouseX, int mouseY) {
@@ -509,7 +546,7 @@ public class ModernClickGui extends GuiScreen {
         }
 
         int sy = windowY + HEADER_HEIGHT + 1 + 10;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 6; i++) {
             if (mouseX >= windowX && mouseX <= windowX + SIDEBAR_WIDTH && mouseY >= sy && mouseY <= sy + 26) {
                 selectedCategory = i;
                 selectedModule = null;
@@ -557,8 +594,20 @@ public class ModernClickGui extends GuiScreen {
     private boolean handleModuleClick(int x, int y, int w, int mouseX, int mouseY, int btn) {
         if (mouseX < x || mouseX > x + w) return false;
 
+        if (selectedCategory == 5 && btn == 0) {
+            if (mouseX >= scriptBtnX1 && mouseX <= scriptBtnX1 + scriptBtnW && mouseY >= scriptBtnY1 && mouseY <= scriptBtnY1 + scriptBtnH) {
+                try { java.awt.Desktop.getDesktop().open(myau.Myau.scriptManager.getDirectory()); } catch (Exception e) {}
+                return true;
+            }
+            if (mouseX >= scriptBtnX2 && mouseX <= scriptBtnX2 + scriptBtnW && mouseY >= scriptBtnY1 && mouseY <= scriptBtnY1 + scriptBtnH) {
+                myau.Myau.scriptManager.reload();
+                return true;
+            }
+        }
+
+        int listTop = y + 10 + (selectedCategory == 5 ? 36 : 0);
         List<BridgeModule> mods = getModulesForCategory(selectedCategory);
-        int my = y + 10 - (int) moduleScroll;
+        int my = listTop - (int) moduleScroll;
         for (BridgeModule mod : mods) {
             if (mouseY >= my && mouseY <= my + MODULE_ITEM_HEIGHT) {
                 if (btn == 1) {

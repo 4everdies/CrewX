@@ -91,6 +91,7 @@ public class BridgeModule {
             case 2: return "Render";
             case 3: return "Player";
             case 4: return "Misc";
+            case 5: return "Script";
             default: return "Other";
         }
     }
