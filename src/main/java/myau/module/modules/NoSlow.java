@@ -15,24 +15,31 @@ import myau.util.TeamUtil;
 import myau.property.properties.BooleanProperty;
 import myau.property.properties.PercentProperty;
 import myau.property.properties.ModeProperty;
+import myau.property.properties.DoubleProperty;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.passive.EntityVillager;
+import net.minecraft.network.play.client.C09PacketHeldItemChange;
 import net.minecraft.util.BlockPos;
 
 public class NoSlow extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private int lastSlot = -1;
-    public final ModeProperty swordMode = new ModeProperty("sword-mode", 1, new String[]{"None", "Vanilla"});
+
+    public final ModeProperty swordMode = new ModeProperty("sword-mode", 1, new String[]{"None", "Vanilla", "Grim", "Prediction"});
     public final PercentProperty swordMotion = new PercentProperty("sword-motion", 100, () -> this.swordMode.getValue() != 0);
     public final BooleanProperty swordSprint = new BooleanProperty("sword-sprint", true, () -> this.swordMode.getValue() != 0);
-    public final ModeProperty foodMode = new ModeProperty("food-mode", 0, new String[]{"None", "Vanilla", "Float"});
+
+    public final ModeProperty foodMode = new ModeProperty("food-mode", 0, new String[]{"None", "Vanilla", "Float", "Grim", "Prediction"});
     public final PercentProperty foodMotion = new PercentProperty("food-motion", 100, () -> this.foodMode.getValue() != 0);
     public final BooleanProperty foodSprint = new BooleanProperty("food-sprint", true, () -> this.foodMode.getValue() != 0);
-    public final ModeProperty bowMode = new ModeProperty("bow-mode", 0, new String[]{"None", "Vanilla", "Float"});
+
+    public final ModeProperty bowMode = new ModeProperty("bow-mode", 0, new String[]{"None", "Vanilla", "Float", "Grim", "Prediction"});
     public final PercentProperty bowMotion = new PercentProperty("bow-motion", 100, () -> this.bowMode.getValue() != 0);
     public final BooleanProperty bowSprint = new BooleanProperty("bow-sprint", true, () -> this.bowMode.getValue() != 0);
+
+    public final DoubleProperty predictionAmount = new DoubleProperty("Prediction Amount", 2.0, 2.0, 5.0);
 
     public NoSlow() {
         super("NoSlow", false);
@@ -51,8 +58,20 @@ public class NoSlow extends Module {
     }
 
     public boolean isFloatMode() {
-        return this.foodMode.getValue() == 2 && ItemUtil.isEating()
-                || this.bowMode.getValue() == 2 && ItemUtil.isUsingBow();
+        return (this.foodMode.getValue() == 2 && ItemUtil.isEating())
+                || (this.bowMode.getValue() == 2 && ItemUtil.isUsingBow());
+    }
+
+    public boolean isGrimMode() {
+        return (this.swordMode.getValue() == 2 && ItemUtil.isHoldingSword())
+                || (this.foodMode.getValue() == 3 && ItemUtil.isEating())
+                || (this.bowMode.getValue() == 3 && ItemUtil.isUsingBow());
+    }
+
+    public boolean isPredictionMode() {
+        return (this.swordMode.getValue() == 3 && ItemUtil.isHoldingSword())
+                || (this.foodMode.getValue() == 4 && ItemUtil.isEating())
+                || (this.bowMode.getValue() == 4 && ItemUtil.isUsingBow());
     }
 
     public boolean isAnyActive() {
@@ -60,9 +79,9 @@ public class NoSlow extends Module {
     }
 
     public boolean canSprint() {
-        return this.isSwordActive() && this.swordSprint.getValue()
-                || this.isFoodActive() && this.foodSprint.getValue()
-                || this.isBowActive() && this.bowSprint.getValue();
+        return (this.isSwordActive() && this.swordSprint.getValue())
+                || (this.isFoodActive() && this.foodSprint.getValue())
+                || (this.isBowActive() && this.bowSprint.getValue());
     }
 
     public int getMotionMultiplier() {
@@ -75,25 +94,53 @@ public class NoSlow extends Module {
         }
     }
 
+    public void performGrimBypass() {
+        int currentSlot = mc.thePlayer.inventory.currentItem;
+        mc.getNetHandler().addToSendQueue(new C09PacketHeldItemChange((currentSlot % 8) + 1));
+        mc.getNetHandler().addToSendQueue(new C09PacketHeldItemChange(currentSlot));
+    }
+
     @EventTarget
     public void onLivingUpdate(LivingUpdateEvent event) {
         if (this.isEnabled() && this.isAnyActive()) {
-            float multiplier = (float) this.getMotionMultiplier() / 100.0F;
-            mc.thePlayer.movementInput.moveForward *= multiplier;
-            mc.thePlayer.movementInput.moveStrafe *= multiplier;
-            if (!this.canSprint()) {
-                mc.thePlayer.setSprinting(false);
+            boolean shouldCancelSlowdown = false;
+
+            if (this.isPredictionMode()) {
+                int amount = this.predictionAmount.getValue().intValue();
+                if (mc.thePlayer.onGround && mc.thePlayer.ticksExisted % amount != 0) {
+                    shouldCancelSlowdown = true;
+                }
+            } else {
+                shouldCancelSlowdown = true; 
+            }
+
+            if (shouldCancelSlowdown) {
+                float multiplier = (float) this.getMotionMultiplier() / 100.0F;
+                mc.thePlayer.movementInput.moveForward *= multiplier;
+                mc.thePlayer.movementInput.moveStrafe *= multiplier;
+                if (!this.canSprint()) {
+                    mc.thePlayer.setSprinting(false);
+                }
             }
         }
     }
 
     @EventTarget(Priority.LOW)
     public void onPlayerUpdate(PlayerUpdateEvent event) {
-        if (this.isEnabled() && this.isFloatMode()) {
-            int item = mc.thePlayer.inventory.currentItem;
-            if (this.lastSlot != item && PlayerUtil.isUsingItem()) {
-                this.lastSlot = item;
-                Myau.floatManager.setFloatState(true, FloatModules.NO_SLOW);
+        if (this.isEnabled()) {
+            if (this.isFloatMode()) {
+                int item = mc.thePlayer.inventory.currentItem;
+                if (this.lastSlot != item && PlayerUtil.isUsingItem()) {
+                    this.lastSlot = item;
+                    Myau.floatManager.setFloatState(true, FloatModules.NO_SLOW);
+                }
+            } else {
+                this.lastSlot = -1;
+                Myau.floatManager.setFloatState(false, FloatModules.NO_SLOW);
+            }
+
+            if (this.isGrimMode() && mc.thePlayer.isUsingItem()) {
+                this.performGrimBypass();
             }
         } else {
             this.lastSlot = -1;
