@@ -94,7 +94,6 @@ public class Fly extends Module {
         disableTimer = 0L;
         isFlyDisabled = false;
 
-        // Agacha e logo em seguida desagacha
         PacketUtil.sendPacket(new C0BPacketEntityAction(mc.thePlayer, C0BPacketEntityAction.Action.START_SNEAKING));
         PacketUtil.sendPacket(new C0BPacketEntityAction(mc.thePlayer, C0BPacketEntityAction.Action.STOP_SNEAKING));
 
