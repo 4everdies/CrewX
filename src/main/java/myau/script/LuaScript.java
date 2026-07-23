@@ -28,6 +28,12 @@ public class LuaScript {
                 ? fileName.substring(0, fileName.length() - 4)
                 : fileName;
         this.globals = JsePlatform.standardGlobals();
+        // Scripts receive the explicit CrewX bridge only. Arbitrary Java, OS,
+        // filesystem and package loading are removed from the global scope.
+        String[] blocked = {"luajava", "io", "os", "debug", "package", "require", "dofile", "loadfile"};
+        for (String global : blocked) {
+            this.globals.set(global, LuaValue.NIL);
+        }
     }
 
     public File getFile() {
@@ -68,15 +74,15 @@ public class LuaScript {
             return true;
         } catch (LuaError e) {
             this.error = e.getMessage();
-            ChatUtil.sendMessage("&cerror in &f" + this.name + "&c: " + this.error);
+            ChatUtil.sendFormatted("&cerror in &f" + this.name + "&c: " + this.error);
             return false;
         } catch (IOException e) {
             this.error = e.toString();
-            ChatUtil.sendMessage("&ccould not read &f" + this.name + "&c: " + this.error);
+            ChatUtil.sendFormatted("&ccould not read &f" + this.name + "&c: " + this.error);
             return false;
         } catch (Throwable t) {
             this.error = t.toString();
-            ChatUtil.sendMessage("&cfailed to load &f" + this.name + "&c: " + this.error);
+            ChatUtil.sendFormatted("&cfailed to load &f" + this.name + "&c: " + this.error);
             return false;
         }
     }
@@ -125,9 +131,9 @@ public class LuaScript {
         this.error = message;
         if (this.errorsReported < 3) {
             this.errorsReported++;
-            ChatUtil.sendMessage("&c" + this.name + "." + functionName + "&7: &f" + message);
+            ChatUtil.sendFormatted("&c" + this.name + "." + functionName + "&7: &f" + message);
             if (this.errorsReported == 3) {
-                ChatUtil.sendMessage("&7(silencing errors from &f" + this.name + "&7)");
+                ChatUtil.sendFormatted("&7(silencing errors from &f" + this.name + "&7)");
             }
         }
     }

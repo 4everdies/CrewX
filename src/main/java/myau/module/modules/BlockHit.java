@@ -48,13 +48,8 @@ public class BlockHit extends Module {
     @Override
     public void onDisabled() {
         Myau.lagManager.setDelay(0);
-        this.reset();
-        this.startBlocking = false;
-        this.stopTick = 0;
-        this.blockTicks = 0;
-        this.attackTicks = 0;
-        this.target = null;
     }
+
 
     @EventTarget
     public void onTick(TickEvent event) {
@@ -181,5 +176,4 @@ public class BlockHit extends Module {
     public String[] getSuffix() {
         return new String[]{CaseFormat.UPPER_UNDERSCORE.to(CaseFormat.UPPER_CAMEL, this.mode.getModeString())};
     }
-                    }
-                            
+}

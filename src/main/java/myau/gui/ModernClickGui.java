@@ -20,6 +20,7 @@ import myau.clickgui.font.Fonts;
 import myau.clickgui.render.RenderUtils;
 import myau.clickgui.render.RoundedUtils;
 import myau.clickgui.value.Value;
+import myau.clickgui.value.settings.ActionValue;
 import myau.clickgui.value.settings.BooleanValue;
 import myau.clickgui.value.settings.ColorValue;
 import myau.clickgui.value.settings.ModeValue;
@@ -372,6 +373,15 @@ public class ModernClickGui extends GuiScreen {
 
 
     private void drawSetting(Value v, int x, int y, int w, int mouseX, int mouseY) {
+        if (v instanceof ActionValue) {
+            boolean hover = mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + 22;
+            RoundedUtils.drawRoundedRect(x, y, w, 22, hover ? 0xFF2A3354 : 0xFF20263A, 4);
+            RoundedUtils.drawRoundedOutlinedRect(x, y, w, 22, hover ? 0xFF9AB0FF : COLOR_ACCENT, 4, 1);
+            int tw = (int) Fonts.getWidth(v.getName(), "");
+            Fonts.drawString(v.getName(), x + (w - tw) / 2f, y + 7, hover ? 0xFFFFFFFF : COLOR_TEXT, "");
+            return;
+        }
+
         Fonts.drawString(v.getName(), x, y + 3, COLOR_TEXT, "");
 
         if (v instanceof BooleanValue) {
@@ -634,7 +644,12 @@ public class ModernClickGui extends GuiScreen {
         for (Value v : selectedModule.getVisibleSettings()) {
             int sh = getSettingHeight(v);
 
-            if (v instanceof BooleanValue) {
+            if (v instanceof ActionValue) {
+                if (mouseX >= x + 12 && mouseX <= x + 12 + w - 24 && mouseY >= currentY && mouseY <= currentY + 22) {
+                    ((ActionValue) v).press();
+                    return;
+                }
+            } else if (v instanceof BooleanValue) {
                 BooleanValue bv = (BooleanValue) v;
                 int sx = x + 12 + w - 24 - 34;
                 int sy = currentY + 2;

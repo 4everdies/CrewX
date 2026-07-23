@@ -7,6 +7,7 @@ import myau.events.PacketEvent;
 import myau.events.Render2DEvent;
 import myau.events.Render3DEvent;
 import myau.events.UpdateEvent;
+import net.minecraft.client.Minecraft;
 import org.luaj.vm2.LuaValue;
 
 public class ScriptEvents {
@@ -38,7 +39,12 @@ public class ScriptEvents {
     public void onRender3D(Render3DEvent event) {
         LuaValue partial = LuaValue.valueOf(event.getPartialTicks());
         for (ScriptModule module : this.manager.getActiveModules()) {
-            module.getScript().call("onRender3D", partial);
+            Render3D.forceFinish();
+            try {
+                module.getScript().call("onRender3D", partial);
+            } finally {
+                Render3D.forceFinish();
+            }
         }
     }
 
@@ -53,7 +59,8 @@ public class ScriptEvents {
         LuaValue packetName = LuaValue.valueOf(name);
 
         for (ScriptModule module : this.manager.getActiveModules()) {
-            if (!module.getScript().callAllowing(callback, packetName)) {
+            if (!module.getScript().callAllowing(callback, packetName)
+                    && Minecraft.getMinecraft().isSingleplayer()) {
                 event.setCancelled(true);
                 return;
             }

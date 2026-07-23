@@ -12,30 +12,25 @@ import myau.util.MoveUtil;
 import myau.util.PacketUtil;
 import myau.property.properties.FloatProperty;
 import net.minecraft.network.play.client.C0BPacketEntityAction;
-import net.minecraft.network.play.client.C03PacketPlayer;
 import myau.property.properties.ModeProperty;
 import net.minecraft.client.Minecraft;
 
 public class Fly extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private double verticalMotion = 0.0;
-    
     private boolean isKaizenMode = false;
-    private boolean isVulcanMode = false;
-    
     private boolean isBlinkActive = false;
     private long disableTimer = 0L;
     private boolean waitingToDisableBlink = false;
     private boolean isFlyDisabled = false;
+
     private long enableTimer = 0L;
     private boolean waitingToEnableFly = false;
     private boolean isFlyPhysicallyEnabled = false;
 
-    private int vulcanTicks;
-
     public final FloatProperty hSpeed = new FloatProperty("horizontal-speed", 1.0F, 0.0F, 100.0F);
     public final FloatProperty vSpeed = new FloatProperty("vertical-speed", 1.0F, 0.0F, 100.0F);
-    public final ModeProperty flyMode = new ModeProperty("mode", 0, new String[]{"Normal", "Kaizen", "Vulcan"});
+    public final ModeProperty flyMode = new ModeProperty("mode", 0, new String[]{"Normal", "Kaizen"});
 
     public Fly() {
         super("Fly", false);
@@ -44,11 +39,6 @@ public class Fly extends Module {
     @EventTarget
     public void onStrafe(StrafeEvent event) {
         if (this.isEnabled()) {
-            if (isVulcanMode) {
-                MoveUtil.setSpeed(1.0); 
-                return;
-            }
-
             if (isKaizenMode && !isFlyPhysicallyEnabled) {
                 return;
             }
@@ -63,33 +53,6 @@ public class Fly extends Module {
     @EventTarget
     public void onUpdate(UpdateEvent event) {
         if (event.getType() == EventType.PRE) {
-            
-            if (this.isEnabled() && isVulcanMode) {
-                final double vulcanSpeed = 1.0;
-
-                mc.thePlayer.motionY = -1E-10D
-                        + (KeyBindUtil.isKeyDown(mc.gameSettings.keyBindJump.getKeyCode()) ? vulcanSpeed : 0.0D)
-                        - (KeyBindUtil.isKeyDown(mc.gameSettings.keyBindSneak.getKeyCode()) ? vulcanSpeed : 0.0D);
-
-                double distance = mc.thePlayer.getDistance(
-                        mc.thePlayer.lastReportedPosX, 
-                        mc.thePlayer.lastReportedPosY, 
-                        mc.thePlayer.lastReportedPosZ
-                );
-
-                if (distance <= 10 - vulcanSpeed - 0.15) {
-                    event.setCancelled(true);
-                } else {
-                    vulcanTicks++;
-
-                    if (vulcanTicks >= 8) {
-                        MoveUtil.setSpeed(0.0);
-                        this.setEnabled(false);
-                    }
-                }
-                return;
-            }
-
             if (this.isEnabled() && isKaizenMode && waitingToEnableFly) {
                 if (System.currentTimeMillis() - enableTimer >= 20L) {
                     isFlyPhysicallyEnabled = true;
@@ -127,25 +90,11 @@ public class Fly extends Module {
     @Override
     public void onEnabled() {
         isKaizenMode = flyMode.getValue() == 1;
-        isVulcanMode = flyMode.getValue() == 2;
-
-        if (isVulcanMode) {
-            vulcanTicks = 0;
-            PacketUtil.sendPacket(new C03PacketPlayer.C06PacketPlayerPosLook(
-                    mc.thePlayer.posX, 
-                    mc.thePlayer.posY - 2, 
-                    mc.thePlayer.posZ,
-                    mc.thePlayer.rotationYaw, 
-                    mc.thePlayer.rotationPitch, 
-                    false
-            ));
-            return;
-        }
-
         waitingToDisableBlink = false;
         disableTimer = 0L;
         isFlyDisabled = false;
 
+        // Agacha e logo em seguida desagacha
         PacketUtil.sendPacket(new C0BPacketEntityAction(mc.thePlayer, C0BPacketEntityAction.Action.START_SNEAKING));
         PacketUtil.sendPacket(new C0BPacketEntityAction(mc.thePlayer, C0BPacketEntityAction.Action.STOP_SNEAKING));
 
@@ -163,11 +112,6 @@ public class Fly extends Module {
 
     @Override
     public void onDisabled() {
-        if (isVulcanMode) {
-            MoveUtil.setSpeed(0.0);
-            return;
-        }
-
         isFlyPhysicallyEnabled = false;
         waitingToEnableFly = false;
 
@@ -204,3 +148,4 @@ public class Fly extends Module {
         return isBlinkActive;
     }
 }
+

@@ -152,6 +152,8 @@ public class Myau {
         moduleManager.modules.put(AutoChest.class, new AutoChest());
         moduleManager.modules.put(Cape.class, new Cape());
         moduleManager.modules.put(AntiBot.class, new AntiBot());
+        moduleManager.modules.put(Animations.class, new Animations());
+        moduleManager.modules.put(StaffDetector.class, new StaffDetector());
         commandManager.commands.add(new BindCommand());
         commandManager.commands.add(new ConfigCommand());
         commandManager.commands.add(new DenickCommand());
@@ -298,7 +300,9 @@ public class Myau {
             module instanceof myau.module.modules.Radar ||
             module instanceof myau.module.modules.DynamicIsland ||
             module instanceof myau.module.modules.Notifications ||
-            module instanceof myau.module.modules.Cape) {
+            module instanceof myau.module.modules.Cape ||
+            module instanceof myau.module.modules.Animations ||
+            false) {
             return 2;
         }
         if (module instanceof myau.module.modules.AutoHeal ||

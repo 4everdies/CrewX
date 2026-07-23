@@ -65,6 +65,8 @@ public class ScriptModule extends Module {
         if (!this.script.isLoaded()) {
             return;
         }
+        ScriptGuiScreen.close(this.script);
+        ScriptSkinOverrides.clearOwnedBy(this.script);
         this.script.call("onDisable");
     }
 }

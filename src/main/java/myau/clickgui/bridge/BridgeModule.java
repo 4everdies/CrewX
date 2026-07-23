@@ -47,6 +47,9 @@ public class BridgeModule {
                 settings.add(new BoundValues.ColValue(this, (ColorProperty) prop));
             } else if (prop instanceof TextProperty) {
                 settings.add(new BoundValues.StrValue(this, (TextProperty) prop));
+            } else if (prop instanceof ButtonProperty) {
+                ButtonProperty bp = (ButtonProperty) prop;
+                settings.add(new ActionValue(this, "button:" + bp.getName(), bp.getName(), bp::press));
             }
         }
     }

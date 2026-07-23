@@ -4,6 +4,7 @@ import myau.Myau;
 import myau.event.EventManager;
 import myau.events.StrafeEvent;
 import myau.management.RotationState;
+import myau.module.modules.Animations;
 import myau.module.modules.Jesus;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraft.enchantment.EnchantmentHelper;
@@ -13,12 +14,24 @@ import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @SideOnly(Side.CLIENT)
 @Mixin(value = {EntityLivingBase.class}, priority = 9999)
 public abstract class MixinEntityLivingBase extends MixinEntity {
+    @Inject(method = "getArmSwingAnimationEnd", at = @At("RETURN"), cancellable = true)
+    private void crewx$adjustSwingDuration(CallbackInfoReturnable<Integer> callbackInfo) {
+        if ((Entity) (Object) this instanceof EntityPlayerSP && Myau.moduleManager != null) {
+            Animations animations = (Animations) Myau.moduleManager.modules.get(Animations.class);
+            if (animations != null && animations.isEnabled()) {
+                callbackInfo.setReturnValue(animations.adjustSwingDuration(callbackInfo.getReturnValue()));
+            }
+        }
+    }
+
     @ModifyVariable(
             method = {"jump"},
             at = @At("STORE"),
