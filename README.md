@@ -28,12 +28,5 @@ CrewX is a minecraft client made to completely own brazilian servers like MushMC
    ```
 3. grab the generated `.jar` file and you're good to go.
 
-## lua scripts
-Lua scripts live in `crewx/scripts` inside the Minecraft directory and appear
-as modules in the **Script** category. The API includes custom ClickGUI buttons,
-fully script-drawn screens, safe remote images, cosmetic skin overrides and a
-state-contained 3D primitive renderer. See [`SCRIPT_API.md`](SCRIPT_API.md) and
-the files in [`examples/`](examples/).
-
 ## legal stuff
 according to the official [minecraft guidelines](https://help.minecraft.net/hc/en-us/articles/4409139065613-Mods-for-Minecraft-Java-Edition), players are allowed to modify the game with mods. this project is just a modification for the java edition. use it at your own risk on public servers.
