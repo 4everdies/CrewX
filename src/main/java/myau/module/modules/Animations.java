@@ -9,10 +9,6 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.MathHelper;
 import org.lwjgl.opengl.GL11;
 
-/**
- * First-person item animation presets ported to CrewX's module/property system.
- * The actual ItemRenderer hook lives in MixinItemRenderer.
- */
 public final class Animations extends Module {
     private static final float PI = (float) Math.PI;
 
@@ -45,7 +41,6 @@ public final class Animations extends Module {
         return Math.max(1, (int) (vanillaDuration * multiplier));
     }
 
-    /** Applies the complete transform for the two paths cancelled by the mixin. */
     public void applyFirstPersonTransform(boolean blocking, float equipProgress, float swingProgress,
                                           float rendererEquippedProgress, boolean sneaking) {
         if (blocking) {
