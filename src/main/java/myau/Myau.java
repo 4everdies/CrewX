@@ -154,6 +154,8 @@ public class Myau {
         moduleManager.modules.put(AntiBot.class, new AntiBot());
         moduleManager.modules.put(Animations.class, new Animations());
         moduleManager.modules.put(StaffDetector.class, new StaffDetector());
+        moduleManager.modules.put(TickBase.class, new TickBase());
+        moduleManager.modules.put(RemoteShop.class, new RemoteShop());
         commandManager.commands.add(new BindCommand());
         commandManager.commands.add(new ConfigCommand());
         commandManager.commands.add(new DenickCommand());
@@ -262,7 +264,8 @@ public class Myau {
             module instanceof myau.module.modules.KnockbackDelay ||
             module instanceof myau.module.modules.SprintReset ||
             module instanceof myau.module.modules.Criticals ||
-            module instanceof myau.module.modules.BowAimbot) {
+            module instanceof myau.module.modules.BowAimbot ||
+            module instanceof myau.module.modules.TickBase) {
             return 0;
         }
         if (module instanceof myau.module.modules.AntiAFK ||
@@ -324,7 +327,8 @@ public class Myau {
             module instanceof myau.module.modules.BedDefender ||
             module instanceof myau.module.modules.AutoChest ||
             module instanceof myau.module.modules.AutoPot ||
-            module instanceof myau.module.modules.ThrowPot) {
+            module instanceof myau.module.modules.ThrowPot ||
+            module instanceof myau.module.modules.RemoteShop) {
             return 3;
         }
         if (module instanceof myau.script.ScriptModule) {
