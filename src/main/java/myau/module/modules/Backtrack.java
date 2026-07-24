@@ -2,7 +2,6 @@ package myau.module.modules;
 
 import myau.Myau;
 import myau.event.EventTarget;
-import myau.event.types.Priority;
 import myau.events.PacketEvent;
 import myau.events.Render3DEvent;
 import myau.events.TickEvent;
@@ -14,168 +13,180 @@ import myau.util.RenderUtil;
 import myau.util.TeamUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.network.Packet;
 import net.minecraft.network.play.client.C02PacketUseEntity;
+import net.minecraft.network.play.server.S00PacketKeepAlive;
+import net.minecraft.network.play.server.S06PacketUpdateHealth;
+import net.minecraft.network.play.server.S08PacketPlayerPosLook;
 import net.minecraft.util.AxisAlignedBB;
-import net.minecraft.util.Vec3;
 
 import java.awt.Color;
 import java.util.Random;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Backtrack extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final Random RANDOM = new Random();
 
-    private Vec3 lastPosition = null;
-    private Vec3 currentPosition = null;
-    private boolean hasTarget = false;
-    private int currentChance = -1;
-    private long nextAllowedTime = 0L;
-
-    private EntityLivingBase manualTarget = null;
-    private long manualTargetTime = 0L;
-
     public final IntProperty minDelay = new IntProperty("min-delay", 100, 0, 1000);
     public final IntProperty maxDelay = new IntProperty("max-delay", 150, 0, 1000);
-    public final FloatProperty range = new FloatProperty("range", 3.0F, 0.0F, 10.0F);
-    public final IntProperty chance = new IntProperty("chance", 100, 0, 100);
-    public final IntProperty nextBacktrackDelay = new IntProperty("next-backtrack-delay", 0, 0, 2000);
+    public final FloatProperty range = new FloatProperty("range", 6.0F, 3.0F, 10.0F);
+    public final IntProperty combatExpiry = new IntProperty("combat-expiry", 3000, 500, 10000);
     public final BooleanProperty pauseOnHurtTime = new BooleanProperty("pause-on-hurttime", false);
-    public final IntProperty hurtTimeThreshold = new IntProperty("hurttime-threshold", 3, 0, 10, () -> this.pauseOnHurtTime.getValue());
+    public final IntProperty hurtTimeThreshold = new IntProperty("hurttime-threshold", 3, 0, 10);
     public final BooleanProperty showPosition = new BooleanProperty("show-position", true);
-    public final IntProperty manualWindow = new IntProperty("manual-hit-window", 500, 50, 2000);
+
+    private EntityPlayer target = null;
+    private boolean inCombat = false;
+    private long lastCombatMs = 0L;
+    private long lagStartTime = 0L;
+    private int currentDelay = 0;
+
+    private final CopyOnWriteArrayList<DelayedPacket> packets = new CopyOnWriteArrayList<>();
+
+    private static class DelayedPacket {
+        public final Packet packet;
+        public final long time;
+
+        public DelayedPacket(Packet packet) {
+            this.packet = packet;
+            this.time = System.currentTimeMillis();
+        }
+    }
 
     public Backtrack() {
         super("Backtrack", false);
     }
 
-    private int randomDelay() {
+    private int rollDelay() {
         int min = Math.min(this.minDelay.getValue(), this.maxDelay.getValue());
         int max = Math.max(this.minDelay.getValue(), this.maxDelay.getValue());
-        if (max <= min) {
-            return min;
-        }
+        if (max <= min) return min;
         return min + RANDOM.nextInt(max - min + 1);
+    }
+
+    private void flush() {
+        this.inCombat = false;
+        this.target = null;
+        for (DelayedPacket dp : this.packets) {
+            try {
+                dp.packet.processPacket(mc.getNetHandler());
+            } catch (Exception ignored) {}
+        }
+        this.packets.clear();
+    }
+
+    private boolean isValidTarget(Entity entity) {
+        if (!(entity instanceof EntityPlayer)) return false;
+        if (entity == mc.thePlayer) return false;
+        
+        EntityPlayer player = (EntityPlayer) entity;
+        if (TeamUtil.isSameTeam(player)) return false;
+        
+        AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
+        if (antiBot != null && antiBot.isEnabled() && antiBot.isBot(player)) return false;
+        
+        return true;
     }
 
     @EventTarget
     public void onPacket(PacketEvent event) {
-        if (!this.isEnabled()) return;
-        if (event.getType() != myau.event.types.EventType.SEND) return;
+        if (!this.isEnabled() || mc.theWorld == null || mc.thePlayer == null) return;
 
-        Packet<?> packet = event.getPacket();
-        if (packet instanceof C02PacketUseEntity) {
-            C02PacketUseEntity p = (C02PacketUseEntity) packet;
-            if (p.getAction() == C02PacketUseEntity.Action.ATTACK && mc.theWorld != null) {
-                Entity ent = p.getEntityFromWorld(mc.theWorld);
-                if (ent instanceof EntityLivingBase && ent != mc.thePlayer) {
-                    this.manualTarget = (EntityLivingBase) ent;
-                    this.manualTargetTime = System.currentTimeMillis();
+        Packet packet = event.getPacket();
+
+        if (event.getType() == myau.event.types.EventType.SEND) {
+            if (packet instanceof C02PacketUseEntity) {
+                C02PacketUseEntity p = (C02PacketUseEntity) packet;
+                if (p.getAction() == C02PacketUseEntity.Action.ATTACK) {
+                    Entity ent = p.getEntityFromWorld(mc.theWorld);
+                    if (this.isValidTarget(ent)) {
+                        this.target = (EntityPlayer) ent;
+                        this.lastCombatMs = System.currentTimeMillis();
+                        
+                        if (!this.inCombat) {
+                            this.inCombat = true;
+                            this.currentDelay = this.rollDelay();
+                            this.lagStartTime = System.currentTimeMillis();
+                        }
+                    }
+                }
+            }
+        } else if (event.getType() == myau.event.types.EventType.RECEIVE) {
+            if (this.inCombat && this.target != null) {
+                if (packet instanceof S00PacketKeepAlive) return;
+
+                if (packet instanceof S08PacketPlayerPosLook) {
+                    this.flush();
+                    return;
+                }
+                
+                if (packet instanceof S06PacketUpdateHealth) {
+                    S06PacketUpdateHealth s06 = (S06PacketUpdateHealth) packet;
+                    if (s06.getHealth() <= 0.0F) {
+                        this.flush();
+                        return;
+                    }
+                }
+
+                boolean isPaused = this.pauseOnHurtTime.getValue() && this.target.hurtTime >= this.hurtTimeThreshold.getValue();
+                if (!isPaused) {
+                    event.setCancelled(true);
+                    this.packets.add(new DelayedPacket(packet));
+                } else {
+                    this.flush();
                 }
             }
         }
     }
 
-    private boolean isValidTarget(EntityLivingBase entity) {
-        if (entity == null) return false;
-        if (entity instanceof EntityPlayer) {
-            EntityPlayer player = (EntityPlayer) entity;
-            if (TeamUtil.isSameTeam(player)) return false;
-            AntiBot antiBot = (AntiBot) Myau.moduleManager.modules.get(AntiBot.class);
-            if (antiBot != null && antiBot.isEnabled() && antiBot.isBot(player)) return false;
-        }
-        return true;
-    }
-
-    private EntityLivingBase resolveTarget() {
-        KillAura killAura = (KillAura) Myau.moduleManager.modules.get(KillAura.class);
-        if (killAura != null && killAura.isEnabled()) {
-            EntityLivingBase t = killAura.getTarget();
-            if (t != null && isValidTarget(t)) return t;
-        }
-
-        if (this.manualTarget != null && !this.manualTarget.isDead) {
-            long age = System.currentTimeMillis() - this.manualTargetTime;
-            if (age <= this.manualWindow.getValue()) {
-                if (isValidTarget(this.manualTarget)) {
-                    return this.manualTarget;
-                }
-            } else {
-                this.manualTarget = null;
-            }
-        }
-
-        if (mc.pointedEntity instanceof EntityLivingBase
-                && mc.pointedEntity != mc.thePlayer
-                && isValidTarget((EntityLivingBase) mc.pointedEntity)) {
-            return (EntityLivingBase) mc.pointedEntity;
-        }
-
-        return null;
-    }
-
-    @EventTarget(Priority.LOW)
+    @EventTarget
     public void onTick(TickEvent event) {
-        if (!this.isEnabled()) {
+        if (!this.isEnabled() || mc.theWorld == null || mc.thePlayer == null) {
+            this.flush();
             return;
         }
 
-        EntityLivingBase target = resolveTarget();
-
-        boolean shouldBacktrack = false;
-        if (target != null) {
-            float distance = mc.thePlayer.getDistanceToEntity(target);
-            boolean inRange = distance <= this.range.getValue();
-            boolean chanceOk;
-            if (this.currentChance < 0) {
-                this.currentChance = RANDOM.nextInt(100);
+        if (this.inCombat) {
+            if (this.target == null || this.target.isDead || System.currentTimeMillis() - this.lastCombatMs > this.combatExpiry.getValue()) {
+                this.flush();
+                return;
             }
-            chanceOk = this.currentChance < this.chance.getValue();
-            boolean paused = this.pauseOnHurtTime.getValue()
-                    && target.hurtTime >= this.hurtTimeThreshold.getValue();
-            boolean cooldownOk = System.currentTimeMillis() >= this.nextAllowedTime;
-            shouldBacktrack = inRange && chanceOk && !paused && cooldownOk && mc.thePlayer.ticksExisted > 10;
-        }
 
-        if (shouldBacktrack) {
-            int ticks = Math.max(1, this.randomDelay() / 50);
-            Myau.lagManager.setDelay(ticks);
-            this.hasTarget = true;
-        } else {
-            if (this.hasTarget) {
-                int cd = this.nextBacktrackDelay.getValue();
-                if (cd > 0) {
-                    this.nextAllowedTime = System.currentTimeMillis() + cd;
+            if (mc.thePlayer.getDistanceSqToEntity(this.target) > this.range.getValue() * this.range.getValue() * 4) {
+                this.flush();
+                return;
+            }
+
+            long now = System.currentTimeMillis();
+            if (now - this.lagStartTime >= this.currentDelay) {
+                for (DelayedPacket dp : this.packets) {
+                    try {
+                        dp.packet.processPacket(mc.getNetHandler());
+                    } catch (Exception ignored) {}
                 }
-                this.currentChance = -1;
+                this.packets.clear();
+                this.lagStartTime = now;
+                this.currentDelay = this.rollDelay();
             }
-            Myau.lagManager.setDelay(0);
-            this.hasTarget = false;
-        }
-
-        if (event.getType() == myau.event.types.EventType.POST) {
-            Vec3 savedPosition = Myau.lagManager.getLastPosition();
-            this.lastPosition = this.currentPosition;
-            this.currentPosition = savedPosition;
         }
     }
 
     @EventTarget
     public void onRender3D(Render3DEvent event) {
-        if (this.isEnabled() && this.showPosition.getValue() && this.hasTarget
-                && this.lastPosition != null && this.currentPosition != null) {
-            Color color = new Color(60, 162, 253, 100);
-            double x = RenderUtil.lerpDouble(this.currentPosition.xCoord, this.lastPosition.xCoord, event.getPartialTicks());
-            double y = RenderUtil.lerpDouble(this.currentPosition.yCoord, this.lastPosition.yCoord, event.getPartialTicks());
-            double z = RenderUtil.lerpDouble(this.currentPosition.zCoord, this.lastPosition.zCoord, event.getPartialTicks());
+        if (this.isEnabled() && this.showPosition.getValue() && this.inCombat && this.target != null && !this.packets.isEmpty()) {
+            Color color = new Color(255, 165, 0, 120);
+            
+            double x = this.target.lastTickPosX + (this.target.posX - this.target.lastTickPosX) * event.getPartialTicks();
+            double y = this.target.lastTickPosY + (this.target.posY - this.target.lastTickPosY) * event.getPartialTicks();
+            double z = this.target.lastTickPosZ + (this.target.posZ - this.target.lastTickPosZ) * event.getPartialTicks();
 
-            float size = mc.thePlayer.getCollisionBorderSize();
+            float size = this.target.width / 2.0F;
             AxisAlignedBB aabb = new AxisAlignedBB(
-                    x - (double) mc.thePlayer.width / 2.0, y, z - (double) mc.thePlayer.width / 2.0,
-                    x + (double) mc.thePlayer.width / 2.0, y + (double) mc.thePlayer.height, z + (double) mc.thePlayer.width / 2.0
-            ).expand(size, size, size).offset(
+                    x - size, y, z - size,
+                    x + size, y + this.target.height, z + size
+            ).offset(
                     -((myau.mixin.IAccessorRenderManager) mc.getRenderManager()).getRenderPosX(),
                     -((myau.mixin.IAccessorRenderManager) mc.getRenderManager()).getRenderPosY(),
                     -((myau.mixin.IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ()
@@ -189,14 +200,7 @@ public class Backtrack extends Module {
 
     @Override
     public void onDisabled() {
-        Myau.lagManager.setDelay(0);
-        this.hasTarget = false;
-        this.lastPosition = null;
-        this.currentPosition = null;
-        this.currentChance = -1;
-        this.nextAllowedTime = 0L;
-        this.manualTarget = null;
-        this.manualTargetTime = 0L;
+        this.flush();
     }
 
     @Override
@@ -209,3 +213,4 @@ public class Backtrack extends Module {
         return new String[]{min + "-" + max + "ms"};
     }
 }
+
