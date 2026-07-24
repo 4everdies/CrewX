@@ -156,6 +156,7 @@ public class Myau {
         moduleManager.modules.put(StaffDetector.class, new StaffDetector());
         moduleManager.modules.put(TickBase.class, new TickBase());
         moduleManager.modules.put(RemoteShop.class, new RemoteShop());
+        moduleManager.modules.put(AutoRegister.class, new AutoRegister());
         commandManager.commands.add(new BindCommand());
         commandManager.commands.add(new ConfigCommand());
         commandManager.commands.add(new DenickCommand());
@@ -328,7 +329,8 @@ public class Myau {
             module instanceof myau.module.modules.AutoChest ||
             module instanceof myau.module.modules.AutoPot ||
             module instanceof myau.module.modules.ThrowPot ||
-            module instanceof myau.module.modules.RemoteShop) {
+            module instanceof myau.module.modules.RemoteShop ||
+            module instanceof myau.module.modules.AutoRegister) {
             return 3;
         }
         if (module instanceof myau.script.ScriptModule) {

@@ -31,7 +31,7 @@ public class TickBase extends Module {
 
     @EventTarget
     public void onLivingUpdate(LivingUpdateEvent event) {
-        if (mode == Mode.REDUCING) return;
+        if (!isEnabled() || mode == Mode.REDUCING) return;
 
         target = getTarget(20);
         if (target == null) return;
@@ -61,6 +61,7 @@ public class TickBase extends Module {
 
     @EventTarget
     public void onPacket(PacketEvent event) {
+        if (!isEnabled()) return;
         if (mode == Mode.REDUCING && event.getType() == EventType.RECEIVE) {
             // Could be detected with keep alives possibly
         }
@@ -68,14 +69,14 @@ public class TickBase extends Module {
 
     @EventTarget
     public void onTick(TickEvent event) {
-        if (event.getType() != EventType.PRE) return;
+        if (!isEnabled() || event.getType() != EventType.PRE) return;
         if (target == null || mc.thePlayer == null) return;
         distance = RotationUtil.distanceToEntity(target);
     }
 
     @EventTarget
     public void onRender3D(Render3DEvent event) {
-        if (mode != Mode.REDUCING || target == null) return;
+        if (!isEnabled() || mode != Mode.REDUCING || target == null) return;
 
         if (distance <= 4 || System.currentTimeMillis() - time >= ((range / (mc.thePlayer.isPotionActive(Potion.moveSpeed) ? 0.36 : 0.25)) * 25) + 25) {
             ((IAccessorMinecraft) mc).getTimer().timerSpeed = 1;
