@@ -12,6 +12,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.network.play.server.S38PacketPlayerListItem;
+import net.minecraft.network.play.server.S3APacketTabComplete;
 import net.minecraft.scoreboard.ScorePlayerTeam;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.util.IChatComponent;
@@ -60,7 +61,8 @@ public class StaffDetector extends Module {
         if (text == null || text.isEmpty()) return null;
         String cleaned = stripColors(text).toUpperCase();
         for (String kw : RANK_KEYWORDS) {
-            if (cleaned.contains(kw.toUpperCase())) {
+            Matcher matcher = Pattern.compile("\\b" + Pattern.quote(kw.toUpperCase()) + "\\b").matcher(cleaned);
+            if (matcher.find()) {
                 return kw;
             }
         }
@@ -206,18 +208,29 @@ public class StaffDetector extends Module {
         if (!this.isEnabled()) return;
         if (event.getType() != EventType.RECEIVE) return;
 
-        if (packetCheck.getValue() && event.getPacket() instanceof S38PacketPlayerListItem) {
-            S38PacketPlayerListItem packet = (S38PacketPlayerListItem) event.getPacket();
-            try {
-                for (S38PacketPlayerListItem.AddPlayerData data : packet.getEntries()) {
-                    String name = data.getProfile().getName();
-                    IChatComponent display = data.getDisplayName();
-                    if (display != null) {
-                        check(name, getDisplayTextFormatted(display), "Packet");
-                        check(name, getDisplayText(display), "Packet");
+        if (packetCheck.getValue()) {
+            if (event.getPacket() instanceof S38PacketPlayerListItem) {
+                S38PacketPlayerListItem packet = (S38PacketPlayerListItem) event.getPacket();
+                try {
+                    for (S38PacketPlayerListItem.AddPlayerData data : packet.getEntries()) {
+                        String name = data.getProfile().getName();
+                        IChatComponent display = data.getDisplayName();
+                        if (display != null) {
+                            check(name, getDisplayTextFormatted(display), "Packet");
+                            check(name, getDisplayText(display), "Packet");
+                        }
                     }
-                }
-            } catch (Exception ignored) {}
+                } catch (Exception ignored) {}
+            }
+            
+            if (event.getPacket() instanceof S3APacketTabComplete) {
+                S3APacketTabComplete packet = (S3APacketTabComplete) event.getPacket();
+                try {
+                    for (String match : packet.getMatches()) {
+                        check(match, match, "TabComplete");
+                    }
+                } catch (Exception ignored) {}
+            }
         }
     }
 
@@ -240,5 +253,4 @@ public class StaffDetector extends Module {
         scanTab();
         scanScoreboardTeams();
     }
-        }
-                
+}
