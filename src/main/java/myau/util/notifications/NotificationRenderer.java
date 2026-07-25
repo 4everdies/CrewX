@@ -13,7 +13,6 @@ import java.util.List;
 
 public class NotificationRenderer implements INotificationRenderer {
 
-    private ResourceLocation SPOTIFY = new ResourceLocation("textures/spotify.png");
     private ResourceLocation WARNING = new ResourceLocation("textures/warning.png");
     private ResourceLocation NOTIFY = new ResourceLocation("textures/notify.png");
     private ResourceLocation OKAY = new ResourceLocation("textures/okay.png");
@@ -60,7 +59,6 @@ public class NotificationRenderer implements INotificationRenderer {
                 case "NOTIFY": mc.getTextureManager().bindTexture(NOTIFY); break;
                 case "WARNING": mc.getTextureManager().bindTexture(WARNING); break;
                 case "INFO": mc.getTextureManager().bindTexture(INFO); break;
-                case "SPOTIFY": mc.getTextureManager().bindTexture(SPOTIFY); break;
                 case "OKAY": mc.getTextureManager().bindTexture(OKAY); break;
             }
             GlStateManager.translate(x + 2, not.translate.getY() + 2.5f, 0);
@@ -95,7 +93,6 @@ public class NotificationRenderer implements INotificationRenderer {
         if (type == NotificationType.INFO) return new Color(64, 131, 214).getRGB();
         if (type == NotificationType.NOTIFY) return new Color(242, 206, 87).getRGB();
         if (type == NotificationType.WARNING) return new Color(226, 74, 74).getRGB();
-        if (type == NotificationType.SPOTIFY) return new Color(30, 215, 96).getRGB();
         if (type == NotificationType.OKAY) return new Color(65, 252, 65).getRGB();
         return -1;
     }

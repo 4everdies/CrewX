@@ -2,6 +2,7 @@ package myau.mixin;
 
 import myau.Myau;
 import myau.module.modules.Animations;
+import myau.module.modules.KillAura;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.entity.EntityPlayerSP;
@@ -63,7 +64,11 @@ public abstract class MixinItemRenderer {
 
         boolean using = player.getItemInUseCount() > 0;
         boolean blocking = using && this.itemToRender.getItemUseAction() == EnumAction.BLOCK;
-        // The source module only cancels vanilla rendering while blocking or swinging.
+
+        KillAura killAura = getKillAura();
+        if (killAura != null && killAura.isEnabled() && killAura.isBlocking()) {
+            blocking = true;
+        }
         if (using && !blocking) {
             return;
         }
@@ -89,8 +94,6 @@ public abstract class MixinItemRenderer {
         }
         callbackInfo.cancel();
     }
-
-    /** Adds X/Y/Z to vanilla eat, drink, bow and NONE-use transformations. */
     @Inject(method = "transformFirstPersonItem", at = @At("HEAD"))
     private void crewx$translateVanillaUse(float equipProgress, float swingProgress, CallbackInfo callbackInfo) {
         Animations animations = getAnimations();
@@ -104,5 +107,12 @@ public abstract class MixinItemRenderer {
             return null;
         }
         return (Animations) Myau.moduleManager.modules.get(Animations.class);
+    }
+
+    private static KillAura getKillAura() {
+        if (Myau.moduleManager == null) {
+            return null;
+        }
+        return (KillAura) Myau.moduleManager.modules.get(KillAura.class);
     }
 }
