@@ -47,7 +47,7 @@ public class StaffDetector extends Module {
     public final BooleanProperty packetCheck = new BooleanProperty("packet-check", true);
     public final BooleanProperty chatCheck = new BooleanProperty("chat-check", true);
     public final BooleanProperty scoreboardCheck = new BooleanProperty("scoreboard-check", true);
-    public final BooleanProperty repeat = new BooleanProperty("repeat", false);
+    public final BooleanProperty repeat = new BooleanProperty("repeat", true);
 
     public StaffDetector() {
         super("StaffDetector", false);
@@ -268,23 +268,15 @@ public class StaffDetector extends Module {
     public void onTick(TickEvent event) {
         if (!this.isEnabled() || event.getType() != EventType.POST) return;
 
-        Fly flyModule = (Fly) Myau.moduleManager.modules.get(Fly.class);
-        boolean isKaizen = flyModule != null && flyModule.isEnabled() && flyModule.isKaizenMode();
-
-        if (!isKaizen) return;
-
         tickCounter++;
         if (tickCounter % 20 != 0) return;
 
-        if (!repeat.getValue()) {
-            scanTab();
-            scanWorld();
-            scanScoreboardTeams();
-        } else {
+        if (repeat.getValue()) {
             detected.clear();
-            scanTab();
-            scanWorld();
-            scanScoreboardTeams();
         }
+
+        scanTab();
+        scanWorld();
+        scanScoreboardTeams();
     }
-}
+    }
