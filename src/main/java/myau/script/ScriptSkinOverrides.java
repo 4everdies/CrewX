@@ -9,13 +9,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Client-side cosmetic skin overrides controlled by Lua scripts.
- *
- * The map stores only a reference to a texture already managed by
- * RemoteImageCache. Nothing is uploaded and no server-visible profile data is
- * changed.
- */
 public final class ScriptSkinOverrides {
     private static final Map<UUID, Override> overrides = new ConcurrentHashMap<>();
 

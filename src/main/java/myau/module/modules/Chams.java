@@ -6,6 +6,8 @@ import myau.events.RenderLivingEvent;
 import myau.module.Module;
 import myau.util.TeamUtil;
 import myau.property.properties.BooleanProperty;
+import myau.property.properties.ModeProperty;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.boss.EntityDragon;
@@ -20,6 +22,9 @@ import org.lwjgl.opengl.GL11;
 
 public class Chams extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
+    private static final int GL_POLYGON_OFFSET_FILL = 32823;
+    public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Offset", "NoDepth"});
+    public final BooleanProperty flat = new BooleanProperty("flat", false);
     public final BooleanProperty players = new BooleanProperty("players", true);
     public final BooleanProperty friends = new BooleanProperty("friends", true);
     public final BooleanProperty enemiess = new BooleanProperty("enemies", true);
@@ -72,18 +77,36 @@ public class Chams extends Module {
 
     @EventTarget
     public void onRenderLiving(RenderLivingEvent event) {
-        if (this.isEnabled()) {
-            if (this.shouldRenderChams(event.getEntity())) {
-                switch (event.getType()) {
-                    case PRE:
-                        GL11.glEnable(32823);
-                        GL11.glPolygonOffset(1.0F, -2500000.0F);
-                        break;
-                    case POST:
-                        GL11.glPolygonOffset(1.0F, 2500000.0F);
-                        GL11.glDisable(32823);
+        if (!this.isEnabled()) return;
+        if (!this.shouldRenderChams(event.getEntity())) return;
+
+        boolean noDepth = this.mode.getValue() == 1;
+
+        switch (event.getType()) {
+            case PRE:
+                if (noDepth) {
+                    GlStateManager.disableDepth();
+                } else {
+                    GL11.glEnable(GL_POLYGON_OFFSET_FILL);
+                    GL11.glPolygonOffset(1.0F, -2500000.0F);
                 }
-            }
+                if (this.flat.getValue()) {
+                    GlStateManager.disableTexture2D();
+                }
+                break;
+            case POST:
+                if (this.flat.getValue()) {
+                    GlStateManager.enableTexture2D();
+                }
+                if (noDepth) {
+                    GlStateManager.enableDepth();
+                } else {
+                    GL11.glPolygonOffset(1.0F, 2500000.0F);
+                    GL11.glDisable(GL_POLYGON_OFFSET_FILL);
+                }
+                break;
+            default:
+                break;
         }
     }
 }

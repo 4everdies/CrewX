@@ -35,6 +35,32 @@ public class RoundedUtils {
         GlStateManager.enableTexture2D();
         GlStateManager.disableBlend();
     }
+    public static void drawRoundedRect(double x, double y, double width, double height, int color,
+                                       float topLeft, float topRight, float bottomLeft, float bottomRight) {
+        float a = (float) (color >> 24 & 255) / 255.0F;
+        float r = (float) (color >> 16 & 255) / 255.0F;
+        float g = (float) (color >> 8 & 255) / 255.0F;
+        float b = (float) (color & 255) / 255.0F;
+
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableDepth();
+        GlStateManager.disableAlpha();
+        roundedRectCorners.startProgram();
+
+        roundedRectCorners.uniform2f("size", (float) width, (float) height);
+        roundedRectCorners.uniform4f("color", r, g, b, a);
+        roundedRectCorners.uniform4f("radius", bottomLeft, topLeft, bottomRight, topRight);
+
+        roundedRectCorners.renderShader(x, y, width, height);
+
+        roundedRectCorners.stopProgram();
+        GlStateManager.enableAlpha();
+        GlStateManager.enableDepth();
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+    }
 
     public static void drawRoundedOutlinedRect(double x, double y, double width, double height, int color, float rounding, float outlineSize) {
         float f3 = (float) (color >> 24 & 255) / 255.0F;

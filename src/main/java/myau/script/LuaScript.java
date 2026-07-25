@@ -28,8 +28,6 @@ public class LuaScript {
                 ? fileName.substring(0, fileName.length() - 4)
                 : fileName;
         this.globals = JsePlatform.standardGlobals();
-        // Scripts receive the explicit CrewX bridge only. Arbitrary Java, OS,
-        // filesystem and package loading are removed from the global scope.
         String[] blocked = {"luajava", "io", "os", "debug", "package", "require", "dofile", "loadfile"};
         for (String global : blocked) {
             this.globals.set(global, LuaValue.NIL);

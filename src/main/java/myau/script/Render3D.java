@@ -8,13 +8,6 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.ResourceLocation;
 import org.lwjgl.opengl.GL11;
 
-/**
- * Safe, state-contained 3D primitive renderer for Lua scripts.
- *
- * World coordinates are converted relative to the current render camera. A
- * guarded matrix stack and forceFinish() keep one broken script from poisoning
- * the rest of Minecraft's render pipeline.
- */
 public final class Render3D {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static boolean active;
@@ -45,18 +38,10 @@ public final class Render3D {
         return active;
     }
 
-    /** Starts a depth-tested world render batch. */
     public static boolean begin() {
         return begin(false);
     }
 
-    /**
-     * Starts a world render batch.
-     *
-     * @param throughWalls when true, depth testing and depth writes are
-     *                     disabled for this batch
-     * @return false when Minecraft is not currently rendering a world
-     */
     public static boolean begin(boolean throughWalls) {
         if (active) {
             forceFinish();
@@ -121,7 +106,6 @@ public final class Render3D {
         }
     }
 
-    /** Emergency cleanup called after every script render callback. */
     public static void forceFinish() {
         try {
             finish();
@@ -167,7 +151,6 @@ public final class Render3D {
         GlStateManager.translate(x - camX(), y - camY(), z - camZ());
     }
 
-    /** Moves to an entity's interpolated render position. */
     public static void translateEntity(Entity entity, float partial, double yOffset) {
         if (!ready() || entity == null) return;
         double x = entity.lastTickPosX + (entity.posX - entity.lastTickPosX) * partial;
@@ -301,7 +284,6 @@ public final class Render3D {
         GL11.glEnd();
     }
 
-    /** Draws a cached remote image as a camera-facing quad, bottom-center anchored. */
     public static boolean billboardImage(ResourceLocation texture, float width, float height, int argb) {
         if (!ready() || texture == null) return false;
         push();

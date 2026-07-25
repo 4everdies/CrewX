@@ -19,11 +19,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
-/**
- * Controlled asynchronous image loader exposed to Lua. It accepts only HTTP(S),
- * blocks local/private network targets, limits redirects and payload size, then
- * creates the DynamicTexture on Minecraft's render thread.
- */
 public final class RemoteImageCache {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final int MAX_BYTES = 4 * 1024 * 1024;

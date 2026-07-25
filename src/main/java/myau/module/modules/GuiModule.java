@@ -1,6 +1,9 @@
 package myau.module.modules;
 
 import myau.Myau;
+import myau.event.EventTarget;
+import myau.event.types.EventType;
+import myau.events.TickEvent;
 import myau.gui.ClickGui;
 import myau.module.Module;
 import myau.property.properties.ColorProperty;
@@ -14,8 +17,10 @@ import java.awt.Color;
 public class GuiModule extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static GuiModule INSTANCE;
-
     private static final Color FALLBACK_ACCENT = new Color(150, 150, 255);
+    private static final int DEFAULT_KEY = Keyboard.KEY_RSHIFT;
+
+    private boolean openNextTick = false;
 
     public final ModeProperty colorMode = new ModeProperty(
             "color", 1, new String[]{"HUD Theme", "Custom"}
@@ -28,20 +33,27 @@ public class GuiModule extends Module {
 
     public GuiModule() {
         super("ClickGui", false);
-        setKey(Keyboard.KEY_RSHIFT);
+        setKey(DEFAULT_KEY);
         INSTANCE = this;
+    }
+    @Override
+    public void setKey(int key) {
+        super.setKey(key == 0 ? DEFAULT_KEY : key);
     }
 
     @Override
     public void onEnabled() {
         setEnabled(false);
-        mc.displayGuiScreen(new ClickGui());
+        this.openNextTick = true;
     }
 
-    /**
-     * Cor de destaque da ClickGUI. Em "HUD Theme" acompanha o tema do HUD
-     * (rainbow, chroma, astolfo, custom...), em "Custom" usa a cor escolhida.
-     */
+    @EventTarget
+    public void onTick(TickEvent event) {
+        if (event.getType() != EventType.PRE) return;
+        if (!this.openNextTick) return;
+        this.openNextTick = false;
+        mc.displayGuiScreen(new ClickGui());
+    }
     public static Color getAccent() {
         GuiModule instance = INSTANCE;
         if (instance == null) return FALLBACK_ACCENT;
@@ -54,8 +66,6 @@ public class GuiModule extends Module {
         }
         return new Color(instance.accentColor.getValue() & 0xFFFFFF);
     }
-
-    /** opacidade do fundo dos paineis, de 0 a 255. */
     public static int getBackgroundAlpha() {
         GuiModule instance = INSTANCE;
         int percent = instance == null ? 78 : instance.backgroundAlpha.getValue();

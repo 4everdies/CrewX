@@ -17,63 +17,43 @@ public class NotificationRenderer implements INotificationRenderer {
     private ResourceLocation NOTIFY = new ResourceLocation("textures/notify.png");
     private ResourceLocation OKAY = new ResourceLocation("textures/okay.png");
     private ResourceLocation INFO = new ResourceLocation("textures/info.png");
-
-    /** margem entre a caixa e a borda da tela, em unidades da GUI. */
     private static final int MARGIN = 4;
-    /** altura da caixa e espacamento vertical entre notificacoes. */
     private static final int BOX_HEIGHT = 23;
     private static final int SPACING = 24;
-    /** icone (18) + folga esquerda (2) + folga direita (3) + 2 do texto. */
     private static final int PADDING = 25;
 
     @Override
     public void draw(List<INotification> notifications) {
         Minecraft mc = Minecraft.getMinecraft();
         ScaledResolution sr = new ScaledResolution(mc);
-
         final int screenWidth = sr.getScaledWidth();
         final int screenHeight = sr.getScaledHeight();
-
-        // largura maxima que o texto pode ocupar sem a caixa estourar a tela
         final int maxTextWidth = Math.max(16, screenWidth - MARGIN * 2 - PADDING);
-
-        // empilha de baixo para cima, sempre dentro da tela
         float y = screenHeight - MARGIN - notifications.size() * SPACING;
         if (y < MARGIN) y = MARGIN;
-
         for (INotification notification : notifications) {
             Notification not = (Notification) notification;
-
             String header = trim(mc, not.getHeader(), maxTextWidth);
             String subtext = trim(mc, not.getSubtext(), maxTextWidth);
-
             int headerWidth = mc.fontRendererObj.getStringWidth(header);
             int subWidth = mc.fontRendererObj.getStringWidth(subtext);
             float boxW = Math.max(headerWidth, subWidth) + PADDING;
-
             boolean leaving = not.checkTime() >= not.getDisplayTime() + not.getStart();
-
-            // ponto de parada: a borda direita da caixa encosta na margem, nunca alem dela
             float targetX = leaving ? screenWidth : screenWidth - MARGIN - boxW;
             not.setTarX((int) targetX);
             not.translate.interpolate(targetX, y, 0.3f);
-
             float x = not.translate.getX();
             float boxY = not.translate.getY();
             int accent = getColor(not.getType());
-
             GL11.glPushMatrix();
-
             RenderUtil.enableRenderState();
             RenderUtil.drawRect(x, boxY, x + boxW, boxY + BOX_HEIGHT, new Color(0, 0, 0, 200).getRGB());
             RenderUtil.drawRect(x, boxY, x + 2, boxY + BOX_HEIGHT, accent);
             RenderUtil.disableRenderState();
-
             GlStateManager.enableTexture2D();
             GlStateManager.enableBlend();
             GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             GlStateManager.enableAlpha();
-
             GlStateManager.pushMatrix();
             switch (not.getType().name) {
                 case "NOTIFY": mc.getTextureManager().bindTexture(NOTIFY); break;
@@ -84,31 +64,23 @@ public class NotificationRenderer implements INotificationRenderer {
             GlStateManager.translate(x + 2, boxY + 2.5f, 0);
             Gui.drawModalRectWithCustomSizedTexture(0, 0, 0, 0, 18, 18, 18, 18);
             GlStateManager.popMatrix();
-
             mc.fontRendererObj.drawStringWithShadow(header, x + 22, boxY + 2, -1);
             mc.fontRendererObj.drawStringWithShadow(subtext, x + 22, boxY + 12, 0xFFB0B0B0);
-
             GlStateManager.disableBlend();
             GlStateManager.disableAlpha();
-
             RenderUtil.enableRenderState();
             double percent = Math.min(1, Math.max(0,
                     (double) (System.currentTimeMillis() - not.getStart()) / not.getDisplayTime()));
             RenderUtil.drawRect(x, boxY + 21, x + boxW, boxY + BOX_HEIGHT, new Color(0, 0, 0, 45).getRGB());
             RenderUtil.drawRect(x, boxY + 21, x + (float) (boxW * percent), boxY + BOX_HEIGHT, accent);
             RenderUtil.disableRenderState();
-
             GL11.glPopMatrix();
-
             if (leaving && not.translate.getX() >= screenWidth - 1) {
                 notifications.remove(notification);
             }
-
             y += SPACING;
         }
     }
-
-    /** corta o texto para nunca ultrapassar a largura disponivel da tela. */
     private String trim(Minecraft mc, String text, int maxWidth) {
         if (text == null) return "";
         if (mc.fontRendererObj.getStringWidth(text) <= maxWidth) return text;

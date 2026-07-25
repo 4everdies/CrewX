@@ -72,12 +72,6 @@ public class ScriptManager {
         return this.activeCache;
     }
 
-    /**
-     * Reconcilia os scripts em disco com o que ja esta carregado. Scripts cujo
-     * arquivo nao mudou continuam vivos e com o mesmo estado (ligado/desligado);
-     * so os novos e os alterados sao recarregados, e os que sumiram do disco
-     * sao removidos. Reload nunca desliga um script que voce deixou ligado.
-     */
     public void loadAll(boolean announce) {
         File[] files = this.directory.listFiles((dir, name) -> name.toLowerCase().endsWith(".lua"));
         if (files == null) {
@@ -97,7 +91,6 @@ public class ScriptManager {
             ScriptModule existing = this.modules.get(key);
 
             if (existing != null && !existing.getScript().hasChangedOnDisk()) {
-                // Inalterado: deixa exatamente como esta.
                 continue;
             }
 
@@ -107,9 +100,6 @@ public class ScriptManager {
 
             if (!script.load()) {
                 failed++;
-                // Um erro de sintaxe durante hot-reload nao derruba a versao
-                // que ja estava funcionando. Scripts novos com erro ainda
-                // aparecem na ClickGUI com sufixo "error".
                 if (existing == null) {
                     this.modules.put(key, module);
                     this.register(module);
@@ -133,14 +123,10 @@ public class ScriptManager {
             this.modules.put(key, module);
             this.register(module);
             structureChanged = true;
-
-            // Restaura o estado ligado depois da troca atomica.
             if (wasEnabled) {
                 module.setEnabled(true);
             }
         }
-
-        // Remove scripts cujo arquivo sumiu da pasta.
         java.util.Iterator<java.util.Map.Entry<String, ScriptModule>> it = this.modules.entrySet().iterator();
         while (it.hasNext()) {
             java.util.Map.Entry<String, ScriptModule> entry = it.next();
@@ -159,10 +145,6 @@ public class ScriptManager {
         if (structureChanged) {
             this.dirty = true;
         }
-
-        // Reload em si nao fala nada. Erros ja se anunciam sozinhos em
-        // LuaScript.load(). So avisamos quando algo NOVO aparece, para dar
-        // retorno ao botao Reload sem floodar.
         if (announce && (added > 0 || reloaded > 0 || failed > 0)) {
             StringBuilder message = new StringBuilder("&7scripts:");
             if (added > 0) {
@@ -177,10 +159,6 @@ public class ScriptManager {
             ChatUtil.sendFormatted(message.toString());
         }
     }
-
-    /**
-     * Chave estavel de um arquivo, independente de estar carregado ou nao.
-     */
     private String fileKey(File file) {
         String name = file.getName();
         if (name.toLowerCase().endsWith(".lua")) {
@@ -189,17 +167,10 @@ public class ScriptManager {
         return name.toLowerCase();
     }
 
-    /**
-     * Chave global do modulo no ModuleManager. Prefixada para nao colidir com
-     * os modulos nativos, que sao chaveados por Class.
-     */
     private String keyFor(ScriptModule module) {
         return "script:" + module.getName().toLowerCase();
     }
 
-    /**
-     * Registra o modulo no ModuleManager e suas propriedades no PropertyManager.
-     */
     private void register(ScriptModule module) {
         Myau.moduleManager.modules.put(this.keyFor(module), module);
         ArrayList<Property<?>> properties = new ArrayList<>(module.getProperties());

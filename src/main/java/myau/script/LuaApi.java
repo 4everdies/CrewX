@@ -47,7 +47,6 @@ public class LuaApi {
         return mc.thePlayer != null && mc.theWorld != null;
     }
 
-    /** Gameplay mutation from Lua is intentionally limited to local worlds. */
     private static boolean canModifyGameplay() {
         return inWorld() && mc.isSingleplayer();
     }
@@ -477,11 +476,6 @@ public class LuaApi {
 
         return t;
     }
-
-    // ------------------------------------------------------------------
-    // render3d.*  — geometria no mundo. So faz sentido dentro de onRender3D.
-    // Ciclo: render3d.begin() -> primitivas -> render3d.finish().
-    // ------------------------------------------------------------------
     private static LuaTable buildRender3D() {
         LuaTable t = new LuaTable();
 
@@ -682,10 +676,6 @@ public class LuaApi {
         }
         return null;
     }
-
-    /**
-     * Le uma tabela Lua {x, y, z} como um vetor de 3 doubles.
-     */
     private static double[] tripleFrom(LuaValue value) {
         if (!value.istable()) {
             return new double[]{0, 0, 0};

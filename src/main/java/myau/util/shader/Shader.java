@@ -118,7 +118,11 @@ public class Shader {
 
     private int getLocation(String name) {
         if (programId == -1) return -1;
-        return GL20.glGetUniformLocation(programId, name);
+        Integer cached = this.uniformLocations.get(name);
+        if (cached != null) return cached;
+        int location = GL20.glGetUniformLocation(programId, name);
+        this.uniformLocations.put(name, location);
+        return location;
     }
 
     public void renderShader(double x, double y, double width, double height) {

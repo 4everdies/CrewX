@@ -26,10 +26,16 @@ public final class Animations extends Module {
     public final FloatProperty y = new FloatProperty("Y", 0.0F, -2.0F, 2.0F);
     public final FloatProperty z = new FloatProperty("Z", 0.0F, -2.0F, 2.0F);
     public final FloatProperty scale = new FloatProperty("Scale", 1.0F, 0.1F, 2.0F);
+    public final FloatProperty itemScale = new FloatProperty("Item Scale", 1.0F, 0.25F, 3.0F);
     public final BooleanProperty alwaysShow = new BooleanProperty("Always Show", false);
 
     public Animations() {
         super("Animations", false);
+    }
+
+    public boolean shouldBlock(boolean vanillaBlocking, boolean usingItem) {
+        if (vanillaBlocking) return true;
+        return this.alwaysShow.getValue() && !usingItem;
     }
 
     public void translatePosition() {
@@ -51,6 +57,11 @@ public final class Animations extends Module {
                 this.translatePosition();
             }
             this.applySwingTransform(equipProgress, swingProgress);
+        }
+
+        float item = this.itemScale.getValue();
+        if (item != 1.0F) {
+            scale(item);
         }
     }
 

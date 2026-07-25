@@ -129,6 +129,7 @@ public abstract class MixinEntityRenderer {
             )}
     )
     private void renderWorldPass(int integer, float float2, long long3, CallbackInfo callbackInfo) {
+        myau.util.RenderUtil.updateFrustum();
         EventManager.call(new Render3DEvent(float2));
     }
 

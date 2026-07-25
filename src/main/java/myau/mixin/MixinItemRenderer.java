@@ -69,6 +69,7 @@ public abstract class MixinItemRenderer {
         if (killAura != null && killAura.isEnabled() && killAura.isBlocking()) {
             blocking = true;
         }
+        blocking = animations.shouldBlock(blocking, using);
         if (using && !blocking) {
             return;
         }

@@ -8,11 +8,6 @@ import org.luaj.vm2.LuaValue;
 
 import java.io.IOException;
 
-/**
- * A blank, script-driven GuiScreen. Lua owns drawing and interaction through
- * callbacks, allowing a script to build a ClickGUI from scratch without
- * exposing Minecraft or Java reflection directly.
- */
 public final class ScriptGuiScreen extends GuiScreen {
     private final LuaScript script;
     private int mouseX;

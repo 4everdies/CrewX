@@ -482,8 +482,35 @@ public class RenderUtil {
         return vector4d;
     }
 
+    /**
+     * O frustum tem que ser reconstruido a cada frame. O construtor do Frustum
+     * captura o ClippingHelper com as matrizes de projecao/modelview do momento
+     * da chamada; construido uma unica vez no inicializador estatico (como
+     * estava), ele fica com os planos de quando o jogo abriu e reprova
+     * praticamente toda bounding box - por isso ESP/NameTags nao desenhavam.
+     *
+     * Chamado uma vez por frame pelo MixinEntityRenderer, durante o passe 3D,
+     * quando as matrizes sao as da camera.
+     */
+    public static void updateFrustum() {
+        try {
+            RenderUtil.cameraFrustum = new Frustum();
+            Entity view = RenderUtil.mc.getRenderViewEntity();
+            if (view != null) {
+                RenderUtil.cameraFrustum.setPosition(view.posX, view.posY, view.posZ);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static boolean isInViewFrustum(AxisAlignedBB axisAlignedBB, double expand) {
-        cameraFrustum.setPosition(RenderUtil.mc.getRenderViewEntity().posX, RenderUtil.mc.getRenderViewEntity().posY, RenderUtil.mc.getRenderViewEntity().posZ);
+        Entity view = RenderUtil.mc.getRenderViewEntity();
+        if (view == null) return true;
+        if (RenderUtil.cameraFrustum == null) {
+            updateFrustum();
+            if (RenderUtil.cameraFrustum == null) return true;
+        }
+        cameraFrustum.setPosition(view.posX, view.posY, view.posZ);
         return cameraFrustum.isBoundingBoxInFrustum(axisAlignedBB.expand(expand, expand, expand));
     }
 
