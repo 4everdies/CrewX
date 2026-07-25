@@ -158,7 +158,6 @@ public class ScriptManager {
 
         if (structureChanged) {
             this.dirty = true;
-            Myau.initClickGui();
         }
 
         // Reload em si nao fala nada. Erros ja se anunciam sozinhos em
@@ -259,7 +258,6 @@ public class ScriptManager {
             this.register(module);
             if (wasEnabled) module.setEnabled(true);
             this.dirty = true;
-            Myau.initClickGui();
             ChatUtil.sendFormatted("&aScript &f" + moduleName + " &aloaded");
         } else {
             ChatUtil.sendFormatted("&cFailed to load &f" + moduleName);

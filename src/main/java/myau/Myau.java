@@ -14,9 +14,6 @@ import myau.module.modules.*;
 import myau.property.Property;
 import myau.property.PropertyManager;
 
-import myau.clickgui.bridge.BridgeClient;
-import myau.clickgui.bridge.BridgeModule;
-
 import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -194,8 +191,6 @@ public class Myau {
         scriptManager = new myau.script.ScriptManager();
         scriptManager.init();
 
-        initClickGui();
-
         Config config = new Config("default", true);
         if (config.file.exists()) {
             config.load();
@@ -216,30 +211,6 @@ public class Myau {
         }
 
         AccountManager.init();
-    }
-
-    public static void initClickGui() {
-        BridgeClient client = BridgeClient.getInstance();
-        if (client.getThemeManager() == null) {
-            client.init();
-        }
-
-        ArrayList<BridgeModule> bridgeModules = new ArrayList<>();
-
-        int[] categoryMap = new int[moduleManager.modules.size()];
-        int idx = 0;
-        for (Module module : moduleManager.modules.values()) {
-            categoryMap[idx] = getCategoryForModule(module);
-            idx++;
-        }
-
-        idx = 0;
-        for (Module module : moduleManager.modules.values()) {
-            bridgeModules.add(new BridgeModule(module, categoryMap[idx]));
-            idx++;
-        }
-
-        client.setModules(bridgeModules);
     }
 
     public static int getCategoryForModule(Module module) {
