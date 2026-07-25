@@ -44,7 +44,6 @@ public class TickBase extends Module {
             ((IAccessorMinecraft) mc).getTimer().elapsedTicks += 1;
         } else {
             if (balance != 0) {
-                // ChatUtil.sendFormatted("Balance " + balance + " " + range);
             }
             balance = 0;
             mode = Mode.NONE;
@@ -63,7 +62,6 @@ public class TickBase extends Module {
     public void onPacket(PacketEvent event) {
         if (!isEnabled()) return;
         if (mode == Mode.REDUCING && event.getType() == EventType.RECEIVE) {
-            // Could be detected with keep alives possibly
         }
     }
 
