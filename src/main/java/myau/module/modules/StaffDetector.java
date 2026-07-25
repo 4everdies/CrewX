@@ -11,7 +11,6 @@ import myau.property.properties.BooleanProperty;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.network.NetworkPlayerInfo;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.network.play.server.S02PacketChat;
 import net.minecraft.network.play.server.S38PacketPlayerListItem;
 import net.minecraft.scoreboard.ScorePlayerTeam;
 import net.minecraft.scoreboard.Scoreboard;
@@ -26,26 +25,20 @@ public class StaffDetector extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
 
     private static final String[] RANK_KEYWORDS = {
-        "ADMIN", "MOD", "HELPER", "STAFF",
-        "DONO", "OWNER", "JR.HELPER",
-        "MODERADOR", "ADMINISTRADOR", "AJUDANTE", "SUPPORT", "SUPORTE",
-        "GAME_MASTER", "GM", "TRIADOR"
+        "ADMIN", "ADMINISTRADOR", "MOD", "MODERADOR", "HELPER"
     };
 
     private static final String[][] RANK_TAG_PATTERNS = {
-        {"ADMIN", "OWNER", "DONO", "ADMINISTRADOR"},
-        {"MOD", "MODERADOR", "MODERATOR", "GAME_MASTER", "GM", "TRIADOR"},
-        {"HELPER", "JR.HELPER", "AJUDANTE", "SUPPORT", "SUPORTE"}
+        {"ADMIN", "ADMINISTRADOR"},
+        {"MOD", "MODERADOR"},
+        {"HELPER"}
     };
 
     private final Set<String> detected = new HashSet<>();
     private int tickCounter = 0;
 
-    public final BooleanProperty debug = new BooleanProperty("debug", false);
     public final BooleanProperty tabCheck = new BooleanProperty("tab-check", true);
-    public final BooleanProperty worldCheck = new BooleanProperty("world-check", true);
     public final BooleanProperty packetCheck = new BooleanProperty("packet-check", true);
-    public final BooleanProperty chatCheck = new BooleanProperty("chat-check", true);
     public final BooleanProperty scoreboardCheck = new BooleanProperty("scoreboard-check", true);
     public final BooleanProperty repeat = new BooleanProperty("repeat", true);
 
@@ -146,11 +139,6 @@ public class StaffDetector extends Module {
         if (rank == null && cleanRawName != null) rank = findRank(cleanRawName);
 
         if (rank == null) {
-            if (debug.getValue() && cleanDisplay != null && !cleanDisplay.equalsIgnoreCase(cleanRawName)) {
-                try {
-                    myau.module.modules.Notifications.pushRaw("Staff Detector", "Debug: " + cleanRawName + " -> " + cleanDisplay);
-                } catch (Throwable ignored) {}
-            }
             return;
         }
 
@@ -199,21 +187,6 @@ public class StaffDetector extends Module {
         }
     }
 
-    private void scanWorld() {
-        if (!worldCheck.getValue() || mc.theWorld == null) return;
-        for (EntityPlayer player : mc.theWorld.playerEntities) {
-            String name = player.getName();
-            IChatComponent display = player.getDisplayName();
-            if (display != null) {
-                check(name, getDisplayTextFormatted(display), "World");
-                String plain = getDisplayText(display);
-                if (!java.util.Objects.equals(display.getFormattedText(), plain)) {
-                    check(name, plain, "World");
-                }
-            }
-        }
-    }
-
     private void scanScoreboardTeams() {
         if (!scoreboardCheck.getValue() || mc.theWorld == null) return;
         Scoreboard scoreboard = mc.theWorld.getScoreboard();
@@ -246,17 +219,6 @@ public class StaffDetector extends Module {
                 }
             } catch (Exception ignored) {}
         }
-
-        if (chatCheck.getValue() && event.getPacket() instanceof S02PacketChat) {
-            S02PacketChat packet = (S02PacketChat) event.getPacket();
-            try {
-                IChatComponent component = packet.getChatComponent();
-                if (component != null) {
-                    String formatted = getDisplayTextFormatted(component);
-                    check(null, formatted, "Chat");
-                }
-            } catch (Exception ignored) {}
-        }
     }
 
     @EventTarget
@@ -276,7 +238,7 @@ public class StaffDetector extends Module {
         }
 
         scanTab();
-        scanWorld();
         scanScoreboardTeams();
     }
-    }
+        }
+                
