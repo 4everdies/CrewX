@@ -106,15 +106,16 @@ public class KillAura extends Module {
 
     private boolean performAttack(float yaw, float pitch) {
         if (!Myau.playerStateManager.digging && !Myau.playerStateManager.placing) {
-            if (this.isPlayerBlocking() && this.autoBlock.getValue() != 1) {
+            if (this.isPlayerBlocking() && this.autoBlock.getValue() != 0 && this.autoBlock.getValue() != 1 && this.autoBlock.getValue() != 8) {
                 return false;
             } else if (this.attackDelayMS > 0L) {
                 return false;
             } else {
                 this.attackDelayMS = this.attackDelayMS + this.getAttackDelay();
                 mc.thePlayer.swingItem();
+                double clampedRange = Math.min(this.attackRange.getValue(), 3.0);
                 if ((this.rotations.getValue() != 0 || !this.isBoxInAttackRange(this.target.getBox()))
-                        && RotationUtil.rayTrace(this.target.getBox(), yaw, pitch, this.attackRange.getValue()) == null) {
+                        && RotationUtil.rayTrace(this.target.getBox(), yaw, pitch, clampedRange) == null) {
                     return false;
                 } else {
                     AttackEvent event = new AttackEvent(this.target.getEntity());
@@ -152,20 +153,8 @@ public class KillAura extends Module {
 
     private void interactAttack(float yaw, float pitch) {
         if (this.target != null) {
-            MovingObjectPosition mop = RotationUtil.rayTrace(this.target.getBox(), yaw, pitch, 8.0);
-            if (mop != null) {
-                ((IAccessorPlayerControllerMP) mc.playerController).callSyncCurrentPlayItem();
-                PacketUtil.sendPacket(
-                        new C02PacketUseEntity(
-                                this.target.getEntity(),
-                                new Vec3(mop.hitVec.xCoord - this.target.getX(), mop.hitVec.yCoord - this.target.getY(), mop.hitVec.zCoord - this.target.getZ())
-                        )
-                );
-                PacketUtil.sendPacket(new C02PacketUseEntity(this.target.getEntity(), Action.INTERACT));
-                PacketUtil.sendPacket(new C08PacketPlayerBlockPlacement(mc.thePlayer.getHeldItem()));
-                mc.thePlayer.setItemInUse(mc.thePlayer.getHeldItem(), mc.thePlayer.getHeldItem().getMaxItemUseDuration());
-                this.blockingState = true;
-            }
+            ((IAccessorPlayerControllerMP) mc.playerController).callSyncCurrentPlayItem();
+            this.startBlock(mc.thePlayer.getHeldItem());
         }
     }
 
@@ -684,12 +673,6 @@ public class KillAura extends Module {
                             Myau.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
                             this.isBlocking = false;
                             this.fakeBlockState = this.hasValidTarget();
-                            if (PlayerUtil.isUsingItem()
-                                    && !this.isPlayerBlocking()
-                                    && !Myau.playerStateManager.digging
-                                    && !Myau.playerStateManager.placing) {
-                                swap = true;
-                            }
                     }
                 }
                 boolean attacked = false;
