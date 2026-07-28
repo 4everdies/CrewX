@@ -153,8 +153,20 @@ public class KillAura extends Module {
 
     private void interactAttack(float yaw, float pitch) {
         if (this.target != null) {
-            ((IAccessorPlayerControllerMP) mc.playerController).callSyncCurrentPlayItem();
-            this.startBlock(mc.thePlayer.getHeldItem());
+            MovingObjectPosition mop = RotationUtil.rayTrace(this.target.getBox(), yaw, pitch, 8.0);
+            if (mop != null) {
+                ((IAccessorPlayerControllerMP) mc.playerController).callSyncCurrentPlayItem();
+                PacketUtil.sendPacket(
+                        new C02PacketUseEntity(
+                                this.target.getEntity(),
+                                new Vec3(mop.hitVec.xCoord - this.target.getX(), mop.hitVec.yCoord - this.target.getY(), mop.hitVec.zCoord - this.target.getZ())
+                        )
+                );
+                PacketUtil.sendPacket(new C02PacketUseEntity(this.target.getEntity(), Action.INTERACT));
+                PacketUtil.sendPacket(new C08PacketPlayerBlockPlacement(mc.thePlayer.getHeldItem()));
+                mc.thePlayer.setItemInUse(mc.thePlayer.getHeldItem(), mc.thePlayer.getHeldItem().getMaxItemUseDuration());
+                this.blockingState = true;
+            }
         }
     }
 
