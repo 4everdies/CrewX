@@ -1,6 +1,6 @@
-package me.ksyz.accountmanager.gui;
+package myau.accountmanager.gui;
 
-import me.ksyz.accountmanager.auth.SessionManager;
+import myau.accountmanager.auth.SessionManager;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
@@ -8,7 +8,6 @@ import net.minecraft.util.Session;
 import org.lwjgl.input.Keyboard;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 public class GuiOfflineLogin extends GuiScreen {
@@ -60,32 +59,16 @@ public class GuiOfflineLogin extends GuiScreen {
                 return;
             }
             String offlineUuid = UUID.nameUUIDFromBytes(
-                    ("OfflinePlayer:" + username).getBytes(StandardCharsets.UTF_8)
+                    ("OfflinePlayer:" + username).getBytes()
             ).toString().replace("-", "");
-            SessionManager.set(new Session(username, offlineUuid, "0", "legacy"));
+            SessionManager.set(new Session(username, offlineUuid, "0", "mojang"));
             mc.displayGuiScreen(previousScreen);
         }
+        super.actionPerformed(button);
     }
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (isCtrlKeyDown() && keyCode == Keyboard.KEY_A) {
-            usernameField.setCursorPosition(0);
-            usernameField.setSelectionPos(usernameField.getText().length());
-            return;
-        }
-        if (isCtrlKeyDown() && keyCode == Keyboard.KEY_BACK) {
-            String text = usernameField.getText();
-            int cursor = usernameField.getCursorPosition();
-            if (cursor > 0 && !text.isEmpty()) {
-                int start = cursor - 1;
-                while (start > 0 && text.charAt(start - 1) == ' ') start--;
-                while (start > 0 && text.charAt(start - 1) != ' ') start--;
-                usernameField.setText(text.substring(0, start) + text.substring(cursor));
-                usernameField.setCursorPosition(start);
-            }
-            return;
-        }
         usernameField.textboxKeyTyped(typedChar, keyCode);
         if (keyCode == 28) {
             actionPerformed(buttonList.get(0));

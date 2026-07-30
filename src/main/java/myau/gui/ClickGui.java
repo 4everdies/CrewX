@@ -79,25 +79,22 @@ public class ClickGui extends GuiScreen {
     private final Deque<float[]> scissorStack = new ArrayDeque<float[]>();
     @Override
     public void initGui() {
-        boolean firstTime = panels.isEmpty();
-        panels.clear();
+        if (panels.isEmpty()) {
+            int x = 20;
+            int y = TOP_MARGIN;
 
-        int x = 20;
-        int y = TOP_MARGIN;
-
-        for (int i = 0; i < CATEGORIES.length; i++) {
-            if (x > 20 && x + PANEL_WIDTH > width - 10) {
-                x = 20;
-                y += 50;
+            for (int i = 0; i < CATEGORIES.length; i++) {
+                if (x > 20 && x + PANEL_WIDTH > width - 10) {
+                    x = 20;
+                    y += 50;
+                }
+                panels.add(new CategoryPanel(i, x, y));
+                x += PANEL_WIDTH + PANEL_SPACING;
             }
-            panels.add(new CategoryPanel(i, x, y));
-            x += PANEL_WIDTH + PANEL_SPACING;
         }
-        if (firstTime) {
-            animation = 0.0f;
-            closing = false;
-            lastFrame = 0L;
-        }
+        animation = 0.0f;
+        closing = false;
+        lastFrame = 0L;
     }
 
     @Override
@@ -689,7 +686,7 @@ public class ClickGui extends GuiScreen {
                 round(rowX, rowY, rowW, rowH, withAlpha(accentColor().getRGB(), enabledAnim), ROW_ROUND);
             }
 
-            String name = module == listeningModule ? "Listening..." : module.getName();
+            String name = module == listeningModule ? "Listening..." : module.getName().replace("-", " ");
             int textColor = lerpColor(TEXT_COLOR.getRGB(), 0xFFFFFF, enabledAnim);
             text(name, x + 8, y + 4, textColor);
 
@@ -843,7 +840,7 @@ public class ClickGui extends GuiScreen {
             int knob = lerpColor(new Color(140, 140, 148).getRGB(), 0xFFFFFF, toggleAnim);
             round(knobX, switchY + 1, knobSize, knobSize, knob, knobSize / 2.0f);
 
-            text(property.getName(), x + 8, y + 4, TEXT_COLOR.getRGB());
+            text(property.getName().replace("-", " "), x + 8, y + 4, TEXT_COLOR.getRGB());
         }
 
         private void renderNumber(float x, float y, int width, float mouseX, float mouseY) {
@@ -857,7 +854,7 @@ public class ClickGui extends GuiScreen {
             boolean editing = editingNumber && this == focusedText;
             String valueStr = editing ? (editBuffer == null ? "" : editBuffer) + "_" : valueString();
 
-            text(property.getName(), x + 8, y + 3, TEXT_COLOR.getRGB());
+            text(property.getName().replace("-", " "), x + 8, y + 3, TEXT_COLOR.getRGB());
 
             float boxWidth = valueWidth() + 8;
             float boxX = x + width - boxWidth - 4;
@@ -895,7 +892,7 @@ public class ClickGui extends GuiScreen {
         }
 
         private void renderMode(float x, float y, int width, float mouseX, float mouseY, ModeProperty modeProperty) {
-            String displayText = property.getName() + ": " + modeProperty.getModeString();
+            String displayText = property.getName().replace("-", " ") + ": " + modeProperty.getModeString().replace("-", " ");
             text(displayText, x + 8, y + 4, TEXT_COLOR.getRGB());
 
             renderCaret(x + width - 10, y + ROW_HEIGHT / 2.0f, easeOutCubic(dropdownAnim),
@@ -926,7 +923,7 @@ public class ClickGui extends GuiScreen {
                 alphaMultiplier = previous * reveal;
 
                 round(x + 6, optionY, width - 12, OPTION_HEIGHT - 1.5f, color, SMALL_ROUND);
-                text(values[i], x + 10, optionY + 2, isSelected ? 0xFFFFFFFF : TEXT_COLOR.getRGB());
+                text(values[i].replace("-", " "), x + 10, optionY + 2, isSelected ? 0xFFFFFFFF : TEXT_COLOR.getRGB());
 
                 alphaMultiplier = previous;
                 optionY += OPTION_HEIGHT;
@@ -944,7 +941,7 @@ public class ClickGui extends GuiScreen {
             round(swatchX - 1, swatchY - 1, swatchWidth + 2, swatchHeight + 2, TRACK_COLOR.getRGB(), 5.0f);
             round(swatchX, swatchY, swatchWidth, swatchHeight, 0xFF000000 | rgb, 4.5f);
 
-            text(property.getName(), x + 8, y + 4, TEXT_COLOR.getRGB());
+            text(property.getName().replace("-", " "), x + 8, y + 4, TEXT_COLOR.getRGB());
 
             if (pickerAnim <= 0.001f) return;
 
@@ -983,7 +980,7 @@ public class ClickGui extends GuiScreen {
         }
 
         private void renderText(float x, float y, int width, TextProperty textProperty) {
-            text(property.getName(), x + 8, y + 4, TEXT_COLOR.getRGB());
+            text(property.getName().replace("-", " "), x + 8, y + 4, TEXT_COLOR.getRGB());
 
             boolean editing = focusedText == this;
             String value = editing
@@ -991,7 +988,7 @@ public class ClickGui extends GuiScreen {
                     : (textProperty.getValue() == null ? "" : textProperty.getValue());
             String shown = editing ? value + "_" : (value.isEmpty() ? "-" : value);
 
-            int maxWidth = width - mc.fontRendererObj.getStringWidth(property.getName()) - 20;
+            int maxWidth = width - mc.fontRendererObj.getStringWidth(property.getName().replace("-", " ")) - 20;
             while (shown.length() > 1 && mc.fontRendererObj.getStringWidth(shown) > maxWidth) {
                 shown = shown.substring(1);
             }
@@ -1004,7 +1001,7 @@ public class ClickGui extends GuiScreen {
             int color = lerpColor(new Color(48, 48, 55).getRGB(), accentColor().getRGB(), hover);
             round(x + 6, y + 2, width - 12, ROW_HEIGHT - 4, color, ROW_ROUND);
 
-            String name = property.getName();
+            String name = property.getName().replace("-", " ");
             int nameWidth = mc.fontRendererObj.getStringWidth(name);
             text(name, x + (width - nameWidth) / 2.0f, y + 4,
                     lerpColor(TEXT_COLOR.getRGB(), 0xFFFFFF, hover));

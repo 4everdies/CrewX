@@ -1,10 +1,16 @@
-package me.ksyz.accountmanager.auth;
+package myau.accountmanager.auth;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Session;
 
 import java.lang.reflect.Field;
 
+/*
+ * This file is derived from https://github.com/ksyzov/AccountManager.
+ * Originally licensed under the GNU LGPL.
+ *
+ * This modified version is licensed under the GNU GPL v3.
+ */
 public class SessionManager {
     private static final Minecraft mc = Minecraft.getMinecraft();
 
@@ -36,7 +42,7 @@ public class SessionManager {
         try {
             getField().set(mc, session);
         } catch (Exception e) {
-
+            //
         }
     }
 }

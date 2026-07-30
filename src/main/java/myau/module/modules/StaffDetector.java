@@ -226,7 +226,7 @@ public class StaffDetector extends Module {
             if (event.getPacket() instanceof S3APacketTabComplete) {
                 S3APacketTabComplete packet = (S3APacketTabComplete) event.getPacket();
                 try {
-                    for (String match : packet.getMatches()) {
+                    for (String match : packet.func_149630_c()) {
                         check(match, match, "TabComplete");
                     }
                 } catch (Exception ignored) {}

@@ -49,7 +49,7 @@ public class AntiBot extends Module {
 
     public AntiBot() {
         super("AntiBot", true);
-        this.groundVLThreshold = new IntProperty("ground-vl-threshold", 10, 1, 100);
+        this.groundVLThreshold = new IntProperty("ground-threshold", 10, 1, 100);
         this.minTicks = new IntProperty("min-ticks", 20, 0, 200);
         this.minNameLen = new IntProperty("min-name-len", 3, 1, 16);
         this.maxNameLen = new IntProperty("max-name-len", 16, 1, 32);

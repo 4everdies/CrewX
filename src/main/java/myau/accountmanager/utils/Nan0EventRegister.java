@@ -1,4 +1,4 @@
-package me.ksyz.accountmanager.utils;
+package myau.accountmanager.utils;
 
 import com.google.common.reflect.TypeToken;
 import net.minecraftforge.fml.common.Loader;

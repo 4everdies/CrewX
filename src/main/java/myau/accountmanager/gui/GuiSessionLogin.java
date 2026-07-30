@@ -1,8 +1,10 @@
-package me.ksyz.accountmanager.gui;
+package myau.accountmanager.gui;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import me.ksyz.accountmanager.auth.SessionManager;
+import myau.accountmanager.AccountManager;
+import myau.accountmanager.auth.Account;
+import myau.accountmanager.auth.SessionManager;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
@@ -16,10 +18,16 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+/*
+ * This file is derived from https://github.com/ksyzov/AccountManager.
+ * Originally licensed under the GNU LGPL.
+ *
+ * This modified version is licensed under the GNU GPL v3.
+ */
 public class GuiSessionLogin extends GuiScreen {
     private GuiScreen previousScreen;
 
-    private String status = "Session Login";
+    private String status = "Cookie Account";
     private GuiTextField sessionField;
     private ScaledResolution sr;
 
@@ -36,7 +44,7 @@ public class GuiSessionLogin extends GuiScreen {
         sessionField.setMaxStringLength(32767);
         sessionField.setFocused(true);
 
-        buttonList.add(new GuiButton(998, sr.getScaledWidth() / 2 - 100, sr.getScaledHeight() / 2 + 30, 200, 20, "Login"));
+        buttonList.add(new GuiButton(998, sr.getScaledWidth() / 2 - 100, sr.getScaledHeight() / 2 + 30, 200, 20, "Add Cookie"));
 
         super.initGui();
     }
@@ -60,31 +68,50 @@ public class GuiSessionLogin extends GuiScreen {
 
     @Override
     protected void actionPerformed(GuiButton button) throws IOException {
-
+        // The login action validates and exchanges the pasted session payload.
         if (button.id == 998) {
             try {
                 String username, uuid, token, session = sessionField.getText();
 
-                if (session.contains(":")) {
-
-                    username = session.split(":")[0];
-                    uuid = session.split(":")[1];
-                    token = session.split(":")[2];
-                } else {
-
+                if (session.contains(":")) { //if fully formatted string (ign:uuid:token)
+                    // Split the launcher-style token into its required fields.
+                    String[] parts = session.split(":", 3);
+                    if (parts.length != 3) {
+                        throw new IllegalArgumentException("Cookie must be username:uuid:token");
+                    }
+                    username = parts[0];
+                    uuid = parts[1];
+                    token = parts[2];
+                } else { //if only token
+                    // Request the profile associated with the access token.
                     HttpURLConnection c = (HttpURLConnection) new URL("https://api.minecraftservices.com/minecraft/profile/").openConnection();
                     c.setRequestProperty("Content-type", "application/json");
                     c.setRequestProperty("Authorization", "Bearer " + sessionField.getText());
                     c.setDoOutput(true);
 
+                    // Parse the profile response as JSON.
                     JsonObject json = new JsonParser().parse(IOUtils.toString(c.getInputStream())).getAsJsonObject();
 
+                    // Build the local session from the returned identity data.
                     username = json.get("name").getAsString();
                     uuid = json.get("id").getAsString();
                     token = session;
                 }
 
                 SessionManager.set(new Session(username, uuid, token, "mojang"));
+                boolean replaced = false;
+                for (Account account : AccountManager.accounts) {
+                    if (account.isCookie() && username.equalsIgnoreCase(account.getUsername())) {
+                        account.setAccessToken(token);
+                        account.setUuid(uuid);
+                        replaced = true;
+                        break;
+                    }
+                }
+                if (!replaced) {
+                    AccountManager.accounts.add(Account.cookie(username, uuid, token));
+                }
+                AccountManager.save();
                 mc.displayGuiScreen(previousScreen);
             } catch (IOException IOException){
                 if(IOException.getMessage().contains("401")){
@@ -103,23 +130,6 @@ public class GuiSessionLogin extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) throws IOException {
-        if (isCtrlKeyDown() && keyCode == Keyboard.KEY_A) {
-            sessionField.setCursorPosition(0);
-            sessionField.setSelectionPos(sessionField.getText().length());
-            return;
-        }
-        if (isCtrlKeyDown() && keyCode == Keyboard.KEY_BACK) {
-            String text = sessionField.getText();
-            int cursor = sessionField.getCursorPosition();
-            if (cursor > 0 && !text.isEmpty()) {
-                int start = cursor - 1;
-                while (start > 0 && text.charAt(start - 1) == ' ') start--;
-                while (start > 0 && text.charAt(start - 1) != ' ') start--;
-                sessionField.setText(text.substring(0, start) + text.substring(cursor));
-                sessionField.setCursorPosition(start);
-            }
-            return;
-        }
         sessionField.textboxKeyTyped(typedChar, keyCode);
 
         if (Keyboard.KEY_ESCAPE == keyCode) mc.displayGuiScreen(previousScreen);

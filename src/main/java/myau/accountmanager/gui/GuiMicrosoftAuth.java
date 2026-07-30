@@ -1,12 +1,12 @@
-package me.ksyz.accountmanager.gui;
+package myau.accountmanager.gui;
 
-import me.ksyz.accountmanager.AccountManager;
-import me.ksyz.accountmanager.auth.Account;
-import me.ksyz.accountmanager.auth.MicrosoftAuth;
-import me.ksyz.accountmanager.auth.SessionManager;
-import me.ksyz.accountmanager.utils.Notification;
-import me.ksyz.accountmanager.utils.SystemUtils;
-import me.ksyz.accountmanager.utils.TextFormatting;
+import myau.accountmanager.AccountManager;
+import myau.accountmanager.auth.Account;
+import myau.accountmanager.auth.MicrosoftAuth;
+import myau.accountmanager.auth.SessionManager;
+import myau.accountmanager.utils.Notification;
+import myau.accountmanager.utils.SystemUtils;
+import myau.accountmanager.utils.TextFormatting;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -19,6 +19,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
+/*
+ * This file is derived from https://github.com/ksyzov/AccountManager.
+ * Originally licensed under the GNU LGPL.
+ *
+ * This modified version is licensed under the GNU GPL v3.
+ */
 public class GuiMicrosoftAuth extends GuiScreen {
     private final GuiScreen previousScreen;
     private final String state;
@@ -100,6 +106,7 @@ public class GuiMicrosoftAuth extends GuiScreen {
                         Account acc = new Account(
                                 refreshToken.get(), accessToken.get(), session.getUsername(),"42a60a84-599d-44b2-a7c6-b00cdef1d6a2","XboxLive.signin XboxLive.offline_access"
                         );
+                        acc.setUuid(session.getPlayerID());
                         for (Account account : AccountManager.accounts) {
                             if (acc.getUsername().equals(account.getUsername())) {
                                 acc.setUnban(account.getUnban());
@@ -113,11 +120,27 @@ public class GuiMicrosoftAuth extends GuiScreen {
                     })
                     .exceptionally(error -> {
                         openButtonEnabled = false;
-                        status = String.format("&c%s&r", error.getMessage());
-                        cause = String.format("&c%s&r", error.getCause().getMessage());
+                        Throwable rootCause = getRootCause(error);
+                        status = "&cMicrosoft authentication failed.&r";
+                        cause = String.format("&c%s&r", getErrorMessage(rootCause));
                         return null;
                     });
         }
+    }
+
+    private static Throwable getRootCause(Throwable error) {
+        Throwable current = error;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
+    }
+
+    private static String getErrorMessage(Throwable error) {
+        String message = error.getMessage();
+        return message == null || message.trim().isEmpty()
+                ? error.getClass().getSimpleName()
+                : message;
     }
 
     @Override
@@ -194,11 +217,11 @@ public class GuiMicrosoftAuth extends GuiScreen {
 
         if (button.enabled) {
             switch (button.id) {
-                case 0: {
+                case 0: { // Open
                     SystemUtils.openWebLink(MicrosoftAuth.getMSAuthLink(state));
                 }
                 break;
-                case 1: {
+                case 1: { // Cancel
                     mc.displayGuiScreen(new GuiAccountManager(previousScreen));
                 }
                 break;

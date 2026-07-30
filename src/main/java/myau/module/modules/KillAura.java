@@ -352,7 +352,7 @@ public class KillAura extends Module {
         this.autoBlock = new ModeProperty(
                 "auto-block", 2, new String[]{"None", "Vanilla", "Spoof", "Hypixel", "Blink", "Interact", "Swap", "Legit", "Fake"}
         );
-        this.autoBlockRequirePress = new BooleanProperty("auto-block-require-press", false);
+        this.autoBlockRequirePress = new BooleanProperty("require-press", false);
         this.autoBlockMinCPS = new FloatProperty("auto-block-min-aps", 8.0F, 1.0F, 20.0F);
         this.autoBlockMaxCPS = new FloatProperty("auto-block-max-aps", 10.0F, 1.0F, 20.0F);
         this.autoBlockRange = new FloatProperty("auto-block-range", 6.0F, 3.0F, 8.0F);

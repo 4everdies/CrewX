@@ -2,7 +2,7 @@ package myau;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import me.ksyz.accountmanager.AccountManager;
+import myau.accountmanager.AccountManager;
 import myau.command.CommandManager;
 import myau.command.commands.*;
 import myau.config.Config;
@@ -152,6 +152,7 @@ public class Myau {
         moduleManager.modules.put(Animations.class, new Animations());
         moduleManager.modules.put(StaffDetector.class, new StaffDetector());
         moduleManager.modules.put(TickBase.class, new TickBase());
+        moduleManager.modules.put(RodAimbot.class, new RodAimbot());
         moduleManager.modules.put(RemoteShop.class, new RemoteShop());
         moduleManager.modules.put(AutoRegister.class, new AutoRegister());
         commandManager.commands.add(new BindCommand());

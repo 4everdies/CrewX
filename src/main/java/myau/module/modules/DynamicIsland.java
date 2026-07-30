@@ -138,6 +138,8 @@ public class DynamicIsland extends Module {
         float defaultAlpha = Math.max(0.0F, 1.0F - scaffoldAnim * 2.0F);
         float scaffoldAlpha = Math.max(0.0F, (scaffoldAnim - 0.5F) * 2.0F);
 
+        GlStateManager.enableTexture2D();
+
         // Default Content
         if (defaultAlpha > 0.01F) {
             float cursor = x + PAD_LEFT + STATUS_SPACE;

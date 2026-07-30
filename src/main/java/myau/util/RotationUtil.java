@@ -47,6 +47,13 @@ public class RotationUtil {
         return RotationUtil.getRotations(targetX, targetY, targetZ, currentYaw, currentPitch, 180.0f, 0.0f);
     }
 
+    public static float[] getRotationsPredicated(Entity entity, int ticks) {
+        double px = entity.posX + entity.motionX * ticks;
+        double py = entity.posY + entity.motionY * ticks + 0.5;
+        double pz = entity.posZ + entity.motionZ * ticks;
+        return RotationUtil.getRotationsTo(px, py, pz, mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
+    }
+
     public static float[] getRotations(double targetX, double targetY, double targetZ, float currentYaw, float currentPitch, float maxAngle, float smoothFactor) {
         double horizontalDistance = Math.sqrt(targetX * targetX + targetZ * targetZ);
         float yawDelta = MathHelper.wrapAngleTo180_float((float) (Math.atan2(targetZ, targetX) * 180.0 / Math.PI) - 90.0f - currentYaw);

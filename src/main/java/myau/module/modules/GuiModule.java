@@ -21,6 +21,7 @@ public class GuiModule extends Module {
     private static final int DEFAULT_KEY = Keyboard.KEY_RSHIFT;
 
     private boolean openNextTick = false;
+    private ClickGui clickGui;
 
     public final ModeProperty colorMode = new ModeProperty(
             "color", 1, new String[]{"HUD Theme", "Custom"}
@@ -52,7 +53,10 @@ public class GuiModule extends Module {
         if (event.getType() != EventType.PRE) return;
         if (!this.openNextTick) return;
         this.openNextTick = false;
-        mc.displayGuiScreen(new ClickGui());
+        if (this.clickGui == null) {
+            this.clickGui = new ClickGui();
+        }
+        mc.displayGuiScreen(this.clickGui);
     }
     public static Color getAccent() {
         GuiModule instance = INSTANCE;
