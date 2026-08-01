@@ -6,6 +6,7 @@ import myau.module.Module;
 import myau.module.modules.GuiModule;
 import myau.property.Property;
 import myau.property.properties.*;
+import myau.util.KeyBindUtil;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
@@ -157,6 +158,12 @@ public class ClickGui extends GuiScreen {
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int mouseButton) throws IOException {
         if (closing) return;
+
+        if (listeningModule != null) {
+            listeningModule.setKey(mouseButton - 100);
+            listeningModule = null;
+            return;
+        }
 
         float mx = toVirtualX(mouseX);
         float my = toVirtualY(mouseY);
@@ -693,7 +700,7 @@ public class ClickGui extends GuiScreen {
             float indicatorX = x + width - 10;
 
             if (module.getKey() != 0 && module != listeningModule) {
-                String keyName = Keyboard.getKeyName(module.getKey());
+                String keyName = KeyBindUtil.getKeyName(module.getKey());
                 if (keyName != null) {
                     int keyWidth = mc.fontRendererObj.getStringWidth(keyName);
                     float keyX = x + width - keyWidth - (settings.isEmpty() ? 8 : 18);
