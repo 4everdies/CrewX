@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "InterVariableFramer";
+  src: url("https://rsms.me/inter/font-files/InterVariable.woff2?v=4.0")
+    format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: "InterVariableFramer", "Inter", system-ui, sans-serif;
+  --font-display: "Syne", "InterVariableFramer", system-ui, sans-serif;
+  --color-ink: #07070b;
+  --color-ink-2: #0c0c12;
+  --color-panel: #101018;
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-mute: #8b8b9c;
+  --color-accent: #ef4444;
+  --color-accent-2: #fca5a5;
+  --color-glow: rgba(239, 68, 68, 0.45);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #07070b;
+  color: #f3f3f7;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: #ef4444;
+  color: #07070b;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #07070b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a38;
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ef4444;
+}
+
+.noise {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.grid-fade {
+  background-image:
+    linear-gradient(rgba(239, 68, 68, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(239, 68, 68, 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at center, black 20%, transparent 72%);
+}
+
+.glow-orb {
+  filter: blur(80px);
+}
+
+.font-700 {
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .dw-scale > span {
+    font-size: clamp(28px, 11vw, 56px) !important;
+  }
+}

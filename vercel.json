@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/about", "destination": "/index.html" },
+    { "source": "/servers", "destination": "/index.html" },
+    { "source": "/download", "destination": "/index.html" },
+    { "source": "/faq", "destination": "/index.html" }
+  ]
+}

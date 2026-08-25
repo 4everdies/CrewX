@@ -1,5 +1,20 @@
-.gradle/
-.idea/
-.vscode/
-build/
-/run/
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# vercel
+.vercel/
+
+# logs
+*.log
+npm-debug.log*
+
+# env / local
+*.local
+.env*
+
+# os
+.DS_Store
+Thumbs.db
