@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, useScroll, useSpring } from "framer-motion";
 import { useEffect, useState } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import CurvedMarquee from "./components/originkit/CurvedMarquee";
 import DynamicWeight from "./components/originkit/DynamicWeight";
 import MagneticHoverButton from "./components/originkit/MagneticHoverButton";
@@ -612,6 +613,7 @@ export default function App() {
           </div>
         </div>
       </footer>
+      <Analytics />
     </div>
   );
 }
