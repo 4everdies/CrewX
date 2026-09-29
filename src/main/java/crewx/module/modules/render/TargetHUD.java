@@ -1,4 +1,6 @@
 package crewx.module.modules.render;
+
+import crewx.gui.ClientFont;
 import crewx.module.modules.combat.*;
 import crewx.module.modules.movement.*;
 import crewx.module.modules.render.*;
@@ -201,11 +203,11 @@ public class TargetHUD extends Module {
 
 
         String name = target.getName();
-        mc.fontRendererObj.drawStringWithShadow(name, x + 46, y + 8, -1);
+        ClientFont.drawStringWithShadow(name, x + 46, y + 8, -1);
 
 
         String hpText = healthFormat.format(health) + " HP";
-        mc.fontRendererObj.drawStringWithShadow(hpText, x + 46, y + 22, new Color(160, 160, 160).getRGB());
+        ClientFont.drawStringWithShadow(hpText, x + 46, y + 22, new Color(160, 160, 160).getRGB());
 
 
         float barX = x + 46;

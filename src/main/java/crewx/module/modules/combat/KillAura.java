@@ -186,23 +186,18 @@ public class KillAura extends Module {
             } else if ((ItemUtil.isEating() || ItemUtil.isUsingBow()) && PlayerUtil.isUsingItem()) {
                 return false;
             } else {
-                AutoHeal autoHeal = (AutoHeal) CrewX.moduleManager.modules.get(AutoHeal.class);
-                if (autoHeal.isEnabled() && autoHeal.isSwitching()) {
+                BedNuker bedNuker = (BedNuker) CrewX.moduleManager.modules.get(BedNuker.class);
+                AutoBlockIn autoBlockIn = (AutoBlockIn) CrewX.moduleManager.modules.get(AutoBlockIn.class);
+                if (bedNuker.isEnabled() && bedNuker.isReady()) {
                     return false;
+                } else if (CrewX.moduleManager.modules.get(Scaffold.class).isEnabled()) {
+                    return false;
+                } else if (autoBlockIn.isEnabled()) {
+                    return false;
+                } else if (this.requirePress.getValue()) {
+                    return PlayerUtil.isAttacking();
                 } else {
-                    BedNuker bedNuker = (BedNuker) CrewX.moduleManager.modules.get(BedNuker.class);
-                    AutoBlockIn autoBlockIn = (AutoBlockIn) CrewX.moduleManager.modules.get(AutoBlockIn.class);
-                    if (bedNuker.isEnabled() && bedNuker.isReady()) {
-                        return false;
-                    } else if (CrewX.moduleManager.modules.get(Scaffold.class).isEnabled()) {
-                        return false;
-                    } else if (autoBlockIn.isEnabled()) {
-                        return false;
-                    } else if (this.requirePress.getValue()) {
-                        return PlayerUtil.isAttacking();
-                    } else {
-                        return !this.allowMining.getValue() || !mc.objectMouseOver.typeOfHit.equals(MovingObjectType.BLOCK) || !PlayerUtil.isAttacking();
-                    }
+                    return !this.allowMining.getValue() || !mc.objectMouseOver.typeOfHit.equals(MovingObjectType.BLOCK) || !PlayerUtil.isAttacking();
                 }
             }
         } else {

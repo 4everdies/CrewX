@@ -1,5 +1,7 @@
 package crewx.accountmanager.gui;
 
+
+import crewx.gui.ClientFont;
 import crewx.accountmanager.MushProfileService;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -42,9 +44,9 @@ public class GuiMushStats extends GuiScreen {
         drawCenteredString(fontRendererObj, username, width / 2, 25, 0xAAAAAA);
         int tableLeft = width / 2 - (statsList == null ? 220 : statsList.getListWidth() / 2);
         int tableRight = width / 2 + (statsList == null ? 220 : statsList.getListWidth() / 2);
-        fontRendererObj.drawString("Statistic", tableLeft + 7, 57, 0xFFFFFF);
+        ClientFont.drawString("Statistic", tableLeft + 7, 57, 0xFFFFFF);
         String valueHeader = "Value";
-        fontRendererObj.drawString(valueHeader, tableRight - fontRendererObj.getStringWidth(valueHeader) - 7, 57, 0xFFFFFF);
+        ClientFont.drawString(valueHeader, tableRight - ClientFont.getStringWidth(valueHeader) - 7, 57, 0xFFFFFF);
         if (!status.isEmpty()) {
             drawCenteredString(fontRendererObj, status, width / 2, 40, 0xAAAAAA);
         }
@@ -134,14 +136,14 @@ public class GuiMushStats extends GuiScreen {
                 return;
             }
             if (row.header) {
-                fontRendererObj.drawString("\u00A7e\u00A7l" + formatCategory(row.name), x + 7, y + 5, 0xFFFFFF);
+                ClientFont.drawString("\u00A7e\u00A7l" + formatCategory(row.name), x + 7, y + 5, 0xFFFFFF);
                 return;
             }
-            String value = fontRendererObj.trimStringToWidth(translateFormatting(row.value), getListWidth() / 2 - 20);
-            int valueX = x + getListWidth() - fontRendererObj.getStringWidth(value) - 7;
-            String name = fontRendererObj.trimStringToWidth(translateFormatting(formatCategory(row.name)), valueX - x - 18);
-            fontRendererObj.drawString(name, x + 7, y + 5, 0xCFCFCF);
-            fontRendererObj.drawString(value, valueX, y + 5, 0xFFFFFF);
+            String value = ClientFont.trimStringToWidth(translateFormatting(row.value), getListWidth() / 2 - 20);
+            int valueX = x + getListWidth() - ClientFont.getStringWidth(value) - 7;
+            String name = ClientFont.trimStringToWidth(translateFormatting(formatCategory(row.name)), valueX - x - 18);
+            ClientFont.drawString(name, x + 7, y + 5, 0xCFCFCF);
+            ClientFont.drawString(value, valueX, y + 5, 0xFFFFFF);
         }
     }
 

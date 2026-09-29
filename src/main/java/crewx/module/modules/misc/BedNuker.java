@@ -1,4 +1,6 @@
 package crewx.module.modules.misc;
+
+import crewx.gui.ClientFont;
 import crewx.module.modules.combat.*;
 import crewx.module.modules.movement.*;
 import crewx.module.modules.render.*;
@@ -502,7 +504,7 @@ public class BedNuker extends Module {
                     GlStateManager.disableDepth();
                     GlStateManager.enableBlend();
                     GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                    int width = mc.fontRendererObj.getStringWidth(text);
+                    int width = ClientFont.getStringWidth(text);
                     mc.fontRendererObj
                             .drawString(
                                     text,

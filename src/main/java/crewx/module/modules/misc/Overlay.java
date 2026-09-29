@@ -1,4 +1,6 @@
 package crewx.module.modules.misc;
+
+import crewx.gui.ClientFont;
 import crewx.module.modules.combat.*;
 import crewx.module.modules.movement.*;
 import crewx.module.modules.render.*;
@@ -204,13 +206,13 @@ public class Overlay extends Module {
         }
 
         String status = this.showStatus.getValue() ? row.status() : "";
-        int statusWidth = status.isEmpty() ? 0 : mc.fontRendererObj.getStringWidth(" " + status);
+        int statusWidth = status.isEmpty() ? 0 : ClientFont.getStringWidth(" " + status);
         int nameWidth = (int) (NAME_WIDTH - (nameX - PANEL_PADDING) - statusWidth - 2.0F);
         String name = this.trimToWidth(row.name, Math.max(1, nameWidth));
-        mc.fontRendererObj.drawStringWithShadow(name, nameX, textY, nameColor);
+        ClientFont.drawStringWithShadow(name, nameX, textY, nameColor);
         if (!status.isEmpty()) {
-            float statusX = nameX + mc.fontRendererObj.getStringWidth(name) + 2.0F;
-            mc.fontRendererObj.drawStringWithShadow(status, statusX, textY, RED.getRGB());
+            float statusX = nameX + ClientFont.getStringWidth(name) + 2.0F;
+            ClientFont.drawStringWithShadow(status, statusX, textY, RED.getRGB());
         }
 
         int cellX = PANEL_PADDING + COLUMN_WIDTHS[0] + COLUMN_GAP;
@@ -343,8 +345,8 @@ public class Overlay extends Module {
     }
 
     private void drawCentered(String value, int x, int width, float y, int color) {
-        int textWidth = mc.fontRendererObj.getStringWidth(value);
-        mc.fontRendererObj.drawStringWithShadow(value, x + (width - textWidth) / 2.0F, y, color);
+        int textWidth = ClientFont.getStringWidth(value);
+        ClientFont.drawStringWithShadow(value, x + (width - textWidth) / 2.0F, y, color);
     }
 
     private String formatValue(double value) {
@@ -357,9 +359,9 @@ public class Overlay extends Module {
     }
 
     private String trimToWidth(String value, int width) {
-        if (mc.fontRendererObj.getStringWidth(value) <= width) return value;
+        if (ClientFont.getStringWidth(value) <= width) return value;
         String result = value;
-        while (result.length() > 1 && mc.fontRendererObj.getStringWidth(result + "...") > width) {
+        while (result.length() > 1 && ClientFont.getStringWidth(result + "...") > width) {
             result = result.substring(0, result.length() - 1);
         }
         return result + "...";

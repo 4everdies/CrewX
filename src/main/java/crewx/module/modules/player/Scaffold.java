@@ -416,12 +416,12 @@ public class Scaffold extends Module {
                     this.savedMotionZ = mc.thePlayer.motionZ;
                     this.safeStuckActive = true;
                 }
-                CrewX.blinkManager.setBlinkState(true, BlinkModules.BLINK);
+                CrewX.blinkManager.setBlinkState(true, BlinkModules.SCAFFOLD_SAFE_STUCK);
                 mc.thePlayer.motionX = 0.0;
                 mc.thePlayer.motionY = 0.0;
                 mc.thePlayer.motionZ = 0.0;
             } else if (this.safeStuckActive) {
-                CrewX.blinkManager.setBlinkState(false, BlinkModules.BLINK);
+                CrewX.blinkManager.setBlinkState(false, BlinkModules.SCAFFOLD_SAFE_STUCK);
                 mc.thePlayer.motionX = this.savedMotionX;
                 mc.thePlayer.motionY = this.savedMotionY;
                 mc.thePlayer.motionZ = this.savedMotionZ;
@@ -1071,7 +1071,7 @@ public class Scaffold extends Module {
         if (mc.thePlayer != null && this.lastSlot != -1) {
             mc.thePlayer.inventory.currentItem = this.lastSlot;
         }
-        CrewX.blinkManager.setBlinkState(false, BlinkModules.BLINK);
+        CrewX.blinkManager.setBlinkState(false, BlinkModules.SCAFFOLD_SAFE_STUCK);
         if (this.safeStuckActive && mc.thePlayer != null) {
             mc.thePlayer.motionX = this.savedMotionX;
             mc.thePlayer.motionY = this.savedMotionY;

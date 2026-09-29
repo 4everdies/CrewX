@@ -1,4 +1,6 @@
 package crewx.module.modules.player;
+
+import crewx.gui.ClientFont;
 import crewx.module.modules.combat.*;
 import crewx.module.modules.movement.*;
 import crewx.module.modules.render.*;
@@ -243,11 +245,11 @@ public class AutoBlockIn extends Module {
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
         ScaledResolution sr = new ScaledResolution(mc);
-        int width = mc.fontRendererObj.getStringWidth(text);
+        int width = ClientFont.getStringWidth(text);
 
         Color color = getProgressColor();
 
-        mc.fontRendererObj.drawString(
+        ClientFont.drawString(
             text,
             (float) sr.getScaledWidth() / 2.0F / scale - (float) width / 2.0F,
             (float) sr.getScaledHeight() / 5.0F * 2.0F / scale,

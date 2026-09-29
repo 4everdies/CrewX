@@ -1,5 +1,7 @@
 package crewx.util;
 
+
+import crewx.gui.ClientFont;
 import crewx.enums.ChatColors;
 import crewx.mixin.IAccessorEntityRenderer;
 import crewx.mixin.IAccessorMinecraft;
@@ -78,11 +80,11 @@ public class RenderUtil {
 
     public static void drawOutlinedString(String text, float x, float y) {
         String string2 = text.replaceAll("(?i)§[\\da-f]", "");
-        RenderUtil.mc.fontRendererObj.drawString(string2, x + 1.0f, y, 0, false);
-        RenderUtil.mc.fontRendererObj.drawString(string2, x - 1.0f, y, 0, false);
-        RenderUtil.mc.fontRendererObj.drawString(string2, x, y + 1.0f, 0, false);
-        RenderUtil.mc.fontRendererObj.drawString(string2, x, y - 1.0f, 0, false);
-        RenderUtil.mc.fontRendererObj.drawString(text, x, y, -1, false);
+        ClientFont.drawString(string2, x + 1.0f, y, 0, false);
+        ClientFont.drawString(string2, x - 1.0f, y, 0, false);
+        ClientFont.drawString(string2, x, y + 1.0f, 0, false);
+        ClientFont.drawString(string2, x, y - 1.0f, 0, false);
+        ClientFont.drawString(text, x, y, -1, false);
     }
 
     public static void renderEnchantmentText(ItemStack itemStack, float x, float y, float scale) {

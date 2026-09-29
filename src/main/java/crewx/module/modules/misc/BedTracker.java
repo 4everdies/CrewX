@@ -1,4 +1,6 @@
 package crewx.module.modules.misc;
+
+import crewx.gui.ClientFont;
 import crewx.module.modules.combat.*;
 import crewx.module.modules.movement.*;
 import crewx.module.modules.render.*;
@@ -243,8 +245,8 @@ public class BedTracker extends Module {
                             )
                     );
                     ScaledResolution scaledResolution = new ScaledResolution(mc);
-                    float width = (float) mc.fontRendererObj.getStringWidth(text);
-                    float height = (float) mc.fontRendererObj.FONT_HEIGHT - 1.0F;
+                    float width = (float) ClientFont.getStringWidth(text);
+                    float height = (float) ClientFont.getHeight() - 1.0F;
                     float scale = (float) this.hudOffX.getValue() / this.hudScale.getValue();
                     switch (this.hudPosX.getValue()) {
                         case 0:
@@ -275,7 +277,7 @@ public class BedTracker extends Module {
                     GlStateManager.disableDepth();
                     GlStateManager.enableBlend();
                     GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                    mc.fontRendererObj.drawString(text, 0.0F, 0.0F, this.getHudColor(distanceSq).getRGB(), this.hudShadow.getValue());
+                    ClientFont.drawString(text, 0.0F, 0.0F, this.getHudColor(distanceSq).getRGB(), this.hudShadow.getValue());
                     GlStateManager.disableBlend();
                     GlStateManager.enableDepth();
                     GlStateManager.popMatrix();

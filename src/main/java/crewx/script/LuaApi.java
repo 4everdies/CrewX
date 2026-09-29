@@ -1,5 +1,7 @@
 package crewx.script;
 
+
+import crewx.gui.ClientFont;
 import crewx.CrewX;
 import crewx.module.Module;
 import crewx.property.properties.BooleanProperty;
@@ -415,7 +417,7 @@ public class LuaApi {
         fn(t, "getScreenHeight", a -> LuaValue.valueOf(new ScaledResolution(mc).getScaledHeight()));
 
         fn(t, "drawString", a -> {
-            mc.fontRendererObj.drawStringWithShadow(
+            ClientFont.drawStringWithShadow(
                     a.arg(1).tojstring(),
                     (float) a.arg(2).todouble(),
                     (float) a.arg(3).todouble(),
@@ -423,7 +425,7 @@ public class LuaApi {
             return nil();
         });
         fn(t, "getStringWidth", a ->
-                LuaValue.valueOf(mc.fontRendererObj.getStringWidth(a.arg(1).tojstring())));
+                LuaValue.valueOf(ClientFont.getStringWidth(a.arg(1).tojstring())));
 
         fn(t, "drawRect", a -> {
             RenderUtil.drawRect(

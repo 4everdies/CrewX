@@ -30,6 +30,8 @@ public class BlinkManager {
     public boolean offerPacket(Packet<?> packet) {
         if (this.blinkModule == BlinkModules.NONE || packet instanceof C00PacketKeepAlive || packet instanceof C01PacketChatMessage) {
             return false;
+        } else if (this.blinkModule == BlinkModules.NO_SLOW && !(packet instanceof C03PacketPlayer)) {
+            return false;
         } else if (this.blinkedPackets.isEmpty() && packet instanceof C0FPacketConfirmTransaction) {
             return false;
         } else {
@@ -51,6 +53,7 @@ public class BlinkManager {
             }
             this.blinking = false;
             if (Minecraft.getMinecraft().getNetHandler() != null && this.blinkedPackets.isEmpty()) {
+                this.blinkModule = BlinkModules.NONE;
                 return true;
             }
             for (Packet<?> blinkedPacket : blinkedPackets) {

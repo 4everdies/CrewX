@@ -1,4 +1,6 @@
 package crewx.module.modules.render;
+
+import crewx.gui.ClientFont;
 import crewx.module.modules.combat.*;
 import crewx.module.modules.movement.*;
 import crewx.module.modules.render.*;
@@ -90,14 +92,17 @@ public class DynamicIsland extends Module {
 
         float defaultContent = STATUS_SPACE;
         List<Part> defaultParts = buildParts();
+        float maxIslandWidth = Math.max(48.0F, sr.getScaledWidth() - 12.0F);
+        fitParts(defaultParts, maxIslandWidth - PAD_LEFT - PAD_RIGHT - STATUS_SPACE);
         for (Part p : defaultParts) defaultContent += p.width;
 
         float scaffoldContent = STATUS_SPACE + 20.0F;
         List<Part> scaffoldParts = buildScaffoldParts(1.0F);
+        fitParts(scaffoldParts, maxIslandWidth - PAD_LEFT - PAD_RIGHT - STATUS_SPACE - 20.0F);
         for (Part p : scaffoldParts) scaffoldContent += p.width;
 
         float targetContent = defaultContent + (scaffoldContent - defaultContent) * scaffoldAnim;
-        float target = targetContent + PAD_LEFT + PAD_RIGHT;
+        float target = Math.min(maxIslandWidth, targetContent + PAD_LEFT + PAD_RIGHT);
 
         if (animatedWidth <= 0.0F) {
             animatedWidth = target;
@@ -105,12 +110,13 @@ public class DynamicIsland extends Module {
             animatedWidth += (target - animatedWidth) * Math.min(1.0F, dt * 12.0F);
         }
 
-        float width = animatedWidth;
+        float width = Math.min(animatedWidth, maxIslandWidth);
         float height = BOX_HEIGHT;
         float x = Math.round(sr.getScaledWidth() / 2.0F - width / 2.0F);
         float y = this.offsetY.getValue();
         float radius = Math.min(this.curve.getValue(), height / 2.0F);
         float centerY = y + height / 2.0F;
+        float textY = y + (height - ClientFont.getHeight()) / 2.0F;
         Color accent = accentAt(0.0D);
         int accentRGB = accent.getRGB();
         int alpha = Math.round(255.0F * this.backgroundAlpha.getValue() / 100.0F);
@@ -155,9 +161,9 @@ public class DynamicIsland extends Module {
                 } else {
                     int color = withAlpha(part.color, (int) (((part.color >> 24) & 0xFF) * defaultAlpha));
                     if (part.logo) {
-                        drawLogo(part.text, cursor, y + (height - 8.0F) / 2.0F, defaultAlpha);
+                        drawLogo(part.text, cursor, textY, defaultAlpha);
                     } else {
-                        drawText(part.text, cursor, y + (height - 8.0F) / 2.0F, color);
+                        drawText(part.text, cursor, textY, color);
                     }
                 }
                 cursor += part.width;
@@ -194,12 +200,12 @@ public class DynamicIsland extends Module {
             }
             cursor += 20.0F;
 
-            List<Part> sParts = buildScaffoldParts(scaffoldAlpha);
-            for (Part part : sParts) {
+            for (Part part : scaffoldParts) {
                 if (part.dot) {
                     drawCircle(cursor + DOT_SPACE / 2.0F, centerY, 1.3F, withAlpha(accentRGB, (int) (130 * scaffoldAlpha)));
                 } else {
-                    drawText(part.text, cursor, y + (height - 8.0F) / 2.0F, part.color);
+                    int color = withAlpha(part.color, (int) (((part.color >> 24) & 0xFF) * scaffoldAlpha));
+                    drawText(part.text, cursor, textY, color);
                 }
                 cursor += part.width;
             }
@@ -293,6 +299,35 @@ public class DynamicIsland extends Module {
         return parts;
     }
 
+    private void fitParts(List<Part> parts, float maxWidth) {
+        while (getPartsWidth(parts) > maxWidth && parts.size() > 1) {
+            int lastDot = -1;
+            for (int i = parts.size() - 1; i >= 0; i--) {
+                if (parts.get(i).dot) {
+                    lastDot = i;
+                    break;
+                }
+            }
+            if (lastDot < 0) break;
+            while (parts.size() > lastDot) parts.remove(parts.size() - 1);
+        }
+        if (parts.isEmpty() || getPartsWidth(parts) <= maxWidth) return;
+        Part last = parts.get(parts.size() - 1);
+        float available = Math.max(0.0F, maxWidth - getPartsWidth(parts) + last.width);
+        String fitted = ClientFont.trimStringToWidth(last.text, (int) available);
+        if (fitted.isEmpty()) {
+            parts.remove(parts.size() - 1);
+        } else {
+            parts.set(parts.size() - 1, Part.text(fitted, last.color, last.logo));
+        }
+    }
+
+    private float getPartsWidth(List<Part> parts) {
+        float width = 0.0F;
+        for (Part part : parts) width += part.width;
+        return width;
+    }
+
     private static final class Part {
         final String text;
         final int color;
@@ -309,7 +344,7 @@ public class DynamicIsland extends Module {
         }
 
         static Part text(String text, int color, boolean logo) {
-            return new Part(text, color, false, logo, mc.fontRendererObj.getStringWidth(text));
+            return new Part(text, color, false, logo, ClientFont.getStringWidthFloat(text));
         }
 
         static Part dot() {
@@ -332,13 +367,13 @@ public class DynamicIsland extends Module {
             String ch = String.valueOf(text.charAt(i));
             int color = withAlpha(accentAt(i * 0.45D).getRGB(), aInt);
             drawText(ch, cursor, y, color);
-            cursor += mc.fontRendererObj.getStringWidth(ch);
+            cursor += ClientFont.getStringWidthFloat(ch);
         }
     }
 
     private void drawText(String text, float x, float y, int color) {
-        if (this.textShadow.getValue()) mc.fontRendererObj.drawStringWithShadow(text, x, y, color);
-        else mc.fontRendererObj.drawString(text, (int) x, (int) y, color);
+        if (this.textShadow.getValue()) ClientFont.drawStringWithShadow(text, x, y, color);
+        else ClientFont.drawString(text, x, y, color);
     }
 
     private static int argb(int alpha, int red, int green, int blue) {

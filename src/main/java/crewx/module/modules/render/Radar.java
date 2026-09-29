@@ -1,4 +1,6 @@
 package crewx.module.modules.render;
+
+import crewx.gui.ClientFont;
 import crewx.module.modules.combat.*;
 import crewx.module.modules.movement.*;
 import crewx.module.modules.render.*;
@@ -148,9 +150,9 @@ public class Radar extends Module {
             GlStateManager.enableTexture2D();
             GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             GlStateManager.scale(hud.scale.getValue() / 2, hud.scale.getValue() / 2, 1.0f);
-            mc.fontRendererObj.drawString("PVP",
-                    (float) (px - mc.fontRendererObj.getStringWidth("PVP") / 2.0F),
-                    (float) (py - mc.fontRendererObj.FONT_HEIGHT / 2.0F),
+            ClientFont.drawString("PVP",
+                    (float) (px - ClientFont.getStringWidth("PVP") / 2.0F),
+                    (float) (py - ClientFont.getHeight() / 2.0F),
                     Color.WHITE.getRGB(), hud.shadow.getValue());
             GlStateManager.popMatrix();
         }
@@ -221,21 +223,21 @@ public class Radar extends Module {
             GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
             HUD hud = (HUD) CrewX.moduleManager.modules.get(HUD.class);
             int color = hud.getColor(System.currentTimeMillis()).getRGB();
-            mc.fontRendererObj.drawString("N",
-                    (float) (x - dx1 * (radius + 5)) - mc.fontRendererObj.getStringWidth("N") / 2.0F,
-                    (float) (y - dy1 * (radius + 5)) - mc.fontRendererObj.FONT_HEIGHT / 2.0F,
+            ClientFont.drawString("N",
+                    (float) (x - dx1 * (radius + 5)) - ClientFont.getStringWidth("N") / 2.0F,
+                    (float) (y - dy1 * (radius + 5)) - ClientFont.getHeight() / 2.0F,
                     color, hud.shadow.getValue());
-            mc.fontRendererObj.drawString("E",
-                    (float) (x + dx2 * (radius + 5)) - mc.fontRendererObj.getStringWidth("E") / 2.0F,
-                    (float) (y + dy2 * (radius + 5)) - mc.fontRendererObj.FONT_HEIGHT / 2.0F,
+            ClientFont.drawString("E",
+                    (float) (x + dx2 * (radius + 5)) - ClientFont.getStringWidth("E") / 2.0F,
+                    (float) (y + dy2 * (radius + 5)) - ClientFont.getHeight() / 2.0F,
                     color, hud.shadow.getValue());
-            mc.fontRendererObj.drawString("S",
-                    (float) (x + dx1 * (radius + 5)) - mc.fontRendererObj.getStringWidth("S") / 2.0F,
-                    (float) (y + dy1 * (radius + 5)) - mc.fontRendererObj.FONT_HEIGHT / 2.0F,
+            ClientFont.drawString("S",
+                    (float) (x + dx1 * (radius + 5)) - ClientFont.getStringWidth("S") / 2.0F,
+                    (float) (y + dy1 * (radius + 5)) - ClientFont.getHeight() / 2.0F,
                     color, hud.shadow.getValue());
-            mc.fontRendererObj.drawString("W",
-                    (float) (x - dx2 * (radius + 5)) - mc.fontRendererObj.getStringWidth("W") / 2.0F,
-                    (float) (y - dy2 * (radius + 5)) - mc.fontRendererObj.FONT_HEIGHT / 2.0F,
+            ClientFont.drawString("W",
+                    (float) (x - dx2 * (radius + 5)) - ClientFont.getStringWidth("W") / 2.0F,
+                    (float) (y - dy2 * (radius + 5)) - ClientFont.getHeight() / 2.0F,
                     color, hud.shadow.getValue());
             GlStateManager.disableTexture2D();
             GlStateManager.disableBlend();

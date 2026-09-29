@@ -1,5 +1,7 @@
 package crewx.util.notifications;
 
+
+import crewx.gui.ClientFont;
 import crewx.util.Translate;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ScaledResolution;
@@ -21,8 +23,8 @@ public class Notification implements INotification {
 
         this.y = sr.getScaledHeight();
         this.x = sr.getScaledWidth();
-        float headerWidth = Minecraft.getMinecraft().fontRendererObj.getStringWidth(header);
-        float subWidth = Minecraft.getMinecraft().fontRendererObj.getStringWidth(subtext);
+        float headerWidth = ClientFont.getStringWidth(header);
+        float subWidth = ClientFont.getStringWidth(subtext);
         this.tarX = sr.getScaledWidth() - 25 - Math.max(headerWidth, subWidth);
         this.translate = new Translate(x, y);
     }

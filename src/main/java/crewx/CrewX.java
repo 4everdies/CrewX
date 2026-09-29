@@ -79,7 +79,6 @@ public class CrewX {
         moduleManager.modules.put(AntiVoid.class, new AntiVoid());
         moduleManager.modules.put(AutoClicker.class, new AutoClicker());
         moduleManager.modules.put(AutoAnduril.class, new AutoAnduril());
-        moduleManager.modules.put(AutoHeal.class, new AutoHeal());
         moduleManager.modules.put(AutoTool.class, new AutoTool());
         moduleManager.modules.put(AutoRecraft.class, new AutoRecraft());
         moduleManager.modules.put(AutoRefill.class, new AutoRefill());

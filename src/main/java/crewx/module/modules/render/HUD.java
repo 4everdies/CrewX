@@ -1,4 +1,6 @@
 package crewx.module.modules.render;
+
+import crewx.gui.ClientFont;
 import crewx.module.modules.combat.*;
 import crewx.module.modules.movement.*;
 import crewx.module.modules.render.*;
@@ -135,10 +137,10 @@ public class HUD extends Module {
     }
 
     private int calculateStringWidth(String string, String[] arr) {
-        int width = mc.fontRendererObj.getStringWidth(string);
+        int width = ClientFont.getStringWidth(string);
         if (this.suffixes.getValue()) {
             for (String str : arr) {
-                width += (int) SUFFIX_GAP + mc.fontRendererObj.getStringWidth(str);
+                width += (int) SUFFIX_GAP + ClientFont.getStringWidth(str);
             }
         }
         return width;
@@ -292,7 +294,7 @@ public class HUD extends Module {
         float scaleValue = this.scale.getValue();
         float screenW = sr.getScaledWidth() / scaleValue;
         float screenH = sr.getScaledHeight() / scaleValue;
-        float fontH = mc.fontRendererObj.FONT_HEIGHT;
+        float fontH = ClientFont.getHeight();
         float pad = this.backgroundThickness.getValue();
         float lineH = fontH + pad + this.lineSpacing.getValue();
         float curve = this.backgroundCurve.getValue();
@@ -322,7 +324,7 @@ public class HUD extends Module {
             int index = this.activeModules.indexOf(module);
             String moduleName = this.getModuleName(module);
             String[] moduleSuffix = this.getModuleSuffix(module);
-            float textW = mc.fontRendererObj.getStringWidth(moduleName);
+            float textW = ClientFont.getStringWidthFloat(moduleName);
             float totalWidth = this.calculateStringWidth(moduleName, moduleSuffix);
             if (index >= 0) {
                 float targetY = bottomAlign
@@ -346,7 +348,7 @@ public class HUD extends Module {
             float boxX1 = modX - pad;
             float boxX2 = modX + totalWidth + pad;
             float boxY1 = modY - 1.0F;
-            float boxY2 = modY + fontH - 1.0F;
+            float boxY2 = modY + fontH + pad - 1.0F;
             RenderUtil.enableRenderState();
             if (this.glowEnabled.getValue() && bgAlpha > 0.0F) {
                 float g = this.glowSize.getValue();
@@ -394,20 +396,20 @@ public class HUD extends Module {
             if (this.waveMode.getValue() == 2) {
                 this.drawWaveText(moduleName, textX, modY, now, Math.max(index, 0), ease);
             } else if (this.shadow.getValue()) {
-                mc.fontRendererObj.drawStringWithShadow(moduleName, textX, modY, lineColor);
+                ClientFont.drawStringWithShadow(moduleName, textX, modY, lineColor);
             } else {
-                mc.fontRendererObj.drawString(moduleName, textX, modY, lineColor, false);
+                ClientFont.drawString(moduleName, textX, modY, lineColor, false);
             }
             if (this.suffixes.getValue() && moduleSuffix.length > 0) {
                 float suffixX = textX + textW + SUFFIX_GAP;
                 int suffixColor = withAlpha(ChatColors.GRAY.toAwtColor(), ease);
                 for (String string : moduleSuffix) {
                     if (this.shadow.getValue()) {
-                        mc.fontRendererObj.drawStringWithShadow(string, suffixX, modY, suffixColor);
+                        ClientFont.drawStringWithShadow(string, suffixX, modY, suffixColor);
                     } else {
-                        mc.fontRendererObj.drawString(string, suffixX, modY, suffixColor, false);
+                        ClientFont.drawString(string, suffixX, modY, suffixColor, false);
                     }
-                    suffixX += mc.fontRendererObj.getStringWidth(string) + SUFFIX_GAP;
+                    suffixX += ClientFont.getStringWidthFloat(string) + SUFFIX_GAP;
                 }
             }
         }
@@ -419,9 +421,9 @@ public class HUD extends Module {
                     String label = String.valueOf(movementPacketSize);
                     GlStateManager.enableBlend();
                     GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-                    mc.fontRendererObj.drawString(
+                    ClientFont.drawString(
                             label,
-                            screenW / 2.0F - mc.fontRendererObj.getStringWidth(label) / 2.0F,
+                            screenW / 2.0F - ClientFont.getStringWidth(label) / 2.0F,
                             screenH / 5.0F * 3.0F,
                             this.getColor(now, (double) count).getRGB() & 0xFFFFFF | 0xBF000000,
                             this.shadow.getValue()
@@ -443,10 +445,10 @@ public class HUD extends Module {
             detail = " " + Minecraft.getDebugFPS() + " fps";
         }
 
-        float fontH = mc.fontRendererObj.FONT_HEIGHT;
+        float fontH = ClientFont.getHeight();
         float pad = this.backgroundThickness.getValue() + 2.0F;
-        float labelW = mc.fontRendererObj.getStringWidth(label);
-        float detailW = mc.fontRendererObj.getStringWidth(detail);
+        float labelW = ClientFont.getStringWidthFloat(label);
+        float detailW = ClientFont.getStringWidthFloat(detail);
         float totalW = labelW + detailW;
 
         float x = rightAlign ? screenW - baseX - totalW : baseX;
@@ -455,20 +457,20 @@ public class HUD extends Module {
         Color themeColor = this.getColor(now);
         RenderUtil.enableRenderState();
         if (bgAlpha > 0.0F) {
-            drawRoundedRect(x - pad, y - 2.0F, x + totalW + pad, y + fontH,
+            drawRoundedRect(x - pad, y - 2.0F, x + totalW + pad, y + fontH + 1.0F,
                     curve, withAlpha(this.getBackgroundBaseColor(themeColor), bgAlpha));
         }
         RenderUtil.disableRenderState();
 
         if (this.shadow.getValue()) {
-            mc.fontRendererObj.drawStringWithShadow(label, x, y, themeColor.getRGB());
+            ClientFont.drawStringWithShadow(label, x, y, themeColor.getRGB());
             if (!detail.isEmpty()) {
-                mc.fontRendererObj.drawStringWithShadow(detail, x + labelW, y, ChatColors.GRAY.toAwtColor());
+                ClientFont.drawStringWithShadow(detail, x + labelW, y, ChatColors.GRAY.toAwtColor());
             }
         } else {
-            mc.fontRendererObj.drawString(label, x, y, themeColor.getRGB(), false);
+            ClientFont.drawString(label, x, y, themeColor.getRGB(), false);
             if (!detail.isEmpty()) {
-                mc.fontRendererObj.drawString(detail, x + labelW, y, ChatColors.GRAY.toAwtColor(), false);
+                ClientFont.drawString(detail, x + labelW, y, ChatColors.GRAY.toAwtColor(), false);
             }
         }
         return fontH + 4.0F;
@@ -481,11 +483,11 @@ public class HUD extends Module {
             Color c = this.getColor(now, index * spread + i * spread * 0.35D);
             int col = withAlpha(c.getRGB(), alpha);
             if (this.shadow.getValue()) {
-                mc.fontRendererObj.drawStringWithShadow(ch, cursor, y, col);
+                ClientFont.drawStringWithShadow(ch, cursor, y, col);
             } else {
-                mc.fontRendererObj.drawString(ch, cursor, y, col, false);
+                ClientFont.drawString(ch, cursor, y, col, false);
             }
-            cursor += mc.fontRendererObj.getStringWidth(ch);
+            cursor += ClientFont.getStringWidthFloat(ch);
         }
     }
 

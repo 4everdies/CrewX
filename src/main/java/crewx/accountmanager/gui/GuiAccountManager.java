@@ -1,5 +1,7 @@
 package crewx.accountmanager.gui;
 
+
+import crewx.gui.ClientFont;
 import crewx.accountmanager.AccountManager;
 import crewx.accountmanager.MushProfileService;
 import crewx.accountmanager.auth.Account;
@@ -109,9 +111,9 @@ public class GuiAccountManager extends GuiScreen {
 
         if (notification != null && !notification.isExpired()) {
             String message = notification.getMessage();
-            int messageWidth = fontRendererObj.getStringWidth(message);
+            int messageWidth = ClientFont.getStringWidth(message);
             Gui.drawRect(width / 2 - messageWidth / 2 - 4, 39, width / 2 + messageWidth / 2 + 4,
-                    39 + fontRendererObj.FONT_HEIGHT + 6, 0x90000000);
+                    39 + ClientFont.getHeight() + 6, 0x90000000);
             drawCenteredString(fontRendererObj, message, width / 2, 42, 0xFFFFFF);
         }
     }

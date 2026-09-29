@@ -53,7 +53,7 @@ public final class CrewXTheme {
         GlStateManager.pushMatrix();
         GlStateManager.translate(centerX, titleY, 0.0f);
         GlStateManager.scale(2.60f, 2.60f, 1.0f);
-        GuiRender.textCentered("CrewX", 0.0, -minecraft.fontRendererObj.FONT_HEIGHT / 2.0, TEXT);
+        GuiRender.textCentered("CrewX", 0.0, -ClientFont.getHeight() / 2.0, TEXT);
         GlStateManager.popMatrix();
     }
 
@@ -95,7 +95,7 @@ public final class CrewXTheme {
         }
         double textOffset = hover * 1.5;
         GuiRender.textCentered(button.displayString, button.xPosition + button.width / 2.0 + textOffset,
-                button.yPosition + (button.height - Minecraft.getMinecraft().fontRendererObj.FONT_HEIGHT) / 2.0, text);
+                button.yPosition + (button.height - ClientFont.getHeight()) / 2.0, text);
     }
 
     public static void drawScreenBackground(int width, int height) {

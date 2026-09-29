@@ -1,5 +1,7 @@
 package crewx.util.notifications;
 
+
+import crewx.gui.ClientFont;
 import crewx.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -35,8 +37,8 @@ public class NotificationRenderer implements INotificationRenderer {
             Notification not = (Notification) notification;
             String header = trim(mc, not.getHeader(), maxTextWidth);
             String subtext = trim(mc, not.getSubtext(), maxTextWidth);
-            int headerWidth = mc.fontRendererObj.getStringWidth(header);
-            int subWidth = mc.fontRendererObj.getStringWidth(subtext);
+            int headerWidth = ClientFont.getStringWidth(header);
+            int subWidth = ClientFont.getStringWidth(subtext);
             float boxW = Math.max(headerWidth, subWidth) + PADDING;
             boolean leaving = not.checkTime() >= not.getDisplayTime() + not.getStart();
             float targetX = leaving ? screenWidth : screenWidth - MARGIN - boxW;
@@ -64,8 +66,8 @@ public class NotificationRenderer implements INotificationRenderer {
             GlStateManager.translate(x + 2, boxY + 2.5f, 0);
             Gui.drawModalRectWithCustomSizedTexture(0, 0, 0, 0, 18, 18, 18, 18);
             GlStateManager.popMatrix();
-            mc.fontRendererObj.drawStringWithShadow(header, x + 22, boxY + 2, -1);
-            mc.fontRendererObj.drawStringWithShadow(subtext, x + 22, boxY + 12, 0xFFB0B0B0);
+            ClientFont.drawStringWithShadow(header, x + 22, boxY + 2, -1);
+            ClientFont.drawStringWithShadow(subtext, x + 22, boxY + 12, 0xFFB0B0B0);
             GlStateManager.disableBlend();
             GlStateManager.disableAlpha();
             RenderUtil.enableRenderState();
@@ -83,11 +85,11 @@ public class NotificationRenderer implements INotificationRenderer {
     }
     private String trim(Minecraft mc, String text, int maxWidth) {
         if (text == null) return "";
-        if (mc.fontRendererObj.getStringWidth(text) <= maxWidth) return text;
+        if (ClientFont.getStringWidth(text) <= maxWidth) return text;
 
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < text.length(); i++) {
-            if (mc.fontRendererObj.getStringWidth(builder.toString() + text.charAt(i) + "...") > maxWidth) break;
+            if (ClientFont.getStringWidth(builder.toString() + text.charAt(i) + "...") > maxWidth) break;
             builder.append(text.charAt(i));
         }
         return builder.append("...").toString();

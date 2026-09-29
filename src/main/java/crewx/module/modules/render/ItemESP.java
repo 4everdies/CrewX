@@ -1,4 +1,6 @@
 package crewx.module.modules.render;
+
+import crewx.gui.ClientFont;
 import crewx.module.modules.combat.*;
 import crewx.module.modules.movement.*;
 import crewx.module.modules.render.*;
@@ -171,8 +173,8 @@ public class ItemESP extends Module {
                     String countText = String.format("%d", itemEntry.getValue());
                     RenderUtil.drawOutlinedString(
                             countText,
-                            ((float) mc.fontRendererObj.getStringWidth(countText) / 2.0F - 0.5F) * -1.0F,
-                            ((float) (mc.fontRendererObj.FONT_HEIGHT / 2) - 0.5F) * -1.0F
+                            ((float) ClientFont.getStringWidth(countText) / 2.0F - 0.5F) * -1.0F,
+                            ((float) (ClientFont.getHeight() / 2) - 0.5F) * -1.0F
                     );
                     GlStateManager.enableDepth();
                     GlStateManager.resetColor();

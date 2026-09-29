@@ -1,5 +1,7 @@
 package crewx.accountmanager.gui;
 
+
+import crewx.gui.ClientFont;
 import crewx.accountmanager.AccountManager;
 import crewx.accountmanager.auth.Account;
 import crewx.accountmanager.auth.MicrosoftAuth;
@@ -49,7 +51,7 @@ public class GuiMicrosoftAuth extends GuiScreen {
         buttonList.add(openButton = new GuiButton(
                 0,
                 width / 2 - 75 - 2,
-                height / 2 + fontRendererObj.FONT_HEIGHT / 2 + fontRendererObj.FONT_HEIGHT,
+                height / 2 + ClientFont.getHeight() / 2 + ClientFont.getHeight(),
                 75,
                 20,
                 "Open"
@@ -57,7 +59,7 @@ public class GuiMicrosoftAuth extends GuiScreen {
         buttonList.add(cancelButton = new GuiButton(
                 1,
                 width / 2 + 2,
-                height / 2 + fontRendererObj.FONT_HEIGHT / 2 + fontRendererObj.FONT_HEIGHT,
+                height / 2 + ClientFont.getHeight() / 2 + ClientFont.getHeight(),
                 75,
                 20,
                 "Cancel"
@@ -178,26 +180,26 @@ public class GuiMicrosoftAuth extends GuiScreen {
 
         drawCenteredString(
                 fontRendererObj, "Microsoft Authentication",
-                width / 2, height / 2 - fontRendererObj.FONT_HEIGHT / 2 - fontRendererObj.FONT_HEIGHT * 2, 11184810
+                width / 2, height / 2 - ClientFont.getHeight() / 2 - ClientFont.getHeight() * 2, 11184810
         );
 
         if (status != null) {
             drawCenteredString(
                     fontRendererObj, TextFormatting.translate(status),
-                    width / 2, height / 2 - fontRendererObj.FONT_HEIGHT / 2, -1
+                    width / 2, height / 2 - ClientFont.getHeight() / 2, -1
             );
         }
 
         if (cause != null) {
             String causeText = TextFormatting.translate(cause);
             Gui.drawRect(
-                    0, height - 2 - fontRendererObj.FONT_HEIGHT - 3,
-                    3 + mc.fontRendererObj.getStringWidth(causeText) + 3, height,
+                    0, height - 2 - ClientFont.getHeight() - 3,
+                    3 + ClientFont.getStringWidth(causeText) + 3, height,
                     0x64000000
             );
             drawString(
                     fontRendererObj, TextFormatting.translate(cause),
-                    3, height - 2 - fontRendererObj.FONT_HEIGHT, -1
+                    3, height - 2 - ClientFont.getHeight(), -1
             );
         }
     }

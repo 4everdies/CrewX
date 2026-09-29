@@ -1,5 +1,7 @@
 package crewx.accountmanager.gui;
 
+
+import crewx.gui.ClientFont;
 import crewx.accountmanager.auth.SessionManager;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -39,8 +41,8 @@ public class GuiOfflineLogin extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
-        mc.fontRendererObj.drawString(status,
-                this.width / 2 - mc.fontRendererObj.getStringWidth(status) / 2,
+        ClientFont.drawString(status,
+                this.width / 2 - ClientFont.getStringWidth(status) / 2,
                 this.height / 2 - 30, 0xFFFFFF);
         usernameField.drawTextBox();
         super.drawScreen(mouseX, mouseY, partialTicks);

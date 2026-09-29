@@ -4,7 +4,6 @@ import crewx.module.modules.movement.*;
 import crewx.module.modules.render.*;
 import crewx.module.modules.player.*;
 import crewx.module.modules.misc.*;
-
 import crewx.CrewX;
 import crewx.enums.BlinkModules;
 import crewx.event.EventTarget;
@@ -15,15 +14,12 @@ import crewx.events.TickEvent;
 import crewx.module.Module;
 import crewx.property.properties.IntProperty;
 import crewx.property.properties.ModeProperty;
-
 public class Blink extends Module {
     public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Default", "Pulse"});
     public final IntProperty ticks = new IntProperty("ticks", 20, 0, 1200);
-
     public Blink() {
         super("Blink", false);
     }
-
     @EventTarget(Priority.LOWEST)
     public void onTick(TickEvent event) {
         if (this.isEnabled() && event.getType() == EventType.POST) {
@@ -43,18 +39,15 @@ public class Blink extends Module {
             }
         }
     }
-
     @EventTarget
     public void onWorldLoad(LoadWorldEvent event) {
         this.setEnabled(false);
     }
-
     @Override
     public void onEnabled() {
         CrewX.blinkManager.setBlinkState(false, CrewX.blinkManager.getBlinkingModule());
         CrewX.blinkManager.setBlinkState(true, BlinkModules.BLINK);
     }
-
     @Override
     public void onDisabled() {
         CrewX.blinkManager.setBlinkState(false, BlinkModules.BLINK);

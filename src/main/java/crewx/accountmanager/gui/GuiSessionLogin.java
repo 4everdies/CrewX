@@ -1,5 +1,7 @@
 package crewx.accountmanager.gui;
 
+
+import crewx.gui.ClientFont;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import crewx.accountmanager.AccountManager;
@@ -60,7 +62,7 @@ public class GuiSessionLogin extends GuiScreen {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
 
-        mc.fontRendererObj.drawString(status, sr.getScaledWidth() / 2 - mc.fontRendererObj.getStringWidth(status) / 2, sr.getScaledHeight() / 2 - 30, Color.WHITE.getRGB());
+        ClientFont.drawString(status, sr.getScaledWidth() / 2 - ClientFont.getStringWidth(status) / 2, sr.getScaledHeight() / 2 - 30, Color.WHITE.getRGB());
         sessionField.drawTextBox();
 
         super.drawScreen(mouseX, mouseY, partialTicks);

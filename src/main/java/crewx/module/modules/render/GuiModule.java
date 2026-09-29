@@ -22,7 +22,7 @@ import java.awt.Color;
 public class GuiModule extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static GuiModule INSTANCE;
-    private static final Color FALLBACK_ACCENT = new Color(150, 150, 255);
+    private static final Color FALLBACK_ACCENT = new Color(232, 42, 52);
     private static final int DEFAULT_KEY = Keyboard.KEY_RSHIFT;
 
     private boolean openNextTick = false;
@@ -35,7 +35,7 @@ public class GuiModule extends Module {
             "accent-color", FALLBACK_ACCENT.getRGB() & 0xFFFFFF,
             () -> this.colorMode.getValue() == 1
     );
-    public final PercentProperty backgroundAlpha = new PercentProperty("background-alpha", 78);
+    public final PercentProperty backgroundAlpha = new PercentProperty("background-alpha", 100);
 
     public GuiModule() {
         super("ClickGui", false);

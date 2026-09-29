@@ -292,12 +292,12 @@ public final class GuiRender {
 
 
     public static void text(String s, double x, double y, int color) {
-        Minecraft.getMinecraft().fontRendererObj.drawString(s, (float) x, (float) y, color, false);
+        ClientFont.drawString(s, (float) x, (float) y, color, false);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     public static void textShadow(String s, double x, double y, int color) {
-        Minecraft.getMinecraft().fontRendererObj.drawString(s, (float) x, (float) y, color, true);
+        ClientFont.drawString(s, (float) x, (float) y, color, true);
         GlStateManager.color(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
@@ -310,7 +310,7 @@ public final class GuiRender {
     }
 
     public static int textWidth(String s) {
-        return Minecraft.getMinecraft().fontRendererObj.getStringWidth(s);
+        return ClientFont.getStringWidth(s);
     }
 
 
