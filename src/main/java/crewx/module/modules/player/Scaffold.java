@@ -103,6 +103,7 @@ public class Scaffold extends Module {
     public final BooleanProperty safeWalk = new BooleanProperty("safe-walk", true);
     public final BooleanProperty swing = new BooleanProperty("swing", true);
     public final BooleanProperty itemSpoof = new BooleanProperty("item-spoof", false);
+    public final BooleanProperty autoThirdPerson = new BooleanProperty("auto-third-person", false);
     public final BooleanProperty blockCounter = new BooleanProperty("block-counter", true);
     public final BooleanProperty eagle = new BooleanProperty("eagle", false);
     public final FloatProperty edgeDistance = new FloatProperty("edge-distance", 0.13F, 0.0F, 0.5F, () -> this.eagle.getValue());
@@ -113,6 +114,8 @@ public class Scaffold extends Module {
     private long eagleLastSneakTime = 0L;
     private int eagleBlocksPlaced = 0;
     private boolean kaizenMultiplaceNotified = false;
+    private int previousPerspective = 0;
+    private boolean perspectiveChanged = false;
 
     private boolean isKaizenServer() {
         try {
@@ -398,9 +401,24 @@ public class Scaffold extends Module {
         return this.lastSlot;
     }
 
+    private void updateAutoThirdPerson() {
+        if (mc.gameSettings == null) return;
+        if (this.autoThirdPerson.getValue()) {
+            if (!this.perspectiveChanged) {
+                this.previousPerspective = mc.gameSettings.thirdPersonView;
+                this.perspectiveChanged = true;
+            }
+            mc.gameSettings.thirdPersonView = 1;
+        } else if (this.perspectiveChanged) {
+            mc.gameSettings.thirdPersonView = this.previousPerspective;
+            this.perspectiveChanged = false;
+        }
+    }
+
     @EventTarget(Priority.HIGH)
     public void onUpdate(UpdateEvent event) {
         if (this.isEnabled() && event.getType() == EventType.PRE) {
+            this.updateAutoThirdPerson();
             this.enforceKaizenMultiplaceFlag();
             this.placedThisTick = false;
             if (this.safeStuckDelayTicks > 0) {
@@ -1064,6 +1082,12 @@ public class Scaffold extends Module {
         this.snapRotating = false;
         this.lastSnapPlaceYaw = Float.NaN;
         this.lastSnapPlacePitch = Float.NaN;
+        this.perspectiveChanged = false;
+        if (this.autoThirdPerson.getValue() && mc.gameSettings != null) {
+            this.previousPerspective = mc.gameSettings.thirdPersonView;
+            this.perspectiveChanged = true;
+            mc.gameSettings.thirdPersonView = 1;
+        }
     }
 
     @Override
@@ -1083,6 +1107,10 @@ public class Scaffold extends Module {
         this.safeStuckActive = false;
         this.eagleSneaking = false;
         this.eagleSneakTicks = 0;
+        if (this.perspectiveChanged && mc.gameSettings != null) {
+            mc.gameSettings.thirdPersonView = this.previousPerspective;
+        }
+        this.perspectiveChanged = false;
     }
 
     public int getBlockCount() {

@@ -94,6 +94,7 @@ public class ClickGui extends GuiScreen {
     private String selectedConfigName = "";
     private Module pendingModuleClick;
     private boolean pendingModuleSettingsHit;
+    private boolean pendingModuleToggleHit;
     private int scrollDragTarget = DRAG_NONE;
     private boolean scrollDragActive;
     private float scrollDragOriginY;
@@ -465,7 +466,6 @@ public class ClickGui extends GuiScreen {
         float dividerY = this.windowY + this.windowHeight - FOOTER_HEIGHT - 31.0F;
         this.round(x + 11.0F, dividerY, this.sidebarWidth - 22.0F, 1.0F,
                 new Color(37, 37, 37, 255).getRGB(), 0.0F);
-        this.text("#CCW", x + 11.0F, dividerY + 10.0F, MUTED.getRGB());
     }
 
     private void renderModulePane(float mouseX, float mouseY) {
@@ -727,6 +727,7 @@ public class ClickGui extends GuiScreen {
         this.pendingModuleClick = null;
         this.pendingConfigClick = null;
         this.pendingModuleSettingsHit = false;
+        this.pendingModuleToggleHit = false;
     }
 
     private void updateScrollDrag(float mouseY) {
@@ -751,18 +752,12 @@ public class ClickGui extends GuiScreen {
         this.pendingModuleClick = null;
         this.pendingConfigClick = null;
         this.pendingModuleSettingsHit = false;
+        this.pendingModuleToggleHit = false;
     }
 
     private void renderFooter() {
         float y = this.windowY + this.windowHeight - FOOTER_HEIGHT;
         this.round(this.windowX, y, this.windowWidth, 1.0F, new Color(35, 35, 35, 255).getRGB(), 0.0F);
-        String hint = this.activeTab == ViewTab.CONFIGS ? "Click to load    Drag to scroll"
-                : "L toggle    R settings    M bind";
-        float x = this.windowX + 12.0F;
-        float textY = y + (FOOTER_HEIGHT - FONT.getFontHeight()) / 2.0F;
-        this.text(this.trimToWidth(hint, (int) (this.windowWidth - 60.0F)), x, textY, MUTED.getRGB());
-        this.text("ESC", this.windowX + this.windowWidth - FONT.getStringWidth("ESC") - 12.0F,
-                textY, TEXT.getRGB());
     }
 
     private void drawMiniSwitch(float x, float y, float value) {
@@ -795,9 +790,15 @@ public class ClickGui extends GuiScreen {
             return this.visibleModulesCache;
         }
         List<Module> result = new ArrayList<Module>();
-        for (Module module : this.getModules(this.selectedCategory)) {
-            if (query.isEmpty() || module.getName().toLowerCase(java.util.Locale.ROOT).contains(query)) {
-                result.add(module);
+        if (query.isEmpty()) {
+            result.addAll(this.getModules(this.selectedCategory));
+        } else {
+            for (ModuleCategory category : CATEGORIES) {
+                for (Module module : this.getModules(category)) {
+                    if (module.getName().toLowerCase(Locale.ROOT).contains(query)) {
+                        result.add(module);
+                    }
+                }
             }
         }
         this.visibleCacheCategory = this.selectedCategory;
@@ -926,9 +927,11 @@ public class ClickGui extends GuiScreen {
                 Module module = visible.get(index);
                 float rowX = this.windowX + this.sidebarWidth + 7.0F;
                 float rowWidth = this.modulePaneWidth - 14.0F;
-                boolean settingsHit = mx >= rowX + rowWidth - 39.0F;
+                boolean toggleHit = mx >= rowX + rowWidth - 31.0F && mx <= rowX + rowWidth - 3.0F;
+                boolean settingsHit = mx >= rowX + rowWidth - 39.0F && !toggleHit;
                 if (mouseButton == 0) {
                     this.pendingModuleClick = module;
+                    this.pendingModuleToggleHit = toggleHit;
                     this.pendingModuleSettingsHit = settingsHit;
                 } else if (mouseButton == 2) {
                     this.listeningModule = module;
@@ -991,6 +994,25 @@ public class ClickGui extends GuiScreen {
     }
 
     @Override
+    protected void mouseClickMove(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
+        if (this.draggingSetting != null && clickedMouseButton == 0) {
+            float mx = this.toVirtualX(mouseX);
+            float my = this.toVirtualY(mouseY);
+            this.draggingSetting.updateDrag((int) mx, (int) my);
+            this.lastMouseX = mx;
+            this.lastMouseY = my;
+            return;
+        }
+        if (this.draggingWindow && clickedMouseButton == 0) {
+            float mx = this.toVirtualX(mouseX);
+            float my = this.toVirtualY(mouseY);
+            this.windowOffsetX = mx - this.dragMouseOffsetX - (this.width - this.windowWidth) / 2.0F;
+            this.windowOffsetY = my - this.dragMouseOffsetY - (this.height - this.windowHeight) / 2.0F;
+            this.computeLayout();
+        }
+    }
+
+    @Override
     protected void mouseReleased(int mouseX, int mouseY, int state) {
         float mx = this.toVirtualX(mouseX);
         float my = this.toVirtualY(mouseY);
@@ -999,8 +1021,11 @@ public class ClickGui extends GuiScreen {
                 List<Module> visible = this.getVisibleModules();
                 int index = (int) ((my - this.moduleListY + this.moduleScroll) / MODULE_ROW_HEIGHT);
                 if (index >= 0 && index < visible.size() && visible.get(index) == this.pendingModuleClick) {
-                    if (this.pendingModuleSettingsHit) this.selectModule(this.pendingModuleClick);
-                    else this.pendingModuleClick.toggle();
+                    if (this.pendingModuleSettingsHit && !this.pendingModuleToggleHit) {
+                        this.selectModule(this.pendingModuleClick);
+                    } else {
+                        this.pendingModuleClick.toggle();
+                    }
                 }
             } else if (this.scrollDragTarget == DRAG_CONFIGS && this.pendingConfigClick != null) {
                 File releasedConfig = this.getConfigAt(mx, my);
