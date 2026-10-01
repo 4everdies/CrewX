@@ -43,6 +43,18 @@ public abstract class MixinEntityRenderer {
     private Box<ItemStack> using = null;
     @Unique
     private Box<Integer> useCount = null;
+    @Unique
+    private boolean crewx$freeLookRotationApplied;
+    @Unique
+    private EntityPlayerSP crewx$freeLookPlayer;
+    @Unique
+    private float crewx$oldRotationYaw;
+    @Unique
+    private float crewx$oldPrevRotationYaw;
+    @Unique
+    private float crewx$oldRotationPitch;
+    @Unique
+    private float crewx$oldPrevRotationPitch;
     @Shadow
     private Minecraft mc;
     @Shadow
@@ -73,7 +85,9 @@ public abstract class MixinEntityRenderer {
             at = {@At("HEAD")}
     )
     private void updateCameraAndRender(float float1, long long2, CallbackInfo callbackInfo) {
-        if (this.mc.thePlayer != null) {
+        if (this.mc.thePlayer != null && CrewX.moduleManager != null) {
+            FreeLook freeLook = (FreeLook) CrewX.moduleManager.modules.get(FreeLook.class);
+            if (freeLook != null && freeLook.isEnabled()) freeLook.prepare(this.mc.thePlayer);
             Scaffold scaffold = (Scaffold) CrewX.moduleManager.modules.get(Scaffold.class);
             if (scaffold.isEnabled() && scaffold.itemSpoof.getValue()) {
                 int slot = scaffold.getSlot();
@@ -110,6 +124,68 @@ public abstract class MixinEntityRenderer {
             this.useCount = null;
         }
     }
+
+    @Redirect(
+            method = "updateCameraAndRender",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/entity/EntityPlayerSP;setAngles(FF)V", ordinal = 0)
+    )
+    private void crewx$freeLookMouseSmooth(EntityPlayerSP player, float yawDelta, float pitchDelta) {
+        this.crewx$applyFreeLookMouse(player, yawDelta, pitchDelta);
+    }
+
+    @Redirect(
+            method = "updateCameraAndRender",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/entity/EntityPlayerSP;setAngles(FF)V", ordinal = 1)
+    )
+    private void crewx$freeLookMouse(EntityPlayerSP player, float yawDelta, float pitchDelta) {
+        this.crewx$applyFreeLookMouse(player, yawDelta, pitchDelta);
+    }
+
+    @Unique
+    private void crewx$applyFreeLookMouse(EntityPlayerSP player, float yawDelta, float pitchDelta) {
+        if (CrewX.moduleManager != null) {
+            FreeLook freeLook = (FreeLook) CrewX.moduleManager.modules.get(FreeLook.class);
+            if (freeLook != null && freeLook.isEnabled() && this.mc.gameSettings.thirdPersonView != 0) {
+                freeLook.applyMouseDelta(player, yawDelta, pitchDelta);
+                return;
+            }
+        }
+        player.setAngles(yawDelta, pitchDelta);
+    }
+
+    @Inject(method = "orientCamera", at = @At("HEAD"))
+    private void crewx$applyFreeLookCamera(float partialTicks, CallbackInfo callbackInfo) {
+        if (this.crewx$freeLookRotationApplied || this.mc.thePlayer == null || CrewX.moduleManager == null
+                || this.mc.gameSettings.thirdPersonView == 0) return;
+
+        FreeLook freeLook = (FreeLook) CrewX.moduleManager.modules.get(FreeLook.class);
+        if (freeLook == null || !freeLook.isEnabled()) return;
+
+        EntityPlayerSP player = this.mc.thePlayer;
+        freeLook.prepare(player);
+        this.crewx$freeLookPlayer = player;
+        this.crewx$oldRotationYaw = player.rotationYaw;
+        this.crewx$oldPrevRotationYaw = player.prevRotationYaw;
+        this.crewx$oldRotationPitch = player.rotationPitch;
+        this.crewx$oldPrevRotationPitch = player.prevRotationPitch;
+        player.rotationYaw = freeLook.getCameraYaw();
+        player.prevRotationYaw = freeLook.getCameraYaw();
+        player.rotationPitch = freeLook.getCameraPitch();
+        player.prevRotationPitch = freeLook.getCameraPitch();
+        this.crewx$freeLookRotationApplied = true;
+    }
+
+    @Inject(method = "orientCamera", at = @At("RETURN"))
+    private void crewx$restoreFreeLookPlayer(float partialTicks, CallbackInfo callbackInfo) {
+        if (!this.crewx$freeLookRotationApplied || this.crewx$freeLookPlayer == null) return;
+        this.crewx$freeLookPlayer.rotationYaw = this.crewx$oldRotationYaw;
+        this.crewx$freeLookPlayer.prevRotationYaw = this.crewx$oldPrevRotationYaw;
+        this.crewx$freeLookPlayer.rotationPitch = this.crewx$oldRotationPitch;
+        this.crewx$freeLookPlayer.prevRotationPitch = this.crewx$oldPrevRotationPitch;
+        this.crewx$freeLookPlayer = null;
+        this.crewx$freeLookRotationApplied = false;
+    }
+
     @Inject(
 
             method = {"updateRenderer"},

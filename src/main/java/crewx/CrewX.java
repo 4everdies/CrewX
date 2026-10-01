@@ -5,6 +5,7 @@ import com.google.gson.JsonParser;
 import crewx.accountmanager.AccountManager;
 import crewx.command.CommandManager;
 import crewx.command.commands.*;
+import crewx.cosmetics.CosmeticRenderHandler;
 import crewx.config.Config;
 import crewx.event.EventManager;
 import crewx.management.*;
@@ -154,7 +155,7 @@ public class CrewX {
         moduleManager.modules.put(Xray.class, new Xray());
         moduleManager.modules.put(Insults.class, new Insults());
         moduleManager.modules.put(AutoChest.class, new AutoChest());
-        moduleManager.modules.put(Cape.class, new Cape());
+        moduleManager.modules.put(Accessories.class, new Accessories());
         moduleManager.modules.put(AntiBot.class, new AntiBot());
         moduleManager.modules.put(Animations.class, new Animations());
         moduleManager.modules.put(StaffDetector.class, new StaffDetector());
@@ -162,6 +163,7 @@ public class CrewX {
         moduleManager.modules.put(RodAimbot.class, new RodAimbot());
         moduleManager.modules.put(RemoteShop.class, new RemoteShop());
         moduleManager.modules.put(AutoRegister.class, new AutoRegister());
+        moduleManager.modules.put(FreeLook.class, new FreeLook());
         commandManager.commands.add(new BindCommand());
         commandManager.commands.add(new ConfigCommand());
         commandManager.commands.add(new DenickCommand());
@@ -196,6 +198,7 @@ public class CrewX {
             propertyManager.properties.put(module, properties);
             EventManager.register(module);
         }
+        CosmeticRenderHandler.register();
         scriptManager = new crewx.script.ScriptManager();
         scriptManager.init();
 
@@ -204,7 +207,14 @@ public class CrewX {
             config.load();
         }
         if (discordRPC.isEnabled()) {
-            discordRPC.start();
+            Thread discordStartup = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    discordRPC.start();
+                }
+            }, "CrewX Discord RPC Startup");
+            discordStartup.setDaemon(true);
+            discordStartup.start();
         }
         if (friendManager.file.exists()) {
             friendManager.load();

@@ -44,6 +44,7 @@ public class LagRange extends Module {
     private boolean hasTarget = false;
     private Vec3 lastPosition = null;
     private Vec3 currentPosition = null;
+    private volatile boolean suspended;
     public final IntProperty delay = new IntProperty("delay", 150, 0, 1000);
     public final FloatProperty range = new FloatProperty("range", 10.0F, 3.0F, 100.0F);
     public final BooleanProperty weaponsOnly = new BooleanProperty("weapons-only", true);
@@ -86,9 +87,22 @@ public class LagRange extends Module {
         super("LagRange", false);
     }
 
+    public void setSuspended(boolean suspended) {
+        this.suspended = suspended;
+        if (suspended) {
+            CrewX.lagManager.setDelay(0);
+            this.tickIndex = -1;
+            this.hasTarget = false;
+        }
+    }
+
+    public boolean isSuspended() {
+        return this.suspended;
+    }
+
     @EventTarget(Priority.LOW)
     public void onTick(TickEvent event) {
-        if (this.isEnabled()) {
+        if (this.isEnabled() && !this.suspended) {
             switch (event.getType()) {
                 case PRE:
                     CrewX.lagManager.setDelay(0);
@@ -156,7 +170,7 @@ public class LagRange extends Module {
 
     @EventTarget
     public void onPacket(PacketEvent event) {
-        if (this.isEnabled()) {
+        if (this.isEnabled() && !this.suspended) {
             if (this.shouldResetOnPacket(event.getPacket())) {
                 CrewX.lagManager.setDelay(0);
                 this.tickIndex = -1;
@@ -166,7 +180,7 @@ public class LagRange extends Module {
 
     @EventTarget(Priority.HIGH)
     public void onRender3D(Render3DEvent event) {
-        if (this.isEnabled()) {
+        if (this.isEnabled() && !this.suspended) {
             if (this.showPosition.getValue() != 0
                     && mc.gameSettings.thirdPersonView != 0
                     && this.hasTarget
@@ -208,6 +222,7 @@ public class LagRange extends Module {
     @Override
     public void onDisabled() {
         CrewX.lagManager.setDelay(0);
+        this.suspended = false;
         this.tickIndex = -1;
         this.delayCounter = 0L;
         this.hasTarget = false;

@@ -3,6 +3,7 @@ package crewx.mixin;
 import crewx.CrewX;
 import crewx.event.EventManager;
 import crewx.events.Render2DEvent;
+import crewx.gui.BackdropBlur;
 import crewx.module.modules.misc.NickHider;
 import net.minecraft.client.entity.EntityPlayerSP;
 import net.minecraftforge.client.GuiIngameForge;
@@ -17,6 +18,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @SideOnly(Side.CLIENT)
 @Mixin(value = {GuiIngameForge.class}, priority = 9999)
 public abstract class MixinGuiIngameForge {
+    @Inject(method = {"renderGameOverlay"}, at = @At("HEAD"))
+    private void crewx$beginBackdropFrame(float partialTicks, CallbackInfo callbackInfo) {
+        BackdropBlur.beginFrame();
+    }
+
     @Inject(
             method = {"renderGameOverlay"},
             at = {@At(

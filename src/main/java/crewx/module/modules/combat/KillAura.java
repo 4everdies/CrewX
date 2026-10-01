@@ -116,13 +116,15 @@ public class KillAura extends Module {
             } else if (this.attackDelayMS > 0L) {
                 return false;
             } else {
-                this.attackDelayMS = this.attackDelayMS + this.getAttackDelay();
-                mc.thePlayer.swingItem();
                 double clampedRange = Math.min(this.attackRange.getValue(), 3.0);
                 if ((this.rotations.getValue() != 0 || !this.isBoxInAttackRange(this.target.getBox()))
                         && RotationUtil.rayTrace(this.target.getBox(), yaw, pitch, clampedRange) == null) {
                     return false;
                 } else {
+                    // Commit the cooldown only after the same raytrace used by
+                    // the server-facing attack has confirmed the hit.
+                    this.attackDelayMS = this.attackDelayMS + this.getAttackDelay();
+                    mc.thePlayer.swingItem();
                     AttackEvent event = new AttackEvent(this.target.getEntity());
                     EventManager.call(event);
                     ((IAccessorPlayerControllerMP) mc.playerController).callSyncCurrentPlayItem();

@@ -4,10 +4,13 @@ import crewx.event.EventTarget;
 import crewx.event.types.EventType;
 import crewx.event.types.Priority;
 import crewx.events.PacketEvent;
+import crewx.events.AttackEvent;
+import crewx.events.KnockbackEvent;
 import crewx.events.StrafeEvent;
 import crewx.events.UpdateEvent;
 import crewx.mixin.IAccessorPlayerControllerMP;
 import crewx.module.Module;
+import crewx.module.modules.combat.LagRange;
 import crewx.property.properties.FloatProperty;
 import crewx.property.properties.ModeProperty;
 import crewx.util.ChatUtil;
@@ -19,6 +22,8 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemSword;
 import net.minecraft.network.play.client.C08PacketPlayerBlockPlacement;
 import net.minecraft.network.play.server.S39PacketPlayerAbilities;
+import net.minecraft.network.play.server.S12PacketEntityVelocity;
+import net.minecraft.network.play.server.S27PacketExplosion;
 import net.minecraft.util.EnumChatFormatting;
 
 public class Fly extends Module {
@@ -36,6 +41,7 @@ public class Fly extends Module {
     private long phantomJumpTime = 0L;
     private volatile long phantomUseTime = 0L;
     private volatile long flyEndTime = 0L;
+    private volatile long kaizenAttackUntil = 0L;
     private boolean wasCreativeFlyingBeforePhantom = false;
     private int previousHotbarSlot = -1;
     private int phantomHotbarSlot = -1;
@@ -62,7 +68,33 @@ public class Fly extends Module {
             mc.thePlayer.motionY = this.verticalMotion;
         }
         MoveUtil.setSpeed(0.0);
-        event.setFriction((float) MoveUtil.getBaseMoveSpeed() * this.hSpeed.getValue());
+        event.setFriction((float) (MoveUtil.getBaseMoveSpeed() * this.getActiveHorizontalSpeed()));
+    }
+
+    @EventTarget(Priority.HIGHEST)
+    public void onKnockback(KnockbackEvent event) {
+        if (this.isEnabled() && this.isKaizenMode && this.isFlyPhysicallyEnabled) {
+            this.setEnabled(false);
+        }
+    }
+
+    @EventTarget(Priority.HIGHEST)
+    public void onVelocityPacket(PacketEvent event) {
+        if (!this.isEnabled() || !this.isKaizenMode || !this.isFlyPhysicallyEnabled
+                || event.getType() != EventType.RECEIVE) return;
+        if (event.getPacket() instanceof S12PacketEntityVelocity
+                && mc.thePlayer != null
+                && ((S12PacketEntityVelocity) event.getPacket()).getEntityID() == mc.thePlayer.getEntityId()
+                || event.getPacket() instanceof S27PacketExplosion) {
+            this.setEnabled(false);
+        }
+    }
+
+    @EventTarget(Priority.HIGHEST)
+    public void onAttack(AttackEvent event) {
+        if (this.isKaizenMode && this.isEnabled()) {
+            this.kaizenAttackUntil = System.currentTimeMillis() + 150L;
+        }
     }
 
     @EventTarget
@@ -151,6 +183,7 @@ public class Fly extends Module {
     @Override
     public void onEnabled() {
         this.isKaizenMode = this.flyMode.getValue() == 1;
+        this.setLagRangeSuspended(this.isKaizenMode);
         this.isFlyPhysicallyEnabled = false;
         this.phantomActivationPending = false;
         this.awaitingPhantomFlight = false;
@@ -158,6 +191,7 @@ public class Fly extends Module {
         this.phantomJumpTime = 0L;
         this.phantomUseTime = 0L;
         this.flyEndTime = 0L;
+        this.kaizenAttackUntil = 0L;
         this.previousHotbarSlot = -1;
         this.phantomHotbarSlot = -1;
         this.phantomInventorySlot = -1;
@@ -207,6 +241,7 @@ public class Fly extends Module {
 
     @Override
     public void onDisabled() {
+        this.setLagRangeSuspended(false);
         if (this.phantomActivationPending) {
             this.restoreSwordAfterPhantom();
         }
@@ -214,6 +249,7 @@ public class Fly extends Module {
         this.awaitingPhantomFlight = false;
         this.isFlyPhysicallyEnabled = false;
         this.flyEndTime = 0L;
+        this.kaizenAttackUntil = 0L;
         this.phantomUseTime = 0L;
 
         if (!this.isKaizenMode && mc.thePlayer != null) {
@@ -339,7 +375,33 @@ public class Fly extends Module {
         return this.isKaizenMode;
     }
 
+    private double getActiveHorizontalSpeed() {
+        if (!this.isKaizenMode) return this.hSpeed.getValue().doubleValue();
+        return System.currentTimeMillis() < this.kaizenAttackUntil
+                ? 4.0D
+                : this.hSpeed.getValue().doubleValue();
+    }
+
+    /** True only while Kaizen has actually granted flight; pending activation is excluded. */
+    public boolean isKaizenFlightActive() {
+        return this.isEnabled()
+                && this.isKaizenMode
+                && this.isFlyPhysicallyEnabled
+                && !this.awaitingPhantomFlight
+                && mc.thePlayer != null
+                && mc.thePlayer.capabilities.isFlying
+                && System.currentTimeMillis() < this.flyEndTime;
+    }
+
     public boolean isBlinkActive() {
         return false;
+    }
+
+    private void setLagRangeSuspended(boolean suspended) {
+        if (crewx.CrewX.moduleManager == null) return;
+        Object module = crewx.CrewX.moduleManager.modules.get(LagRange.class);
+        if (module instanceof LagRange) {
+            ((LagRange) module).setSuspended(suspended);
+        }
     }
 }

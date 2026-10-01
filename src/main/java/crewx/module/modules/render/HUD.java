@@ -1,6 +1,8 @@
 package crewx.module.modules.render;
 
 import crewx.gui.ClientFont;
+import crewx.gui.BindViewer;
+import crewx.clickgui.render.RoundedUtils;
 import crewx.module.modules.combat.*;
 import crewx.module.modules.movement.*;
 import crewx.module.modules.render.*;
@@ -105,9 +107,18 @@ public class HUD extends Module {
     public final BooleanProperty watermarkFps = new BooleanProperty("watermark-fps", true,
             () -> this.watermark.getValue());
     public final BooleanProperty chatOutline = new BooleanProperty("chat-outline", true);
+    public final IntProperty chatOffsetX = new IntProperty("chat-offset-x", 0, -2000, 2000);
+    public final IntProperty chatOffsetY = new IntProperty("chat-offset-y", 0, -2000, 2000);
+    public final IntProperty scoreboardOffsetX = new IntProperty("scoreboard-offset-x", 0, -2000, 2000);
+    public final IntProperty scoreboardOffsetY = new IntProperty("scoreboard-offset-y", 0, -2000, 2000);
     public final BooleanProperty blinkTimer = new BooleanProperty("blink-timer", true);
     public final BooleanProperty toggleSound = new BooleanProperty("toggle-sounds", true);
     public final BooleanProperty toggleAlerts = new BooleanProperty("toggle-alerts", false);
+    public final BooleanProperty bindViewer = new BooleanProperty("bind-viewer", false);
+    public final ModeProperty bindViewerSide = new ModeProperty("bind-viewer-side", 1, new String[]{"Left", "Right"},
+            () -> this.bindViewer.getValue());
+    public final IntProperty bindViewerOffsetX = new IntProperty("bind-viewer-offset-x", 0, -2000, 2000);
+    public final IntProperty bindViewerOffsetY = new IntProperty("bind-viewer-offset-y", 0, -2000, 2000);
 
     public HUD() {
         super("HUD", false, true);
@@ -270,14 +281,14 @@ public class HUD extends Module {
             String text = ((IAccessorGuiChat) mc.currentScreen).getInputField().getText().trim();
             if (CrewX.commandManager != null && CrewX.commandManager.isTypingCommand(text)) {
                 RenderUtil.enableRenderState();
-                RenderUtil.drawOutlineRect(
+                RoundedUtils.drawRoundedOutlinedRect(
                         2.0F,
                         (float) (mc.currentScreen.height - 14),
-                        (float) (mc.currentScreen.width - 2),
-                        (float) (mc.currentScreen.height - 2),
-                        1.5F,
-                        0,
-                        this.getColor(System.currentTimeMillis()).getRGB()
+                        (float) (mc.currentScreen.width - 4),
+                        12.0F,
+                        this.getColor(System.currentTimeMillis()).getRGB(),
+                        4.0F,
+                        1.5F
                 );
                 RenderUtil.disableRenderState();
             }
@@ -435,6 +446,7 @@ public class HUD extends Module {
 
         GlStateManager.enableDepth();
         GlStateManager.popMatrix();
+        BindViewer.render(this);
     }
     private float drawWatermark(long now, float screenW, float screenH, float baseX, float baseY,
                                 boolean rightAlign, boolean bottomAlign, float curve, float bgAlpha) {

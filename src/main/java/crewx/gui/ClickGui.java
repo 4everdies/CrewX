@@ -49,6 +49,7 @@ public class ClickGui extends GuiScreen {
         MODULES,
         CONFIGS
     }
+
     private static final int HEADER_HEIGHT = 40;
     private static final int FOOTER_HEIGHT = 22;
     private static final int MODULE_ROW_HEIGHT = 31;
@@ -101,6 +102,9 @@ public class ClickGui extends GuiScreen {
     private final Map<Module, Float> hoverAnimations = new HashMap<Module, Float>();
     private final Map<Module, Float> enabledAnimations = new HashMap<Module, Float>();
     private final Deque<float[]> scissorStack = new ArrayDeque<float[]>();
+    private ModuleCategory visibleCacheCategory;
+    private String visibleCacheSearch;
+    private List<Module> visibleModulesCache;
 
     private String searchText = "";
     private boolean searchFocused;
@@ -149,6 +153,7 @@ public class ClickGui extends GuiScreen {
     @Override
     public void initGui() {
         this.closing = false;
+        BlurController.setClickGuiOpen(true);
         this.lastFrame = 0L;
         this.computeLayout();
         this.refreshConfigs();
@@ -270,19 +275,23 @@ public class ClickGui extends GuiScreen {
         float maxConfigs = Math.max(0.0F, configContent - this.configListHeight + 4.0F);
         this.targetConfigScroll = Math.max(0.0F, Math.min(this.targetConfigScroll, maxConfigs));
         this.configScroll += (this.targetConfigScroll - this.configScroll) * Math.min(1.0F, this.deltaTime * 14.0F);
+
     }
 
     private void updateAnimations() {
         for (SettingComponent setting : this.settingComponents) {
             setting.updateAnimations(this.deltaTime);
         }
-        for (Module module : this.getVisibleModules()) {
+        List<Module> visibleModules = this.getVisibleModules();
+        int visibleCount = visibleModules.size();
+        for (int index = 0; index < visibleCount; index++) {
+            Module module = visibleModules.get(index);
             float hover = this.hoverAnimations.containsKey(module) ? this.hoverAnimations.get(module).floatValue() : 0.0F;
             boolean hovered = this.lastMouseX >= this.windowX + this.sidebarWidth + 8.0F
                     && this.lastMouseX <= this.settingsX - 8.0F
                     && this.lastMouseY >= this.moduleListY - this.moduleScroll
-                    && this.lastMouseY <= this.moduleListY - this.moduleScroll + this.getVisibleModules().size() * MODULE_ROW_HEIGHT;
-            float rowTop = this.moduleListY + this.getVisibleModules().indexOf(module) * MODULE_ROW_HEIGHT - this.moduleScroll;
+                    && this.lastMouseY <= this.moduleListY - this.moduleScroll + visibleCount * MODULE_ROW_HEIGHT;
+            float rowTop = this.moduleListY + index * MODULE_ROW_HEIGHT - this.moduleScroll;
             hovered = hovered && this.lastMouseY >= rowTop && this.lastMouseY <= rowTop + MODULE_ROW_HEIGHT - 3;
             this.hoverAnimations.put(module, approach(hover, hovered ? 1.0F : 0.0F, this.deltaTime, 12.0F));
             float enabled = this.enabledAnimations.containsKey(module) ? this.enabledAnimations.get(module).floatValue() : 0.0F;
@@ -327,11 +336,11 @@ public class ClickGui extends GuiScreen {
         this.drawLogo(logoX, logoY, logoSize);
         if (!compactHeader) this.text("CREWX", logoX + 31.0F, this.windowY + 15.0F, TEXT.getRGB());
 
-        float modulesX = this.modulesTabX();
-        float configsX = this.configsTabX();
-        this.drawHeaderTab("MODULES", modulesX, this.activeTab == ViewTab.MODULES);
-        this.drawHeaderTab("CONFIGS", configsX, this.activeTab == ViewTab.CONFIGS);
-        if (this.windowWidth >= 250.0F) {
+        String modulesLabel = this.headerLabel(ViewTab.MODULES);
+        String configsLabel = this.headerLabel(ViewTab.CONFIGS);
+        this.drawHeaderTab(modulesLabel, this.modulesTabX(), this.activeTab == ViewTab.MODULES);
+        this.drawHeaderTab(configsLabel, this.configsTabX(), this.activeTab == ViewTab.CONFIGS);
+        if (this.windowWidth >= 370.0F) {
             String closeHint = "ESC";
             this.text(closeHint, this.windowX + this.windowWidth - FONT.getStringWidth(closeHint) - 12.0F,
                     this.windowY + 15.0F, MUTED.getRGB());
@@ -344,7 +353,18 @@ public class ClickGui extends GuiScreen {
     }
 
     private float configsTabX() {
-        return this.modulesTabX() + (this.windowWidth < 200.0F ? 50.0F : 57.0F);
+        return this.modulesTabX() + FONT.getStringWidth(this.headerLabel(ViewTab.MODULES)) + 8.0F;
+    }
+
+    private String headerLabel(ViewTab tab) {
+        if (this.windowWidth < 360.0F) {
+            if (tab == ViewTab.MODULES) return "MOD";
+            if (tab == ViewTab.CONFIGS) return "CFG";
+            return "CFG";
+        }
+        if (tab == ViewTab.MODULES) return "MODULES";
+        if (tab == ViewTab.CONFIGS) return "CONFIGS";
+        return "CONFIGS";
     }
 
     private void drawHeaderTab(String label, float x, boolean selected) {
@@ -369,8 +389,6 @@ public class ClickGui extends GuiScreen {
         mc.getTextureManager().bindTexture(texture);
         GlStateManager.color((faded >> 16 & 255) / 255.0F, (faded >> 8 & 255) / 255.0F,
                 (faded & 255) / 255.0F, (faded >>> 24) / 255.0F);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
         Gui.drawModalRectWithCustomSizedTexture((int) x, (int) y, 0.0F, 0.0F, size, size,
                 (float) size, (float) size);
         GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
@@ -422,7 +440,9 @@ public class ClickGui extends GuiScreen {
                         selected ? new Color(27, 27, 27, 255).getRGB() : new Color(17, 17, 17, 255).getRGB(), 2.0F);
             }
             if (selected) this.round(x + 6.0F, navY + 4.0F, 2.0F, Math.max(8.0F, navStep - 10.0F), accentColor().getRGB(), 0.0F);
-            int iconColor = selected ? accentColor().brighter().getRGB() : MUTED.getRGB();
+            int iconColor = selected
+                    ? (category == ModuleCategory.PLAYER ? Color.WHITE.getRGB() : accentColor().brighter().getRGB())
+                    : MUTED.getRGB();
             float iconSize = Math.max(10.0F, Math.min(16.0F, navStep - 1.0F));
             this.drawCategoryIcon(category, x + Math.min(22.0F, this.sidebarWidth / 2.0F),
                     navY + (navStep - 2.0F) / 2.0F, iconColor, iconSize);
@@ -736,7 +756,8 @@ public class ClickGui extends GuiScreen {
     private void renderFooter() {
         float y = this.windowY + this.windowHeight - FOOTER_HEIGHT;
         this.round(this.windowX, y, this.windowWidth, 1.0F, new Color(35, 35, 35, 255).getRGB(), 0.0F);
-        String hint = this.activeTab == ViewTab.CONFIGS ? "Click to load    Drag to scroll" : "L toggle    R settings    M bind";
+        String hint = this.activeTab == ViewTab.CONFIGS ? "Click to load    Drag to scroll"
+                : "L toggle    R settings    M bind";
         float x = this.windowX + 12.0F;
         float textY = y + (FOOTER_HEIGHT - FONT.getFontHeight()) / 2.0F;
         this.text(this.trimToWidth(hint, (int) (this.windowWidth - 60.0F)), x, textY, MUTED.getRGB());
@@ -768,14 +789,21 @@ public class ClickGui extends GuiScreen {
     }
 
     private List<Module> getVisibleModules() {
+        String query = this.searchText.trim().toLowerCase(Locale.ROOT);
+        if (this.visibleModulesCache != null && this.visibleCacheCategory == this.selectedCategory
+                && query.equals(this.visibleCacheSearch)) {
+            return this.visibleModulesCache;
+        }
         List<Module> result = new ArrayList<Module>();
-        String query = this.searchText.trim().toLowerCase(java.util.Locale.ROOT);
         for (Module module : this.getModules(this.selectedCategory)) {
             if (query.isEmpty() || module.getName().toLowerCase(java.util.Locale.ROOT).contains(query)) {
                 result.add(module);
             }
         }
-        return result;
+        this.visibleCacheCategory = this.selectedCategory;
+        this.visibleCacheSearch = query;
+        this.visibleModulesCache = result;
+        return this.visibleModulesCache;
     }
 
     private List<Property<?>> getProperties(Module module) {
@@ -838,11 +866,13 @@ public class ClickGui extends GuiScreen {
             if (mouseButton == 0) {
                 float modulesX = this.modulesTabX();
                 float configsX = this.configsTabX();
-                if (mx >= modulesX - 5.0F && mx <= modulesX + FONT.getStringWidth("MODULES") + 6.0F) {
+                String modulesLabel = this.headerLabel(ViewTab.MODULES);
+                String configsLabel = this.headerLabel(ViewTab.CONFIGS);
+                if (mx >= modulesX - 5.0F && mx <= modulesX + FONT.getStringWidth(modulesLabel) + 6.0F) {
                     this.setActiveTab(ViewTab.MODULES);
                     return;
                 }
-                if (mx >= configsX - 5.0F && mx <= configsX + FONT.getStringWidth("CONFIGS") + 6.0F) {
+                if (mx >= configsX - 5.0F && mx <= configsX + FONT.getStringWidth(configsLabel) + 6.0F) {
                     this.setActiveTab(ViewTab.CONFIGS);
                     return;
                 }
@@ -975,6 +1005,7 @@ public class ClickGui extends GuiScreen {
             } else if (this.scrollDragTarget == DRAG_CONFIGS && this.pendingConfigClick != null) {
                 File releasedConfig = this.getConfigAt(mx, my);
                 if (this.pendingConfigClick.equals(releasedConfig)) this.loadConfig(releasedConfig);
+
             }
         }
 
@@ -1058,6 +1089,7 @@ public class ClickGui extends GuiScreen {
         this.draggingWindow = false;
         this.draggingSetting = null;
         this.clearScrollDrag();
+        BlurController.setClickGuiOpen(false);
         super.onGuiClosed();
     }
 

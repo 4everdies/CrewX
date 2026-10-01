@@ -28,6 +28,7 @@ public abstract class MixinPlayerControllerMP {
     ) {
         AttackEvent event = new AttackEvent(targetEntity);
         EventManager.call(event);
+        if (event.isCancelled()) callbackInfo.cancel();
     }
     @Inject(
             method = {"windowClick"},

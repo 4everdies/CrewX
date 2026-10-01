@@ -1,7 +1,7 @@
 package crewx.mixin;
 
 import crewx.CrewX;
-import crewx.module.modules.render.Cape;
+import crewx.module.modules.render.Accessories;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.util.ResourceLocation;
@@ -20,10 +20,10 @@ public class MixinCape {
     private void onGetLocationCape(CallbackInfoReturnable<ResourceLocation> cir) {
         if (CrewX.moduleManager == null) return;
         if ((Object) this != Minecraft.getMinecraft().thePlayer) return;
-        Cape cape = (Cape) CrewX.moduleManager.modules.get(Cape.class);
-        if (cape == null || !cape.isEnabled()) return;
+        Accessories accessories = (Accessories) CrewX.moduleManager.modules.get(Accessories.class);
+        if (accessories == null || !accessories.isEnabled()) return;
 
-        ResourceLocation customCape = cape.getCapeTexture();
+        ResourceLocation customCape = accessories.getCapeTexture();
         if (customCape != null) {
             cir.setReturnValue(customCape);
         }
