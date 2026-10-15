@@ -57,10 +57,22 @@ public final class DiscordRPC extends Module {
             this.callbackThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
+                    long nextCallbacks = 0L;
                     while (running.get()) {
                         try {
-                            net.arikia.dev.drpc.DiscordRPC.discordRunCallbacks();
-                            Thread.sleep(1_500L);
+                            // the native calls live here, never on the game thread: a slow Discord pipe can no
+                            // longer freeze the game every couple of seconds
+                            String[] presence = pendingPresence;
+                            if (presence != null) {
+                                pendingPresence = null;
+                                pushPresence(presence);
+                            }
+                            long now = System.currentTimeMillis();
+                            if (now >= nextCallbacks) {
+                                nextCallbacks = now + 1_500L;
+                                net.arikia.dev.drpc.DiscordRPC.discordRunCallbacks();
+                            }
+                            Thread.sleep(200L);
                         } catch (InterruptedException ignored) {
                             Thread.currentThread().interrupt();
                             break;
@@ -95,12 +107,22 @@ public final class DiscordRPC extends Module {
         this.initialized = false;
     }
 
+    /** {details, state, small image url or null, small image text}: picked up by the callback thread. */
+    private volatile String[] pendingPresence;
+
     public void update(String details, String state) {
         if (!this.isRunning()) return;
+        this.pendingPresence = new String[]{sanitize(details, "Playing CrewX"), sanitize(state, "In game"), null, null};
+    }
+
+    /** Callback thread only. */
+    private void pushPresence(String[] presence) {
+        if (!this.isRunning()) return;
         try {
-            DiscordRichPresence.Builder builder = new DiscordRichPresence.Builder(sanitize(state, "In game"));
+            DiscordRichPresence.Builder builder = new DiscordRichPresence.Builder(presence[1]);
             builder.setBigImage(LARGE_IMAGE_KEY, "CrewX");
-            builder.setDetails(sanitize(details, "Playing CrewX"));
+            if (presence[2] != null) builder.setSmallImage(presence[2], presence[3]);
+            builder.setDetails(presence[0]);
             builder.setStartTimestamps(this.created);
             net.arikia.dev.drpc.DiscordRPC.discordUpdatePresence(builder.build());
         } catch (Throwable ignored) {
@@ -125,18 +147,8 @@ public final class DiscordRPC extends Module {
             server = data.serverIP;
         }
         server = server.trim();
-        try {
-            DiscordRichPresence.Builder builder = new DiscordRichPresence.Builder(sanitize(this.buildState(server), "Singleplayer"));
-            builder.setBigImage(LARGE_IMAGE_KEY, "CrewX");
-            String serverIconUrl = this.getServerIconUrl(data, server);
-            if (serverIconUrl != null) {
-                builder.setSmallImage(serverIconUrl, server);
-            }
-            builder.setDetails("Playing CrewX");
-            builder.setStartTimestamps(this.created);
-            net.arikia.dev.drpc.DiscordRPC.discordUpdatePresence(builder.build());
-        } catch (Throwable ignored) {
-        }
+        this.pendingPresence = new String[]{"Playing CrewX", sanitize(this.buildState(server), "Singleplayer"),
+                this.getServerIconUrl(data, server), server};
     }
 
     private String getServerIconUrl(ServerData data, String server) {

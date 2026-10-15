@@ -57,9 +57,25 @@ public abstract class MixinGuiNewChat {
         float contentWidth = (float) Math.ceil(chat.getChatWidth() / scale) + 8.0F;
         float contentHeight = visibleLines * 9.0F;
         int alpha = this.crewx$panelAlpha(chat, updateCounter);
+        if (alpha <= 0) return;
         int color = (alpha << 24) | 0x000C0D0F;
-        BackdropBlur.drawRoundedPanel(-2.0F, -contentHeight - 3.0F,
-                contentWidth, contentHeight + 6.0F, 3.0F, color);
+        // starts just left of the text (the chat is drawn 2px from the screen edge) so the rounded corner shows
+        float x = -1.5F;
+        float y = -contentHeight - 4.0F;
+        float w = contentWidth + 0.5F;
+        float h = contentHeight + 8.0F;
+        // soft drop shadow, then the frosted panel with rounder corners
+        for (int i = 3; i >= 1; i--) {
+            int shadow = Math.round(alpha * 0.10F) << 24;
+            crewx.clickgui.render.RoundedUtils.drawRoundedRect(x - i, y - i + 1.0F, w + i * 2.0F, h + i * 2.0F, shadow, 5.0F + i);
+        }
+        // drawn inside the chat's own translate/scale: let the blur copy the whole window rather than guess
+        BackdropBlur.beginUnknownTransform();
+        try {
+            BackdropBlur.drawRoundedPanel(x, y, w, h, 5.0F, color);
+        } finally {
+            BackdropBlur.endUnknownTransform();
+        }
     }
 
     @Redirect(
@@ -83,8 +99,11 @@ public abstract class MixinGuiNewChat {
         for (int index = start; index < end; index++) {
             ChatLine line = this.drawnChatLines.get(index);
             if (line == null || !renderedText.equals(line.getChatComponent().getFormattedText())) continue;
-            float rise = ChatMessageAnimator.getRiseOffset(line, this.crewx$currentChatCounter);
-            if (rise > 0.0F) args.set(2, ((Float) args.get(2)) + rise);
+            float progress = ChatMessageAnimator.getProgress(line, this.crewx$currentChatCounter);
+            if (progress < 1.0F) {
+                args.set(2, ((Float) args.get(2)) + ChatMessageAnimator.getRiseOffset(line, this.crewx$currentChatCounter));
+                args.set(3, ChatMessageAnimator.fadeColor((Integer) args.get(3), progress));
+            }
             return;
         }
     }
@@ -108,7 +127,7 @@ public abstract class MixinGuiNewChat {
     }
 
     private int crewx$panelAlpha(GuiNewChat chat, int updateCounter) {
-        if (chat.getChatOpen()) return 174;
+        if (chat.getChatOpen()) return 148;
         if (this.drawnChatLines == null || this.drawnChatLines.isEmpty()) return 0;
         int newestIndex = Math.min(this.drawnChatLines.size() - 1, Math.max(0, this.scrollPos));
         ChatLine newest = this.drawnChatLines.get(newestIndex);
@@ -117,6 +136,6 @@ public abstract class MixinGuiNewChat {
         fade = Math.max(0.0D, Math.min(1.0D, fade));
         fade *= fade;
         float opacity = Minecraft.getMinecraft().gameSettings.chatOpacity * 0.9F + 0.1F;
-        return Math.max(0, Math.min(220, (int) (174.0D * fade * opacity)));
+        return Math.max(0, Math.min(200, (int) (148.0D * fade * opacity)));
     }
 }

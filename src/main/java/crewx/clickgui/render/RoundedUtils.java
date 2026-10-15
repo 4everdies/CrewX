@@ -11,11 +11,24 @@ public class RoundedUtils {
     private static final Shader roundedOutlinedRect = new Shader("/assets/crewx/shaders/roundedOutlinedRect.frag", true);
 
     public static void drawRoundedRect(double x, double y, double width, double height, int color, float rounding) {
+        long timed = crewx.util.HitchMonitor.start();
+        try {
+            drawRoundedRectImpl(x, y, width, height, color, rounding);
+        } finally {
+            crewx.util.HitchMonitor.section("rounded panels", timed);
+        }
+    }
+
+    private static void drawRoundedRectImpl(double x, double y, double width, double height, int color, float rounding) {
         float f3 = (float) (color >> 24 & 255) / 255.0F;
         float f = (float) (color >> 16 & 255) / 255.0F;
         float f1 = (float) (color >> 8 & 255) / 255.0F;
         float f2 = (float) (color & 255) / 255.0F;
 
+        if (!roundedRect.isValid()) {
+            fallbackRect(x, y, width, height, f, f1, f2, f3);
+            return;
+        }
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GlStateManager.disableTexture2D();
@@ -42,6 +55,10 @@ public class RoundedUtils {
         float g = (float) (color >> 8 & 255) / 255.0F;
         float b = (float) (color & 255) / 255.0F;
 
+        if (!roundedRectCorners.isValid()) {
+            fallbackRect(x, y, width, height, r, g, b, a);
+            return;
+        }
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GlStateManager.disableTexture2D();
@@ -68,6 +85,7 @@ public class RoundedUtils {
         float f1 = (float) (color >> 8 & 255) / 255.0F;
         float f2 = (float) (color & 255) / 255.0F;
 
+        if (!roundedOutlinedRect.isValid()) return;   // an outline-only shape: nothing sensible to draw without the shader
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GlStateManager.disableTexture2D();
@@ -89,6 +107,28 @@ public class RoundedUtils {
         roundedOutlinedRect.stopProgram();
         GlStateManager.enableAlpha();
         GlStateManager.enableDepth();
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+    }
+
+    /**
+     * Plain translucent quad for GPUs/drivers where the rounded-rect shader did not compile. Without it the quad
+     * was drawn with whatever colour/program happened to be current, which showed up as flashing boxes.
+     */
+    private static void fallbackRect(double x, double y, double width, double height, float r, float g, float b, float a) {
+        GlStateManager.enableBlend();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.disableTexture2D();
+        GlStateManager.disableAlpha();
+        GlStateManager.color(r, g, b, a);
+        GL11.glBegin(GL11.GL_QUADS);
+        GL11.glVertex2d(x, y);
+        GL11.glVertex2d(x, y + height);
+        GL11.glVertex2d(x + width, y + height);
+        GL11.glVertex2d(x + width, y);
+        GL11.glEnd();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableAlpha();
         GlStateManager.enableTexture2D();
         GlStateManager.disableBlend();
     }

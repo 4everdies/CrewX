@@ -9,12 +9,20 @@ public final class BlurController {
     private static final ResourceLocation SOFT_BLUR = new ResourceLocation("crewx", "shaders/post/soft_blur.json");
     private static boolean clickGuiOpen;
     private static ShaderGroup ownedShader;
+    private static long retryAfter;
 
     private BlurController() {
     }
 
     public static void setClickGuiOpen(boolean open) {
         clickGuiOpen = open;
+        retryAfter = 0L;
+        update();
+    }
+
+    public static void ensureBlur() {
+        if (!clickGuiOpen || System.currentTimeMillis() < retryAfter) return;
+        retryAfter = System.currentTimeMillis() + 1000L;
         update();
     }
 
@@ -25,6 +33,7 @@ public final class BlurController {
                 MC.entityRenderer.stopUseShader();
             }
             ownedShader = null;
+            retryAfter = 0L;
             return;
         }
         if (MC.theWorld == null || MC.thePlayer == null || MC.entityRenderer.isShaderActive()) return;

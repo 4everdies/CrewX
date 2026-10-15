@@ -82,8 +82,6 @@ public final class ClickGuiFontRenderer {
         }
         if (!hasVisibleGlyph) return;
         MC.getTextureManager().bindTexture(fontTexture);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
-        GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
         GlStateManager.enableTexture2D();
         GlStateManager.enableAlpha();
         GlStateManager.enableBlend();
@@ -130,10 +128,88 @@ public final class ClickGuiFontRenderer {
         GlStateManager.disableBlend();
     }
 
+    /** Colour of a glyph edge, given its horizontal offset (in unscaled font units) from the start of the string. */
+    public interface GlyphColor {
+        int colorAt(float offset);
+    }
+
+    /**
+     * Draws text in one batch with a per-vertex colour (gradients / karaoke sweeps), an optional
+     * drop shadow and an optional faux-bold pass. Colours are ARGB; alpha is honoured as given.
+     */
+    public void drawStringStyled(String text, float x, float y, GlyphColor color,
+                                 float boldOffset, int shadowColor, float shadowOffset) {
+        if (text == null || text.isEmpty() || color == null) return;
+        ResourceLocation fontTexture = this.hasMetrics ? this.getTexture() : null;
+        if (fontTexture == null) {
+            int fallback = color.colorAt(0.0F);
+            if ((fallback >>> 24) > 3) MC.fontRendererObj.drawString(text, x, y, fallback, false);
+            return;
+        }
+        MC.getTextureManager().bindTexture(fontTexture);
+        GlStateManager.enableTexture2D();
+        GlStateManager.enableAlpha();
+        GlStateManager.enableBlend();
+        GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+
+        Tessellator tessellator = Tessellator.getInstance();
+        WorldRenderer renderer = tessellator.getWorldRenderer();
+        renderer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX_COLOR);
+        if ((shadowColor >>> 24) > 3 && shadowOffset != 0.0F) {
+            this.emitGlyphs(renderer, text, x + shadowOffset, y + shadowOffset, null, shadowColor);
+        }
+        this.emitGlyphs(renderer, text, x, y, color, 0);
+        if (boldOffset > 0.0F) this.emitGlyphs(renderer, text, x + boldOffset, y, color, 0);
+        tessellator.draw();
+
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.disableBlend();
+    }
+
+    private void emitGlyphs(WorldRenderer renderer, String text, float x, float y, GlyphColor colors, int flatColor) {
+        float cursor = x;
+        float baseline = y + this.baselineOffset * SCALE;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\u00a7' && i + 1 < text.length()) {
+                i++;
+                continue;
+            }
+            Glyph glyph = this.getGlyph(c);
+            if (glyph.width > 0 && glyph.height > 0) {
+                float left = cursor + glyph.bearingX * SCALE;
+                float top = baseline + glyph.bearingY * SCALE;
+                float right = left + glyph.width * SCALE;
+                float bottom = top + glyph.height * SCALE;
+                float u0 = glyph.x / (float) ATLAS_WIDTH;
+                float v0 = glyph.y / (float) ATLAS_HEIGHT;
+                float u1 = (glyph.x + glyph.width) / (float) ATLAS_WIDTH;
+                float v1 = (glyph.y + glyph.height) / (float) ATLAS_HEIGHT;
+                int leftColor = colors == null ? flatColor : colors.colorAt(left - x);
+                int rightColor = colors == null ? flatColor : colors.colorAt(right - x);
+                int la = leftColor >>> 24 & 255, lr = leftColor >> 16 & 255, lg = leftColor >> 8 & 255, lb = leftColor & 255;
+                int ra = rightColor >>> 24 & 255, rr = rightColor >> 16 & 255, rg = rightColor >> 8 & 255, rb = rightColor & 255;
+                renderer.pos(left, top, 0.0D).tex(u0, v0).color(lr, lg, lb, la).endVertex();
+                renderer.pos(left, bottom, 0.0D).tex(u0, v1).color(lr, lg, lb, la).endVertex();
+                renderer.pos(right, bottom, 0.0D).tex(u1, v1).color(rr, rg, rb, ra).endVertex();
+                renderer.pos(right, top, 0.0D).tex(u1, v0).color(rr, rg, rb, ra).endVertex();
+            }
+            cursor += glyph.advance * SCALE;
+        }
+    }
+
     private Glyph getGlyph(char c) {
         if (c < this.glyphs.length && this.glyphs[c] != null) return this.glyphs[c];
         Glyph fallback = this.glyphs['?'];
         return fallback == null ? new Glyph(0, 0, 0, 0, 12.0F, 0, 0) : fallback;
+    }
+
+    /** GL name of the font atlas, or -1 before it is loaded. */
+    int textureId() {
+        if (this.texture == null) return -1;
+        net.minecraft.client.renderer.texture.ITextureObject object = MC.getTextureManager().getTexture(this.texture);
+        return object == null ? -1 : object.getGlTextureId();
     }
 
     private ResourceLocation getTexture() {
@@ -145,8 +221,14 @@ public final class ClickGuiFontRenderer {
             if (stream == null) return null;
             BufferedImage image = ImageIO.read(stream);
             if (image == null) return null;
-            this.texture = MC.getTextureManager().getDynamicTextureLocation(
-                    "crewx_clickgui_font_atlas", new DynamicTexture(image));
+            DynamicTexture atlas = new DynamicTexture(image);
+            this.texture = MC.getTextureManager().getDynamicTextureLocation("crewx_clickgui_font_atlas", atlas);
+            // smooth filtering, set once: changing a texture's parameters while queued draws still use it (as
+            // every text draw used to do) can make the driver wait for the GPU - a hitch in whatever draws text
+            MC.getTextureManager().bindTexture(this.texture);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_LINEAR);
+            GL11.glTexParameteri(GL11.GL_TEXTURE_2D, GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_LINEAR);
+            crewx.util.TextureGuard.watch(this.texture, atlas, image.getWidth(), image.getHeight(), true);
         } catch (Exception ignored) {
             return null;
         }

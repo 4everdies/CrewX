@@ -60,14 +60,33 @@ public class Shader {
 
     protected void onUse() {}
 
+    /** True while one of our programs is bound (used to unbind it if a draw threw half-way). */
+    private static boolean active;
+
+    /** False when the shader failed to compile/link on this GPU: callers must draw a fixed-function fallback. */
+    public boolean isValid() {
+        return programId != -1;
+    }
+
     public void use() {
         if (programId == -1) return;
         GL20.glUseProgram(programId);
+        active = true;
         onUse();
     }
 
     public void stop() {
+        if (programId == -1) return;   // nothing of ours was bound: do not unbind someone else's program
         GL20.glUseProgram(0);
+        active = false;
+    }
+
+    /** Unbinds our program if a draw was interrupted before stop(); no GL query involved. */
+    public static void releaseIfLeaked() {
+        if (active) {
+            active = false;
+            GL20.glUseProgram(0);
+        }
     }
 
     public final void setUniform(String name) {

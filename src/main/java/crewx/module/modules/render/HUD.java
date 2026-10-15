@@ -1,6 +1,9 @@
 package crewx.module.modules.render;
 
+import crewx.util.HitchMonitor;
+
 import crewx.gui.ClientFont;
+import crewx.gui.CategoryIconRenderer;
 import crewx.gui.BindViewer;
 import crewx.clickgui.render.RoundedUtils;
 import crewx.module.modules.combat.*;
@@ -18,9 +21,9 @@ import crewx.events.Render2DEvent;
 import crewx.events.TickEvent;
 import crewx.mixin.IAccessorGuiChat;
 import crewx.module.Module;
+import crewx.module.ModuleCategory;
 import crewx.util.ColorUtil;
 import crewx.util.RenderUtil;
-import crewx.util.notifications.NotificationManager;
 import crewx.property.properties.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiChat;
@@ -43,6 +46,8 @@ import java.util.stream.Collectors;
 public class HUD extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final float SUFFIX_GAP = 3.0F;
+    private static final float ARRAY_ICON_SIZE = 10.5F;
+    private static final float ARRAY_ICON_GAP = 4.0F;
     private List<Module> activeModules = new ArrayList<>();
     private final Map<Module, Anim> anims = new LinkedHashMap<>();
     private long lastFrameTime = System.currentTimeMillis();
@@ -51,6 +56,8 @@ public class HUD extends Module {
         float y;
         boolean placed;
     }
+    /** Jello: one small dark box per module, right-aligned stair (as in the reference); Classic: old list. */
+    public final ModeProperty arraylistStyle = new ModeProperty("arraylist-style", 0, new String[]{"Jello", "Classic"});
     public final ModeProperty colorMode = new ModeProperty(
             "color", 3, new String[]{"Rainbow", "Chroma", "Astolfo", "Custom1", "Custom2", "Custom3"}
     );
@@ -67,7 +74,7 @@ public class HUD extends Module {
     public final ModeProperty waveMode = new ModeProperty("wave-mode", 0, new String[]{"None", "Vertical", "Horizontal"});
     public final PercentProperty waveSpread = new PercentProperty("wave-spread", 100, 5, 300,
             () -> this.waveMode.getValue() != 0);
-    public final ModeProperty posX = new ModeProperty("position-x", 0, new String[]{"Left", "Right"});
+    public final ModeProperty posX = new ModeProperty("position-x", 1, new String[]{"Left", "Right"});
     public final ModeProperty posY = new ModeProperty("position-y", 0, new String[]{"Top", "Bottom"});
     public final IntProperty offsetX = new IntProperty("offset-x", 2, 0, 255);
     public final IntProperty offsetY = new IntProperty("offset-y", 2, 0, 255);
@@ -99,7 +106,10 @@ public class HUD extends Module {
     public final FloatProperty animationSpeed = new FloatProperty("animation-speed", 1.0F, 0.2F, 3.0F,
             () -> this.animations.getValue());
     public final BooleanProperty shadow = new BooleanProperty("shadow", true);
+    /** Frosted-glass blur behind the client's panels (Bind Viewer, scoreboard, chat, media card). Off = lighter on the GPU. */
+    public final BooleanProperty blur = new BooleanProperty("blur", true);
     public final BooleanProperty suffixes = new BooleanProperty("suffixes", true);
+    public final BooleanProperty arrayListIcons = new BooleanProperty("arraylist-icons", true);
     public final BooleanProperty lowerCase = new BooleanProperty("lower-case", false);
     public final BooleanProperty watermark = new BooleanProperty("watermark", false);
     public final TextProperty watermarkText = new TextProperty("watermark-text", "CrewX",
@@ -121,7 +131,7 @@ public class HUD extends Module {
     public final IntProperty bindViewerOffsetY = new IntProperty("bind-viewer-offset-y", 0, -2000, 2000);
 
     public HUD() {
-        super("HUD", false, true);
+        super("HUD", true, true);
     }
 
     private String getModuleName(Module module) {
@@ -154,7 +164,14 @@ public class HUD extends Module {
                 width += (int) SUFFIX_GAP + ClientFont.getStringWidth(str);
             }
         }
+        if (this.arrayListIcons.getValue()) {
+            width += Math.round(ARRAY_ICON_GAP + ARRAY_ICON_SIZE);
+        }
         return width;
+    }
+
+    private void drawArrayListIcon(ModuleCategory category, float centerX, float centerY, float size, int color) {
+        CategoryIconRenderer.draw(category, centerX - size / 2.0F, centerY - size / 2.0F, size, color);
     }
 
     private float getColorCycle(long time, double offsetUnits) {
@@ -276,7 +293,6 @@ public class HUD extends Module {
 
     @EventTarget
     public void onRender2D(Render2DEvent event) {
-        NotificationManager.getManager().updateAndRender();
         if (this.chatOutline.getValue() && mc.currentScreen instanceof GuiChat) {
             String text = ((IAccessorGuiChat) mc.currentScreen).getInputField().getText().trim();
             if (CrewX.commandManager != null && CrewX.commandManager.isTypingCommand(text)) {
@@ -319,9 +335,12 @@ public class HUD extends Module {
         GlStateManager.scale(scaleValue, scaleValue, 1.0F);
         GlStateManager.disableDepth();
         float listTopPad = 0.0F;
+        long timed = HitchMonitor.start();
         if (this.watermark.getValue()) {
             listTopPad = this.drawWatermark(now, screenW, screenH, baseX, baseY, rightAlign, bottomAlign, curve, bgAlpha);
         }
+        HitchMonitor.section("HUD watermark", timed);
+        timed = HitchMonitor.start();
         this.updateAnimations(delta);
         int count = this.activeModules.size();
         List<Module> renderOrder = new ArrayList<>(this.activeModules);
@@ -329,7 +348,9 @@ public class HUD extends Module {
             if (!this.activeModules.contains(m)) renderOrder.add(m);
         }
         float maxWidth = this.getMaxModuleWidth();
-        for (Module module : renderOrder) {
+        if (this.arraylistStyle.getValue() == 0) {
+            this.drawJelloList(renderOrder, now, delta, screenW, screenH, baseX, baseY, listTopPad, rightAlign, bottomAlign);
+        } else for (Module module : renderOrder) {
             Anim anim = this.anims.get(module);
             if (anim == null || anim.progress <= 0.005F) continue;
             int index = this.activeModules.indexOf(module);
@@ -423,6 +444,10 @@ public class HUD extends Module {
                     suffixX += ClientFont.getStringWidthFloat(string) + SUFFIX_GAP;
                 }
             }
+            if (this.arrayListIcons.getValue()) {
+                this.drawArrayListIcon(module.getCategory(), textX + totalWidth - ARRAY_ICON_SIZE / 2.0F,
+                        modY + fontH / 2.0F, ARRAY_ICON_SIZE, withAlpha(0xE8EDF5, ease));
+            }
         }
         if (this.blinkTimer.getValue()) {
             BlinkModules blinkingModule = CrewX.blinkManager.getBlinkingModule();
@@ -444,10 +469,86 @@ public class HUD extends Module {
             }
         }
 
+        HitchMonitor.section("HUD list", timed);
         GlStateManager.enableDepth();
         GlStateManager.popMatrix();
+        timed = HitchMonitor.start();
         BindViewer.render(this);
+        HitchMonitor.section("Bind Viewer", timed);
     }
+    /**
+     * Jello array list: every module sits in its own small dark rounded box; names use the HUD theme colour
+     * (wave modes included) and suffixes a soft grey. Boxes slide in/out from the screen edge.
+     */
+    private void drawJelloList(List<Module> renderOrder, long now, float delta, float screenW, float screenH,
+                               float baseX, float baseY, float listTopPad, boolean rightAlign, boolean bottomAlign) {
+        float fontH = ClientFont.getHeight();
+        float padX = 4.0F + this.backgroundThickness.getValue() - 2.0F;
+        float padY = 2.5F;
+        float boxH = fontH + padY * 2.0F;
+        float step = boxH + 1.5F + this.lineSpacing.getValue();
+        float bgAlpha = this.backgroundMode.getValue() == 0 ? 0.0F : this.backgroundAlpha.getValue() / 100.0F;
+        float curve = this.backgroundCurve.getValue();
+        int count = this.activeModules.size();
+        for (Module module : renderOrder) {
+            Anim anim = this.anims.get(module);
+            if (anim == null || anim.progress <= 0.005F) continue;
+            int index = this.activeModules.indexOf(module);
+            String name = this.getModuleName(module);
+            String[] suffix = this.suffixes.getValue() ? this.getModuleSuffix(module) : new String[0];
+            StringBuilder suffixText = new StringBuilder();
+            for (String part : suffix) {
+                if (part == null || part.isEmpty()) continue;
+                suffixText.append(' ').append(part);
+            }
+            float nameW = ClientFont.getStringWidthFloat(name);
+            float textW = nameW + ClientFont.getStringWidthFloat(suffixText.toString());
+            boolean icon = this.arrayListIcons.getValue();
+            float iconW = icon ? ARRAY_ICON_GAP + ARRAY_ICON_SIZE : 0.0F;
+            float boxW = textW + iconW + padX * 2.0F;
+            if (index >= 0) {
+                float targetY = bottomAlign
+                        ? screenH - baseY - listTopPad - (count - index) * step
+                        : baseY + listTopPad + index * step;
+                if (!anim.placed) {
+                    anim.y = targetY;
+                    anim.placed = true;
+                } else {
+                    anim.y = this.approach(anim.y, targetY, delta);
+                }
+            }
+            float ease = this.ease(anim.progress);
+            float slide = (1.0F - ease) * (boxW + baseX + 4.0F);
+            float boxX = rightAlign ? screenW - baseX - boxW + slide : baseX - slide;
+            float boxY = anim.y;
+            Color themeColor = this.getLineColor(now, Math.max(index, 0));
+            if (bgAlpha > 0.0F) {
+                int base = this.getBackgroundBaseColor(themeColor);
+                RoundedUtils.drawRoundedRect(boxX, boxY, boxW, boxH, withAlpha(base, bgAlpha * ease),
+                        Math.min(curve, boxH / 2.0F));
+            }
+            float textX = boxX + padX;
+            float textY = boxY + padY + 0.5F;
+            int nameColor = withAlpha(themeColor.getRGB(), ease);
+            int suffixColor = withAlpha(0xC8CBD2, ease * 0.9F);
+            if (this.waveMode.getValue() == 2) {
+                this.drawWaveText(name, textX, textY, now, Math.max(index, 0), ease);
+            } else {
+                ClientFont.drawString(name, textX, textY, nameColor, this.shadow.getValue());
+            }
+            if (suffixText.length() > 0) {
+                ClientFont.drawString(suffixText.toString(), textX + nameW, textY, suffixColor, this.shadow.getValue());
+            }
+            if (icon) {
+                // category symbol at the end of the box, same light tint as the classic list
+                this.drawArrayListIcon(module.getCategory(), textX + textW + ARRAY_ICON_GAP + ARRAY_ICON_SIZE / 2.0F,
+                        boxY + boxH / 2.0F, ARRAY_ICON_SIZE, withAlpha(0xE8EDF5, ease));
+            }
+        }
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
+        GlStateManager.enableTexture2D();
+    }
+
     private float drawWatermark(long now, float screenW, float screenH, float baseX, float baseY,
                                 boolean rightAlign, boolean bottomAlign, float curve, float bgAlpha) {
         String label = this.watermarkText.getValue();

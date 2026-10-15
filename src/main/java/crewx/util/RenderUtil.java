@@ -108,7 +108,7 @@ public class RenderUtil {
         GlStateManager.depthMask(true);
         GlStateManager.clear(256);
         RenderHelper.enableGUIStandardItemLighting();
-        GL11.glDisable(GL11.GL_LIGHTING);
+        GlStateManager.disableLighting();
         GlStateManager.pushMatrix();
         GlStateManager.scale(1.0f, 1.0f, -0.01f);
         RenderUtil.mc.getRenderItem().zLevel = -150.0f;
@@ -223,7 +223,7 @@ public class RenderUtil {
         GlStateManager.color(red, green, blue, alpha);
         boolean bl = RenderUtil.mc.gameSettings.viewBobbing;
         RenderUtil.mc.gameSettings.viewBobbing = false;
-        ((IAccessorEntityRenderer) RenderUtil.mc.entityRenderer).callSetupCameraTransform(((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks, 2);
+        ((IAccessorEntityRenderer) RenderUtil.mc.entityRenderer).callSetupCameraTransform(WorldRenderPass.partialTicks(), 2);
         RenderUtil.mc.gameSettings.viewBobbing = bl;
         GL11.glLineWidth(lineWidth);
         GL11.glEnable(GL11.GL_LINE_SMOOTH);
@@ -328,9 +328,9 @@ public class RenderUtil {
     }
 
     public static void drawEntityCircle(Entity entity, double radius, int segments, int color) {
-        double d2 = RenderUtil.lerpDouble(entity.posX, entity.lastTickPosX, ((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosX();
-        double d3 = RenderUtil.lerpDouble(entity.posY, entity.lastTickPosY, ((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosY();
-        double d4 = RenderUtil.lerpDouble(entity.posZ, entity.lastTickPosZ, ((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ();
+        double d2 = RenderUtil.lerpDouble(entity.posX, entity.lastTickPosX, WorldRenderPass.partialTicks()) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosX();
+        double d3 = RenderUtil.lerpDouble(entity.posY, entity.lastTickPosY, WorldRenderPass.partialTicks()) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosY();
+        double d4 = RenderUtil.lerpDouble(entity.posZ, entity.lastTickPosZ, WorldRenderPass.partialTicks()) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ();
         RenderUtil.drawCircle(d2, d3, d4, radius, segments, color);
     }
 
@@ -374,17 +374,95 @@ public class RenderUtil {
         GL11.glLineWidth(2.0f);
     }
 
+    /**
+     * A softer box than the flat fill + hard outline: faces with a vertical gradient (denser at the feet, clear at
+     * the top), a faint wide glow around the edges and a crisp outline on top. Expects the render state of
+     * {@link #enableRenderState()} (blend on, texture/depth/cull off).
+     */
+    public static void drawStyledBox(AxisAlignedBB bb, int rgb, float fillBottom, float fillTop, float lineWidth) {
+        int r = rgb >> 16 & 255;
+        int g = rgb >> 8 & 255;
+        int b = rgb & 255;
+        int bottom = Math.round(255.0F * fillBottom);
+        int top = Math.round(255.0F * fillTop);
+        GlStateManager.depthMask(false);
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        Tessellator tessellator = Tessellator.getInstance();
+        WorldRenderer wr = tessellator.getWorldRenderer();
+        wr.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
+        // sides (gradient), then the bottom and top faces
+        sideQuad(wr, bb.minX, bb.minZ, bb.maxX, bb.minZ, bb.minY, bb.maxY, r, g, b, bottom, top);
+        sideQuad(wr, bb.maxX, bb.minZ, bb.maxX, bb.maxZ, bb.minY, bb.maxY, r, g, b, bottom, top);
+        sideQuad(wr, bb.maxX, bb.maxZ, bb.minX, bb.maxZ, bb.minY, bb.maxY, r, g, b, bottom, top);
+        sideQuad(wr, bb.minX, bb.maxZ, bb.minX, bb.minZ, bb.minY, bb.maxY, r, g, b, bottom, top);
+        wr.pos(bb.minX, bb.minY, bb.minZ).color(r, g, b, bottom).endVertex();
+        wr.pos(bb.maxX, bb.minY, bb.minZ).color(r, g, b, bottom).endVertex();
+        wr.pos(bb.maxX, bb.minY, bb.maxZ).color(r, g, b, bottom).endVertex();
+        wr.pos(bb.minX, bb.minY, bb.maxZ).color(r, g, b, bottom).endVertex();
+        wr.pos(bb.minX, bb.maxY, bb.minZ).color(r, g, b, top).endVertex();
+        wr.pos(bb.minX, bb.maxY, bb.maxZ).color(r, g, b, top).endVertex();
+        wr.pos(bb.maxX, bb.maxY, bb.maxZ).color(r, g, b, top).endVertex();
+        wr.pos(bb.maxX, bb.maxY, bb.minZ).color(r, g, b, top).endVertex();
+        tessellator.draw();
+        GlStateManager.shadeModel(GL11.GL_FLAT);
+        // glow, then the crisp edge
+        GL11.glEnable(GL11.GL_LINE_SMOOTH);
+        GL11.glHint(GL11.GL_LINE_SMOOTH_HINT, GL11.GL_NICEST);
+        GL11.glLineWidth(lineWidth + 3.0F);
+        RenderGlobal.drawOutlinedBoundingBox(bb, r, g, b, 45);
+        GL11.glLineWidth(lineWidth);
+        RenderGlobal.drawOutlinedBoundingBox(bb, Math.min(255, r + 25), Math.min(255, g + 25), Math.min(255, b + 25), 235);
+        GL11.glDisable(GL11.GL_LINE_SMOOTH);
+        GL11.glLineWidth(2.0F);
+        GlStateManager.depthMask(true);
+    }
+
+    private static void sideQuad(WorldRenderer wr, double x1, double z1, double x2, double z2, double minY, double maxY,
+                                 int r, int g, int b, int bottom, int top) {
+        wr.pos(x1, minY, z1).color(r, g, b, bottom).endVertex();
+        wr.pos(x1, maxY, z1).color(r, g, b, top).endVertex();
+        wr.pos(x2, maxY, z2).color(r, g, b, top).endVertex();
+        wr.pos(x2, minY, z2).color(r, g, b, bottom).endVertex();
+    }
+
+    /** {@link #drawStyledBox} around an entity at its interpolated position (camera-relative). */
+    public static void drawStyledEntityBox(Entity entity, int rgb, double expand, float fillBottom, float fillTop, float lineWidth) {
+        float partialTicks = WorldRenderPass.partialTicks();
+        double x = lerpDouble(entity.posX, entity.lastTickPosX, partialTicks);
+        double y = lerpDouble(entity.posY, entity.lastTickPosY, partialTicks);
+        double z = lerpDouble(entity.posZ, entity.lastTickPosZ, partialTicks);
+        IAccessorRenderManager renderManager = (IAccessorRenderManager) mc.getRenderManager();
+        drawStyledBox(entity.getEntityBoundingBox().expand(expand, expand, expand)
+                .offset(x - entity.posX, y - entity.posY, z - entity.posZ)
+                .offset(-renderManager.getRenderPosX(), -renderManager.getRenderPosY(), -renderManager.getRenderPosZ()),
+                rgb, fillBottom, fillTop, lineWidth);
+    }
+
+    /** Screen-space rectangle with a vertical colour gradient (ARGB). */
+    public static void drawGradientRect2D(float x1, float y1, float x2, float y2, int topColor, int bottomColor) {
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
+        Tessellator tessellator = Tessellator.getInstance();
+        WorldRenderer wr = tessellator.getWorldRenderer();
+        wr.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
+        wr.pos(x1, y1, 0.0D).color(topColor >> 16 & 255, topColor >> 8 & 255, topColor & 255, topColor >>> 24).endVertex();
+        wr.pos(x1, y2, 0.0D).color(bottomColor >> 16 & 255, bottomColor >> 8 & 255, bottomColor & 255, bottomColor >>> 24).endVertex();
+        wr.pos(x2, y2, 0.0D).color(bottomColor >> 16 & 255, bottomColor >> 8 & 255, bottomColor & 255, bottomColor >>> 24).endVertex();
+        wr.pos(x2, y1, 0.0D).color(topColor >> 16 & 255, topColor >> 8 & 255, topColor & 255, topColor >>> 24).endVertex();
+        tessellator.draw();
+        GlStateManager.shadeModel(GL11.GL_FLAT);
+    }
+
     public static void drawEntityBox(Entity entity, int red, int green, int blue) {
-        double d2 = RenderUtil.lerpDouble(entity.posX, entity.lastTickPosX, ((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks);
-        double d3 = RenderUtil.lerpDouble(entity.posY, entity.lastTickPosY, ((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks);
-        double d4 = RenderUtil.lerpDouble(entity.posZ, entity.lastTickPosZ, ((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks);
+        double d2 = RenderUtil.lerpDouble(entity.posX, entity.lastTickPosX, WorldRenderPass.partialTicks());
+        double d3 = RenderUtil.lerpDouble(entity.posY, entity.lastTickPosY, WorldRenderPass.partialTicks());
+        double d4 = RenderUtil.lerpDouble(entity.posZ, entity.lastTickPosZ, WorldRenderPass.partialTicks());
         RenderUtil.drawFilledBox(entity.getEntityBoundingBox().expand(0.1f, 0.1f, 0.1f).offset(d2 - entity.posX, d3 - entity.posY, d4 - entity.posZ).offset(-((IAccessorRenderManager) mc.getRenderManager()).getRenderPosX(), -((IAccessorRenderManager) mc.getRenderManager()).getRenderPosY(), -((IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ()), red, green, blue);
     }
 
     public static void drawEntityBoundingBox(Entity entity, int red, int green, int blue, int alpha, float lineWidth, double expand) {
-        double d2 = RenderUtil.lerpDouble(entity.posX, entity.lastTickPosX, ((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks);
-        double d3 = RenderUtil.lerpDouble(entity.posY, entity.lastTickPosY, ((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks);
-        double d4 = RenderUtil.lerpDouble(entity.posZ, entity.lastTickPosZ, ((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks);
+        double d2 = RenderUtil.lerpDouble(entity.posX, entity.lastTickPosX, WorldRenderPass.partialTicks());
+        double d3 = RenderUtil.lerpDouble(entity.posY, entity.lastTickPosY, WorldRenderPass.partialTicks());
+        double d4 = RenderUtil.lerpDouble(entity.posZ, entity.lastTickPosZ, WorldRenderPass.partialTicks());
         RenderUtil.drawBoundingBox(entity.getEntityBoundingBox().expand(expand, expand, expand).offset(d2 - entity.posX, d3 - entity.posY, d4 - entity.posZ).offset(-((IAccessorRenderManager) mc.getRenderManager()).getRenderPosX(), -((IAccessorRenderManager) mc.getRenderManager()).getRenderPosY(), -((IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ()), red, green, blue, alpha, lineWidth);
     }
 
@@ -397,12 +475,12 @@ public class RenderUtil {
     }
 
     public static void drawCornerESP(EntityPlayer entity, float red, float green, float blue) {
-        float x = (float) (RenderUtil.lerpDouble(entity.posX, entity.lastTickPosX, ((IAccessorMinecraft) mc).getTimer().renderPartialTicks) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosX());
-        float y = (float) (RenderUtil.lerpDouble(entity.posY, entity.lastTickPosY, ((IAccessorMinecraft) mc).getTimer().renderPartialTicks) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosY());
-        float z = (float) (RenderUtil.lerpDouble(entity.posZ, entity.lastTickPosZ, ((IAccessorMinecraft) mc).getTimer().renderPartialTicks) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ());
+        float x = (float) (RenderUtil.lerpDouble(entity.posX, entity.lastTickPosX, WorldRenderPass.partialTicks()) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosX());
+        float y = (float) (RenderUtil.lerpDouble(entity.posY, entity.lastTickPosY, WorldRenderPass.partialTicks()) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosY());
+        float z = (float) (RenderUtil.lerpDouble(entity.posZ, entity.lastTickPosZ, WorldRenderPass.partialTicks()) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ());
         GlStateManager.pushMatrix();
         GlStateManager.translate(x, y + entity.height / 2.0F, z);
-        GlStateManager.rotate(-mc.getRenderManager().playerViewY, 0.0F, 1.0F, 0.0F);
+        faceCamera();
         GlStateManager.scale(-0.098F, -0.098F, 0.098F);
         float width = (float) (26.6 * entity.width / 2.0);
         float height = 12.0F;
@@ -428,17 +506,33 @@ public class RenderUtil {
         GlStateManager.popMatrix();
     }
 
+    /**
+     * Turns the current matrix to face the camera fully (yaw and pitch). Turning only around the vertical axis left
+     * the flat ESP frames tilted towards the camera, so they were drawn as trapezoids/parallelograms ("crooked")
+     * when looked at from above, below or off-centre; a plane facing the camera is always drawn as a rectangle.
+     */
+    private static void faceCamera() {
+        GlStateManager.rotate(-mc.getRenderManager().playerViewY, 0.0F, 1.0F, 0.0F);
+        GlStateManager.rotate(mc.getRenderManager().playerViewX, mc.gameSettings.thirdPersonView == 2 ? -1.0F : 1.0F, 0.0F, 0.0F);
+    }
+
     public static void drawFake2DESP(EntityPlayer entity, float red, float green, float blue) {
-        float x = (float) (RenderUtil.lerpDouble(entity.posX, entity.lastTickPosX, ((IAccessorMinecraft) mc).getTimer().renderPartialTicks) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosX());
-        float y = (float) (RenderUtil.lerpDouble(entity.posY, entity.lastTickPosY, ((IAccessorMinecraft) mc).getTimer().renderPartialTicks) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosY());
-        float z = (float) (RenderUtil.lerpDouble(entity.posZ, entity.lastTickPosZ, ((IAccessorMinecraft) mc).getTimer().renderPartialTicks) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ());
+        float x = (float) (RenderUtil.lerpDouble(entity.posX, entity.lastTickPosX, WorldRenderPass.partialTicks()) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosX());
+        float y = (float) (RenderUtil.lerpDouble(entity.posY, entity.lastTickPosY, WorldRenderPass.partialTicks()) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosY());
+        float z = (float) (RenderUtil.lerpDouble(entity.posZ, entity.lastTickPosZ, WorldRenderPass.partialTicks()) - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ());
         GlStateManager.pushMatrix();
         GlStateManager.translate(x, y + entity.height / 2.0F, z);
-        GlStateManager.rotate(-mc.getRenderManager().playerViewY, 0.0F, 1.0F, 0.0F);
+        faceCamera();
         GlStateManager.scale(-0.1F, -0.1F, 0.1F);
-        GlStateManager.color(red, green, blue);
         float width = (float) (23.3 * entity.width / 2.0);
         float height = 12.0F;
+        // thin dark outline first, so the coloured frame reads on any background
+        GlStateManager.color(0.0F, 0.0F, 0.0F, 0.6F);
+        draw3DRect(width + 0.3F, height - 0.3F, -width - 0.3F, height + 0.7F);
+        draw3DRect(width + 0.3F, -height - 0.3F, -width - 0.3F, -height + 0.7F);
+        draw3DRect(width + 0.3F, -height + 0.1F, width - 0.7F, height + 0.7F);
+        draw3DRect(-width - 0.3F, -height + 0.1F, -width + 0.7F, height + 0.7F);
+        GlStateManager.color(red, green, blue);
         draw3DRect(width, height, -width, height + 0.4F);
         draw3DRect(width, -height, -width, -height + 0.4F);
         draw3DRect(width, -height + 0.4F, width - 0.4F, height + 0.4F);
@@ -456,43 +550,49 @@ public class RenderUtil {
         GL11.glEnd();
     }
 
+    private static final float[] PROJECTED = new float[3];
+
+    /**
+     * Screen rectangle (GUI units: x1, y1, x2, y2) around an entity's box, or null when it is not entirely in front of
+     * the camera. Uses the frame's world camera as Minecraft already read it (no glGet, which can stall the frame), so
+     * the current GL matrices do not matter.
+     *
+     * Every corner has to project: building the rectangle from only the corners in front of the camera (a player
+     * right beside or behind you) gave the stretched, flattened, jumping boxes. Such a box is skipped instead.
+     */
     public static Vector4d projectToScreen(Entity entity, double screenScale) {
-        Vector4d vector4d;
-        {
-            double d3 = RenderUtil.lerpDouble(entity.posX, entity.lastTickPosX, ((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks);
-            double d4 = RenderUtil.lerpDouble(entity.posY, entity.lastTickPosY, ((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks);
-            double d5 = RenderUtil.lerpDouble(entity.posZ, entity.lastTickPosZ, ((IAccessorMinecraft) RenderUtil.mc).getTimer().renderPartialTicks);
-            AxisAlignedBB axisAlignedBB = entity.getEntityBoundingBox().expand(0.1f, 0.1f, 0.1f).offset(d3 - entity.posX, d4 - entity.posY, d5 - entity.posZ);
-            vector4d = null;
-            for (Vector3d vector3d : new Vector3d[]{new Vector3d(axisAlignedBB.minX, axisAlignedBB.minY, axisAlignedBB.minZ), new Vector3d(axisAlignedBB.minX, axisAlignedBB.maxY, axisAlignedBB.minZ), new Vector3d(axisAlignedBB.maxX, axisAlignedBB.minY, axisAlignedBB.minZ), new Vector3d(axisAlignedBB.maxX, axisAlignedBB.maxY, axisAlignedBB.minZ), new Vector3d(axisAlignedBB.minX, axisAlignedBB.minY, axisAlignedBB.maxZ), new Vector3d(axisAlignedBB.minX, axisAlignedBB.maxY, axisAlignedBB.maxZ), new Vector3d(axisAlignedBB.maxX, axisAlignedBB.minY, axisAlignedBB.maxZ), new Vector3d(axisAlignedBB.maxX, axisAlignedBB.maxY, axisAlignedBB.maxZ)}) {
-                GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, modelViewBuffer);
-                GL11.glGetFloat(GL11.GL_PROJECTION_MATRIX, projectionBuffer);
-                GL11.glGetInteger(GL11.GL_VIEWPORT, viewportBuffer);
-                if (!GLU.gluProject((float) (vector3d.x - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosX()), (float) (vector3d.y - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosY()), (float) (vector3d.z - ((IAccessorRenderManager) mc.getRenderManager()).getRenderPosZ()), modelViewBuffer, projectionBuffer, viewportBuffer, vectorBuffer))
-                    continue;
-                vector3d = new Vector3d((double) vectorBuffer.get(0) / screenScale, (double) ((float) Display.getHeight() - vectorBuffer.get(1)) / screenScale, vectorBuffer.get(2));
-                if (!(vector3d.z >= 0.0) || !(vector3d.z < 1.0)) continue;
-                if (vector4d == null) {
-                    vector4d = new Vector4d(vector3d.x, vector3d.y, vector3d.z, 0.0);
-                }
-                vector4d.x = Math.min(vector3d.x, vector4d.x);
-                vector4d.y = Math.min(vector3d.y, vector4d.y);
-                vector4d.z = Math.max(vector3d.x, vector4d.z);
-                vector4d.w = Math.max(vector3d.y, vector4d.w);
+        float partialTicks = WorldRenderPass.partialTicks();
+        double ix = lerpDouble(entity.posX, entity.lastTickPosX, partialTicks);
+        double iy = lerpDouble(entity.posY, entity.lastTickPosY, partialTicks);
+        double iz = lerpDouble(entity.posZ, entity.lastTickPosZ, partialTicks);
+        IAccessorRenderManager renderManager = (IAccessorRenderManager) mc.getRenderManager();
+        AxisAlignedBB box = entity.getEntityBoundingBox().expand(0.1F, 0.1F, 0.1F)
+                .offset(ix - entity.posX - renderManager.getRenderPosX(), iy - entity.posY - renderManager.getRenderPosY(),
+                        iz - entity.posZ - renderManager.getRenderPosZ());
+        Vector4d result = null;
+        for (int corner = 0; corner < 8; corner++) {
+            double x = (corner & 1) == 0 ? box.minX : box.maxX;
+            double y = (corner & 2) == 0 ? box.minY : box.maxY;
+            double z = (corner & 4) == 0 ? box.minZ : box.maxZ;
+            if (CameraMatrices.project(x, y, z, PROJECTED) == null) return null;
+            double sx = PROJECTED[0] / screenScale;
+            double sy = (mc.displayHeight - PROJECTED[1]) / screenScale;
+            if (result == null) {
+                result = new Vector4d(sx, sy, sx, sy);
+            } else {
+                result.x = Math.min(sx, result.x);
+                result.y = Math.min(sy, result.y);
+                result.z = Math.max(sx, result.z);
+                result.w = Math.max(sy, result.w);
             }
         }
-        return vector4d;
+        // a box many screens wide (camera inside the player's box) is not a box anyone wants drawn
+        if (result != null) {
+            double limit = 3.0 * Math.max(mc.displayWidth, mc.displayHeight) / screenScale;
+            if (result.z - result.x > limit || result.w - result.y > limit) return null;
+        }
+        return result;
     }
-
-
-
-
-
-
-
-
-
-
 
     public static void updateFrustum() {
         try {

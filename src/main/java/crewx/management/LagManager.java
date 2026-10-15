@@ -81,6 +81,11 @@ public class LagManager {
         this.tickDelay = delay;
     }
 
+    /** Read-only bridge diagnostic; does not change packet scheduling. */
+    public int getTickDelay() {
+        return this.tickDelay;
+    }
+
     public Vec3 getLastPosition() {
         return this.lastPosition;
     }

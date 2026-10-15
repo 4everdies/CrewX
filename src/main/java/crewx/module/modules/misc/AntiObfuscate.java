@@ -16,6 +16,7 @@ public class AntiObfuscate extends Module {
         if (input == null) {
             return null;
         }
-        return input.replaceAll("§k", "");
+        // called for every piece of text drawn: only build a new string when there is something to strip
+        return input.indexOf("§k") < 0 ? input : input.replace("§k", "");
     }
 }

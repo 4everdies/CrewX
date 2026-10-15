@@ -1,7 +1,10 @@
 package crewx.mixin;
 
 import crewx.CrewX;
+import crewx.clickgui.render.RoundedUtils;
 import crewx.gui.BackdropBlur;
+import crewx.gui.GuiRender;
+import crewx.module.modules.render.GuiModule;
 import crewx.gui.ScoreboardPosition;
 import crewx.module.modules.player.AutoBlockIn;
 import crewx.module.modules.player.Scaffold;
@@ -93,12 +96,37 @@ public abstract class MixinGuiIngame {
         if (rows <= 0) return;
 
         FontRenderer font = Minecraft.getMinecraft().fontRendererObj;
+        // vanilla bounds: the title row starts at panelY, the score rows end at bottom
         float panelX = left;
         float panelY = top - rows * font.FONT_HEIGHT - 1.0F;
         float panelWidth = right - left;
         float panelHeight = bottom - panelY;
         ScoreboardPosition.updateBounds(panelX, panelY, panelWidth, panelHeight);
-        BackdropBlur.drawRoundedPanel(panelX + ScoreboardPosition.getOffsetX(),
-                panelY + ScoreboardPosition.getOffsetY(), panelWidth, panelHeight, 3.0F, 0x900D0E10);
+        crewx$drawScoreboardPanel(panelX + ScoreboardPosition.getOffsetX(), panelY + ScoreboardPosition.getOffsetY(),
+                panelWidth, panelHeight, font.FONT_HEIGHT + 1.0F);
+    }
+
+    /**
+     * Only the panel behind the server's text: a little breathing room around the vanilla bounds, blurred glass,
+     * a faint title band with an accent hairline under the title, a soft shadow and a thin edge. The text, the
+     * scores and their colours are still drawn by vanilla on top, untouched.
+     */
+    private static void crewx$drawScoreboardPanel(float textX, float textY, float textWidth, float textHeight, float titleHeight) {
+        float x = textX - 2.0F;
+        float y = textY - 2.0F;
+        float w = textWidth + 3.0F;
+        float h = textHeight + 3.5F;
+        float radius = 4.0F;
+        // shadow (two faint layers), glass body, edge
+        RoundedUtils.drawRoundedRect(x - 1.5F, y - 0.5F, w + 3.0F, h + 3.0F, 0x14000000, radius + 1.5F);
+        RoundedUtils.drawRoundedRect(x - 0.5F, y + 0.5F, w + 1.0F, h + 1.0F, 0x1E000000, radius + 0.5F);
+        BackdropBlur.drawRoundedPanel(x, y, w, h, radius, 0x940C0D10);
+        RoundedUtils.drawRoundedRect(x, y, w, titleHeight + 2.0F, 0x14FFFFFF, radius, radius, 0.0F, 0.0F);
+        int accent = GuiModule.getAccent().getRGB() & 0xFFFFFF;
+        float lineY = y + titleHeight + 1.5F;
+        float half = (w - 8.0F) / 2.0F;
+        GuiRender.gradientH(x + 4.0F, lineY, half, 0.75, accent, 0x99000000 | accent);
+        GuiRender.gradientH(x + 4.0F + half, lineY, half, 0.75, 0x99000000 | accent, accent);
+        GuiRender.roundedOutline(x, y, w, h, radius, 1.0F, 0x16FFFFFF);
     }
 }

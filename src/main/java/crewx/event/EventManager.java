@@ -11,10 +11,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class EventManager {
 
     private static final HashMap<Class<? extends Event>, List<MethodData>> REGISTRY_MAP = new HashMap<>();
+    private static final Set<String> REPORTED_FAILURES = ConcurrentHashMap.newKeySet();
 
     private EventManager() {
     }
@@ -93,6 +96,10 @@ public final class EventManager {
     }
 
     public static void cleanMap(boolean onlyEmptyEntries) {
+        if (!onlyEmptyEntries) {
+            REGISTRY_MAP.clear();
+            return;
+        }
         Iterator<Map.Entry<Class<? extends Event>, List<MethodData>>> mapIterator = REGISTRY_MAP.entrySet().iterator();
         while (mapIterator.hasNext()) {
             if (!onlyEmptyEntries || mapIterator.next().getValue().isEmpty()) {
@@ -144,21 +151,69 @@ public final class EventManager {
 
     private static void invoke(MethodData data, Event argument) {
         try {
-            data.getTarget().invoke(data.getSource(), argument);
-        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-            e.printStackTrace();
+            if (crewx.util.HitchMonitor.isEnabled()) {
+                long start = System.nanoTime();
+                data.call(argument);
+                crewx.util.HitchMonitor.handler(data, System.nanoTime() - start);
+            } else {
+                data.call(argument);
+            }
+        } catch (Exception e) {
+            // as before: whatever a handler throws arrives wrapped by Method.invoke and is logged once
+            Throwable cause = e instanceof InvocationTargetException && e.getCause() != null
+                    ? e.getCause() : e;
+            String key = data.getSource().getClass().getName() + '#'
+                    + data.getTarget().getName() + ':' + cause.getClass().getName()
+                    + ':' + cause.getMessage();
+            if (REPORTED_FAILURES.add(key)) {
+                crewx.util.ClientLog.log("event handler FAILED " + key + " "
+                        + (cause.getStackTrace().length == 0 ? "" : cause.getStackTrace()[0]));
+            }
         }
     }
+
+    private static final ThreadLocal<Object[]> ARGS = new ThreadLocal<Object[]>() {
+        @Override
+        protected Object[] initialValue() {
+            return new Object[1];
+        }
+    };
 
     private static final class MethodData {
         private final Object source;
         private final Method target;
         private final byte priority;
 
+        private String label;
+
         public MethodData(Object source, Method target, byte priority) {
             this.source = source;
             this.target = target;
             this.priority = priority;
+        }
+
+        /**
+         * Method.invoke(source, event) builds a new argument array for every call of every handler, every frame;
+         * passing a reused one-element array allocates nothing. Reflection unpacks the array before the handler
+         * runs, so a nested event dispatched from inside a handler may safely reuse it; one array per thread
+         * because packet events arrive on the network thread.
+         */
+        void call(Event argument) throws Exception {
+            Object[] args = ARGS.get();
+            args[0] = argument;
+            try {
+                this.target.invoke(this.source, args);
+            } finally {
+                args[0] = null;
+            }
+        }
+
+        /** "Module.method", for the hitch report. */
+        @Override
+        public String toString() {
+            String text = this.label;
+            if (text == null) this.label = text = this.source.getClass().getSimpleName() + "." + this.target.getName();
+            return text;
         }
 
         public Object getSource() {

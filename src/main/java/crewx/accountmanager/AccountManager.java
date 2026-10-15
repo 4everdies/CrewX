@@ -2,11 +2,9 @@ package crewx.accountmanager;
 
 import com.google.gson.*;
 import crewx.accountmanager.auth.Account;
-import crewx.accountmanager.utils.Nan0EventRegister;
 import crewx.accountmanager.utils.SSLUtils;
 
 import net.minecraft.client.Minecraft;
-import net.minecraftforge.common.MinecraftForge;
 
 import javax.net.ssl.SSLContext;
 import java.io.*;
@@ -58,7 +56,7 @@ public class AccountManager {
 
     public static void init() {
         SSLContext ignored = SSLUtils.getSSLContext();
-        Nan0EventRegister.register(MinecraftForge.EVENT_BUS,new Events());
+        ForgeBinding.register();
 
         if (!file.exists()) {
             try {

@@ -100,7 +100,7 @@ public class Tracers extends Module {
                                                 RenderUtil.lerpFloat(
                                                         mc.getRenderViewEntity().rotationPitch,
                                                         mc.getRenderViewEntity().prevRotationPitch,
-                                                        ((IAccessorMinecraft) mc).getTimer().renderPartialTicks
+                                                        crewx.util.WorldRenderPass.partialTicks()
                                                 )
                                         )
                                 )
@@ -111,7 +111,7 @@ public class Tracers extends Module {
                                                 RenderUtil.lerpFloat(
                                                         mc.getRenderViewEntity().rotationYaw,
                                                         mc.getRenderViewEntity().prevRotationYaw,
-                                                        ((IAccessorMinecraft) mc).getTimer().renderPartialTicks
+                                                        crewx.util.WorldRenderPass.partialTicks()
                                                 )
                                         )
                                 )
@@ -122,7 +122,7 @@ public class Tracers extends Module {
                                 (float) (
                                         -Math.toRadians(
                                                 RenderUtil.lerpFloat(
-                                                        mc.thePlayer.cameraPitch, mc.thePlayer.prevCameraPitch, ((IAccessorMinecraft) mc).getTimer().renderPartialTicks
+                                                        mc.thePlayer.cameraPitch, mc.thePlayer.prevCameraPitch, crewx.util.WorldRenderPass.partialTicks()
                                                 )
                                         )
                                 )
@@ -130,7 +130,7 @@ public class Tracers extends Module {
                         .rotateYaw(
                                 (float) (
                                         -Math.toRadians(
-                                                RenderUtil.lerpFloat(mc.thePlayer.cameraYaw, mc.thePlayer.prevCameraYaw, ((IAccessorMinecraft) mc).getTimer().renderPartialTicks)
+                                                RenderUtil.lerpFloat(mc.thePlayer.cameraYaw, mc.thePlayer.prevCameraYaw, crewx.util.WorldRenderPass.partialTicks())
                                         )
                                 )
                         );

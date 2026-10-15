@@ -27,6 +27,7 @@ import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.shader.Framebuffer;
 import net.minecraft.entity.player.EntityPlayer;
+import org.lwjgl.opengl.GL11;
 
 import javax.vecmath.Vector4d;
 import java.awt.*;
@@ -71,7 +72,7 @@ public class ESP extends Module {
             return this.self.getValue() && mc.gameSettings.thirdPersonView != 0;
         }
         AntiBot antiBot = (AntiBot) CrewX.moduleManager.modules.get(AntiBot.class);
-        if (antiBot.isEnabled() && antiBot.isBot(entityPlayer)) return this.bots.getValue();
+        if (antiBot.isEnabled() && antiBot.isBot(entityPlayer) && !TeamUtil.isInTabList(entityPlayer)) return this.bots.getValue();
         if (TeamUtil.isFriend(entityPlayer)) return this.friends.getValue();
         return TeamUtil.isTarget(entityPlayer) ? this.enemies.getValue() : this.players.getValue();
     }
@@ -93,6 +94,25 @@ public class ESP extends Module {
                 return Color.WHITE;
         }
     }
+
+    /** Shown health fraction per player: slides towards the real one instead of jumping. */
+    private final java.util.Map<EntityPlayer, float[]> shownHealth = new java.util.WeakHashMap<EntityPlayer, float[]>();
+    private long lastHealthFrame;
+    private float healthDt;
+
+    private float smoothHealth(EntityPlayer player, float target) {
+        float[] shown = this.shownHealth.get(player);
+        if (shown == null) {
+            this.shownHealth.put(player, new float[]{target});
+            return target;
+        }
+        shown[0] += (target - shown[0]) * (1.0F - (float) Math.exp(-this.healthDt * 10.0F));
+        return shown[0];
+    }
+
+    /** 2D boxes of this frame, projected in the world pass (same camera, partial tick and render position). */
+    private final List<EntityPlayer> boxPlayers = new ArrayList<>();
+    private final List<Vector4d> boxRects = new ArrayList<>();
 
     private List<EntityPlayer> getRenderedPlayers() {
         List<EntityPlayer> result = new ArrayList<>();
@@ -123,10 +143,14 @@ public class ESP extends Module {
 
         List<EntityPlayer> renderedEntities = getRenderedPlayers();
         if (renderedEntities.isEmpty()) return;
+        long frameNow = System.currentTimeMillis();
+        this.healthDt = this.lastHealthFrame == 0L ? 0.016F : Math.max(0.0F, Math.min(0.1F, (frameNow - this.lastHealthFrame) / 1000.0F));
+        this.lastHealthFrame = frameNow;
 
         if (modeVal == 3) {
             GlStateManager.pushMatrix();
-            GlStateManager.pushAttrib();
+            double[] glCache = crewx.util.GlStateSync.snapshot();
+            GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
             if (this.framebuffer == null) {
                 this.framebuffer = new Framebuffer(mc.displayWidth, mc.displayHeight, false);
             }
@@ -158,20 +182,19 @@ public class ESP extends Module {
             this.framebuffer.framebufferClear();
             mc.getFramebuffer().bindFramebuffer(false);
             GlStateManager.popAttrib();
+            crewx.util.GlStateSync.afterPopAttrib(glCache);
             GlStateManager.popMatrix();
         }
 
         if (modeVal == 1 || healthBarVal == 1) {
             RenderUtil.enableRenderState();
-            double scaleFactor = new ScaledResolution(mc).getScaleFactor();
-            double scale = scaleFactor / (scaleFactor * scaleFactor);
             GlStateManager.pushMatrix();
-            GlStateManager.scale(scale, scale, scale);
-            for (EntityPlayer player : renderedEntities) {
-                ((IAccessorEntityRenderer) mc.entityRenderer).callSetupCameraTransform(event.getPartialTicks(), 0);
-                Vector4d screenPosition = RenderUtil.projectToScreen(player, scaleFactor);
-                mc.entityRenderer.setupOverlayRendering();
-                if (screenPosition == null) continue;
+            try {
+            for (int index = 0; index < this.boxPlayers.size(); index++) {
+                // projected during this frame's world pass (GUI units): the HUD matrices stay as they are
+                EntityPlayer player = this.boxPlayers.get(index);
+                Vector4d screenPosition = this.boxRects.get(index);
+                if (player.isDead) continue;
 
                 float x = (float) screenPosition.x;
                 float y = (float) screenPosition.y;
@@ -179,30 +202,55 @@ public class ESP extends Module {
                 float w = (float) screenPosition.w;
 
                 if (modeVal == 1) {
-                    int rgb = this.getEntityColor(player).getRGB();
-                    RenderUtil.drawOutlineRect(x, y, z, w, 3.0F, 0, (rgb & 16579836) >> 2 | rgb & 0xFF000000);
-                    RenderUtil.drawOutlineRect(x, y, z, w, 1.5F, 0, rgb);
+                    int rgb = this.getEntityColor(player).getRGB() & 0xFFFFFF;
+                    // faint tinted fill (clear at the head, denser at the feet), dark rim, soft glow, crisp frame
+                    RenderUtil.drawGradientRect2D(x, y, z, w, 0x00000000 | rgb, 0x30000000 | rgb);
+                    RenderUtil.drawOutlineRect(x, y, z, w, 3.5F, 0, 0x99000000);
+                    RenderUtil.drawOutlineRect(x, y, z, w, 4.5F, 0, 0x26000000 | rgb);
+                    RenderUtil.drawOutlineRect(x, y, z, w, 1.5F, 0, 0xFF000000 | rgb);
                 }
                 if (healthBarVal == 1) {
                     float heal = player.getHealth() + player.getAbsorptionAmount();
-                    float percent = Math.min(Math.max(heal / player.getMaxHealth(), 0.0F), 1.0F);
+                    float target = Math.min(Math.max(heal / player.getMaxHealth(), 0.0F), 1.0F);
+                    float percent = this.smoothHealth(player, target);
                     float box = (z - x) * 0.08F;
+                    float barX = x - box - 4.0F;
                     Color healthColor = ColorUtil.getHealthBlend(percent);
-                    RenderUtil.drawLine(x - box, y, x - box, w, 3.0F, ColorUtil.darker(healthColor, 0.2F).getRGB());
-                    RenderUtil.drawLine(x - box, w, x - box, w + (y - w) * percent, 1.5F, healthColor.getRGB());
+                    int color = healthColor.getRGB() & 0xFFFFFF;
+                    // dark track, then the fill growing from the feet with a lighter top
+                    RenderUtil.drawRect(barX - 1.0F, y - 1.0F, barX + 3.0F, w + 1.0F, 0xA0000000);
+                    float top = w + (y - w) * percent;
+                    RenderUtil.drawGradientRect2D(barX, top, barX + 2.0F, w,
+                            0xFF000000 | crewx.gui.GuiRender.mix(0xFF000000 | color, 0xFFFFFFFF, 0.25F) & 0xFFFFFF, 0xFF000000 | color);
                 }
             }
-            GlStateManager.popMatrix();
-            RenderUtil.disableRenderState();
+            } finally {
+                // whatever happens above, never leave the HUD with this matrix or render state
+                GlStateManager.popMatrix();
+                RenderUtil.disableRenderState();
+            }
         }
     }
 
     @EventTarget
     public void onRender3D(Render3DEvent event) {
+        this.boxPlayers.clear();
+        this.boxRects.clear();
         if (!this.isEnabled()) return;
 
         int modeVal = this.mode.getValue();
         int healthBarVal = this.healthBar.getValue();
+        if (modeVal == 1 || healthBarVal == 1) {
+            // The 2D box is projected here, while the camera matrices, render position and partial tick are exactly
+            // the ones this frame's world (and the player models) were drawn with, and drawn later on the HUD.
+            double scaleFactor = new ScaledResolution(mc).getScaleFactor();
+            for (EntityPlayer player : getRenderedPlayers()) {
+                Vector4d rect = RenderUtil.projectToScreen(player, scaleFactor);
+                if (rect == null) continue;
+                this.boxPlayers.add(player);
+                this.boxRects.add(rect);
+            }
+        }
         boolean needs3D = modeVal == 2 || modeVal == 4 || modeVal == 5 || healthBarVal == 2;
         if (!needs3D) return;
 
@@ -218,7 +266,7 @@ public class ESP extends Module {
             Color entityColor = this.getEntityColor(player);
 
             if (modeVal == 2) {
-                RenderUtil.drawEntityBoundingBox(player, entityColor.getRed(), entityColor.getGreen(), entityColor.getBlue(), entityColor.getAlpha(), 1.5F, 0.1F);
+                RenderUtil.drawStyledEntityBox(player, entityColor.getRGB() & 0xFFFFFF, 0.1, 0.20F, 0.02F, 1.5F);
                 GlStateManager.resetColor();
             } else if (modeVal == 4) {
                 RenderUtil.drawCornerESP(player, entityColor.getRed() / 255.0F, entityColor.getGreen() / 255.0F, entityColor.getBlue() / 255.0F);

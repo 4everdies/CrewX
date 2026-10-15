@@ -63,9 +63,13 @@ public final class GuiRender {
     }
 
     public static int alpha(int argb, float factor) {
-        int a = (int) ((argb >>> 24 & 0xFF) * factor);
+        int original = argb >>> 24 & 0xFF;
+        int a = (int) (original * factor);
         if (a < 0) a = 0;
         if (a > 255) a = 255;
+        // the fonts follow Minecraft's rule "alpha below 4 means opaque": a fading colour must never get there,
+        // or text flashes fully opaque on the first frame of every fade-in (4/255 is invisible anyway)
+        if (a < 4 && original >= 4) a = 4;
         return a << 24 | (argb & 0xFFFFFF);
     }
 
@@ -318,12 +322,24 @@ public final class GuiRender {
         if (s == null) return "";
         if (maxWidth <= 0) return "";
         if (textWidth(s) <= maxWidth) return s;
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < s.length(); i++) {
-            if (textWidth(sb.toString() + s.charAt(i) + "..") > maxWidth) break;
-            sb.append(s.charAt(i));
+        if (s.indexOf('\u00a7') >= 0) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < s.length(); i++) {
+                if (textWidth(sb.toString() + s.charAt(i) + "..") > maxWidth) break;
+                sb.append(s.charAt(i));
+            }
+            return sb.append("..").toString();
         }
-        return sb.append("..").toString();
+        // plain text: one pass over the glyph widths
+        float dots = ClientFont.getStringWidthFloat("..");
+        float used = 0.0F;
+        int end = 0;
+        for (int i = 0; i < s.length(); i++) {
+            used += ClientFont.getStringWidthFloat(String.valueOf(s.charAt(i)));
+            if (used + dots > maxWidth) break;
+            end = i + 1;
+        }
+        return s.substring(0, end) + "..";
     }
 
 

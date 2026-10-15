@@ -10,6 +10,7 @@ public enum ModuleCategory {
     MISC("misc", "Misc"),
     SCRIPT("script", "Script");
 
+    private static final ModuleCategory[] VALUES = values();
     private static final String MODULE_PACKAGE_PREFIX = "crewx.module.modules.";
 
     private final String folder;
@@ -42,7 +43,7 @@ public enum ModuleCategory {
             int separator = subpackage.indexOf('.');
             String folder = separator < 0 ? subpackage : subpackage.substring(0, separator);
             String normalizedFolder = folder.toLowerCase(Locale.ROOT);
-            for (ModuleCategory category : values()) {
+            for (ModuleCategory category : VALUES) {
                 if (category.folder.equals(normalizedFolder)) {
                     return category;
                 }

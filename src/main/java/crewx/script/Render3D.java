@@ -13,6 +13,8 @@ public final class Render3D {
     private static boolean active;
     private static boolean rootMatrixPushed;
     private static boolean attribPushed;
+    /** GlStateManager cache at the push, restored after the pop (see GlStateSync). */
+    private static double[] attribCache;
     private static int scriptMatrixDepth;
 
     private Render3D() {
@@ -53,6 +55,7 @@ public final class Render3D {
         try {
             GlStateManager.pushMatrix();
             rootMatrixPushed = true;
+            attribCache = crewx.util.GlStateSync.snapshot();
             GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
             attribPushed = true;
             active = true;
@@ -95,6 +98,9 @@ public final class Render3D {
             if (attribPushed) {
                 GL11.glPopAttrib();
                 attribPushed = false;
+                // begin() and the script changed state through GlStateManager inside the attrib block
+                crewx.util.GlStateSync.afterPopAttrib(attribCache);
+                attribCache = null;
             }
             if (rootMatrixPushed) {
                 GlStateManager.popMatrix();

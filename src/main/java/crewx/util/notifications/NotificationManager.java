@@ -15,6 +15,10 @@ public class NotificationManager {
         return notifications;
     }
 
+    public void clear() {
+        this.notifications.clear();
+    }
+
     private NotificationManager() {
         instance = this;
     }
@@ -36,6 +40,12 @@ public class NotificationManager {
     }
 
     public void post(String header, String subtext, long displayTime, NotificationType type) {
+        if (isToggle(header)) {
+            // a module toggled again replaces its previous card instead of stacking a second one
+            for (INotification not : notifications) {
+                if (isToggle(not.getHeader()) && not.getSubtext().equals(subtext)) notifications.remove(not);
+            }
+        }
         if (!notifications.isEmpty()) {
             for (INotification not : notifications) {
                 if (type != NotificationType.WARNING && type != NotificationType.OKAY
@@ -62,6 +72,10 @@ public class NotificationManager {
             }
         }
         this.notifications.add(new Notification(header, subtext, displayTime, type));
+    }
+
+    private static boolean isToggle(String header) {
+        return "Enabled".equalsIgnoreCase(header) || "Disabled".equalsIgnoreCase(header);
     }
 
     public void updateAndRender() {

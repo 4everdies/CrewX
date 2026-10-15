@@ -21,12 +21,17 @@ import crewx.property.PropertyManager;
 import crewx.util.DiscordRPC;
 
 import java.io.InputStreamReader;
+import java.io.File;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Objects;
+import org.lwjgl.input.Keyboard;
 
 public class CrewX {
+    public static volatile boolean initializationComplete;
+    public static volatile boolean unloaded;
+    private static volatile boolean shutdownHookRegistered;
     public static String clientName = "&7[&bCrewX&7]&r ";
     public static String version;
     public static RotationManager rotationManager;
@@ -68,6 +73,7 @@ public class CrewX {
         EventManager.register(commandManager);
         discordRPC = new DiscordRPC();
         moduleManager.modules.put(AimAssist.class, new AimAssist());
+        moduleManager.modules.put(ProjectileAimbot.class, new ProjectileAimbot());
         moduleManager.modules.put(Backtrack.class, new Backtrack());
         moduleManager.modules.put(Overlay.class, new Overlay());
         moduleManager.modules.put(DiscordRPC.class, discordRPC);
@@ -88,7 +94,7 @@ public class CrewX {
         moduleManager.modules.put(SprintReset.class, new SprintReset());
         moduleManager.modules.put(DynamicIsland.class, new DynamicIsland());
         moduleManager.modules.put(Piercing.class, new Piercing());
-        moduleManager.modules.put(HackerDetector.class, new HackerDetector());
+        moduleManager.modules.put(AntiCheat.class, new AntiCheat());
         moduleManager.modules.put(AutoSoup.class, new AutoSoup());
         moduleManager.modules.put(BedNuker.class, new BedNuker());
         moduleManager.modules.put(BedESP.class, new BedESP());
@@ -109,7 +115,9 @@ public class CrewX {
         moduleManager.modules.put(Freeze.class, new Freeze());
         moduleManager.modules.put(Fly.class, new Fly());
         moduleManager.modules.put(FullBright.class, new FullBright());
+        moduleManager.modules.put(MotionBlur.class, new MotionBlur());
         moduleManager.modules.put(GhostHand.class, new GhostHand());
+        moduleManager.modules.put(MediaPlayer.class, new MediaPlayer());
         moduleManager.modules.put(GuiModule.class, new GuiModule());
         moduleManager.modules.put(HitSelect.class, new HitSelect());
         moduleManager.modules.put(HUD.class, new HUD());
@@ -176,9 +184,11 @@ public class CrewX {
         commandManager.commands.add(new ModuleCommand());
         commandManager.commands.add(new PlayerCommand());
         commandManager.commands.add(new ScriptCommand());
+        commandManager.commands.add(new SpotifyCommand());
         commandManager.commands.add(new ShowCommand());
         commandManager.commands.add(new TargetCommand());
         commandManager.commands.add(new ToggleCommand());
+        commandManager.commands.add(new crewx.command.commands.HitchesCommand());
         commandManager.commands.add(new VclipCommand());
         for (Module module : moduleManager.modules.values()) {
             ArrayList<Property<?>> properties = new ArrayList<>();
@@ -202,9 +212,29 @@ public class CrewX {
         scriptManager = new crewx.script.ScriptManager();
         scriptManager.init();
 
-        Config config = new Config("default", true);
+        Config config = new Config(Config.activeName(), false);
         if (config.file.exists()) {
-            config.load();
+            File defaultsMarker = new File(config.file.getParentFile(), ".module-defaults-v1");
+            // Existing injectable installations already have user-selected module states.
+            // The upstream migration is only appropriate for an untouched default config.
+            boolean resetOldToggleStates = !defaultsMarker.exists()
+                    && "default".equals(config.name)
+                    && !new File(config.file.getParentFile(), ".active-config").exists();
+            if (config.load(resetOldToggleStates) && resetOldToggleStates) {
+                try {
+                    if (defaultsMarker.createNewFile()) config.save();
+                } catch (Exception ignored) {
+                }
+            }
+            File insertBindMarker = new File(config.file.getParentFile(), ".crewx_insert_bind_v1");
+            if (!insertBindMarker.exists()) {
+                GuiModule guiModule = (GuiModule) moduleManager.modules.get(GuiModule.class);
+                if (guiModule != null && guiModule.getKey() == Keyboard.KEY_RSHIFT) {
+                    guiModule.setKey(Keyboard.KEY_INSERT);
+                    config.save();
+                }
+                try { insertBindMarker.createNewFile(); } catch (Exception ignored) {}
+            }
         }
         if (discordRPC.isEnabled()) {
             Thread discordStartup = new Thread(new Runnable() {
@@ -222,10 +252,13 @@ public class CrewX {
         if (targetManager.file.exists()) {
             targetManager.load();
         }
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            config.save();
-            if (discordRPC != null) discordRPC.shutdown();
-        }));
+        if (!shutdownHookRegistered) {
+            shutdownHookRegistered = true;
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                if (!unloaded) new Config(Config.lastConfig, false).save();
+                if (discordRPC != null) discordRPC.shutdown();
+            }));
+        }
 
         try (InputStreamReader reader = new InputStreamReader(Objects.requireNonNull(CrewX.class.getResourceAsStream("/version.json")), StandardCharsets.UTF_8)) {
             JsonObject modInfo = new JsonParser().parse(reader).getAsJsonObject();
@@ -235,6 +268,10 @@ public class CrewX {
         }
 
         AccountManager.init();
+        // menu space background: decode its textures in the background now, free them while playing
+        EventManager.register(new crewx.gui.menu.MenuResources());
+        crewx.gui.menu.SpaceBackground.preload();
+        initializationComplete = true;
     }
 
 

@@ -50,6 +50,8 @@ public class AutoRecraft extends Module {
     private int step = 1;
     private final HashMap<String, Integer> recraftMap = new HashMap<>();
     private boolean start = false;
+    private boolean manualBindWasDown = false;
+    private boolean manualBindPending = false;
 
     public AutoRecraft() {
         super("AutoRecraft", false);
@@ -150,9 +152,16 @@ public class AutoRecraft extends Module {
     public void onTick(TickEvent event) {
         if (!this.isEnabled() || event.getType() != EventType.PRE || mc.thePlayer == null) return;
         if (!(mc.currentScreen instanceof GuiInventory)) {
+            this.manualBindWasDown = false;
             reset();
             return;
         }
+
+        boolean manualKeyDown = manualBind.getValue() > 0 && Keyboard.isKeyDown(manualBind.getValue());
+        boolean manualPressed = manualKeyDown && !this.manualBindWasDown;
+        this.manualBindWasDown = manualKeyDown;
+        if (mode.getValue() == 0) this.manualBindPending = false;
+        else if (manualPressed && !start) this.manualBindPending = true;
 
         if (start) {
             if (recraftMap.isEmpty()) {
@@ -216,8 +225,7 @@ public class AutoRecraft extends Module {
             boolean auto = mode.getValue() != 1
                     && getTotalSoupsInInventory() <= startWith.getValue();
             boolean manual = mode.getValue() != 0
-                    && manualBind.getValue() > 0
-                    && Keyboard.isKeyDown(manualBind.getValue());
+                    && this.manualBindPending;
             if (!(auto || manual)) return;
 
             if (System.currentTimeMillis() - startLastMs < randomDelay(startMinDelay.getValue(), startMaxDelay.getValue()))
@@ -233,12 +241,14 @@ public class AutoRecraft extends Module {
             recraftLastMs = System.currentTimeMillis();
             step = 1;
             start = true;
+            this.manualBindPending = false;
         }
     }
 
     private void reset() {
         this.recraftMap.clear();
         this.start = false;
+        this.manualBindPending = false;
         this.step = 1;
         this.recraftDelay = 0L;
         this.recraftLastMs = 0L;

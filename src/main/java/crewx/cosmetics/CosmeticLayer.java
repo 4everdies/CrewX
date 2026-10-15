@@ -2,6 +2,7 @@ package crewx.cosmetics;
 
 import crewx.CrewX;
 import crewx.module.modules.render.Accessories;
+import crewx.util.GlStateSync;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.model.ModelPlayer;
@@ -51,7 +52,18 @@ public final class CosmeticLayer implements LayerRenderer<AbstractClientPlayer> 
         int head = accessories.headwear.getValue();
         if (!wings && head == 0) return;
 
+        // glPushAttrib has a small, driver-dependent stack. If it is already full the push is ignored and the
+        // matching pop would restore somebody else's state (whole GUI/HUD flickering on some PCs): skip instead.
+        try {
+            if (GL11.glGetInteger(GL11.GL_ATTRIB_STACK_DEPTH) >= GL11.glGetInteger(GL11.GL_MAX_ATTRIB_STACK_DEPTH) - 1) return;
+        } catch (Throwable ignored) {
+            return;
+        }
+
         ModelPlayer model = this.renderer.getMainModel();
+        // GlStateManager caches the GL state; glPopAttrib changes the driver behind its back. Keep both in step.
+        double[] glCache = GlStateSync.snapshot();
+        GlStateManager.pushMatrix();
         GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_CURRENT_BIT | GL11.GL_LINE_BIT | GL11.GL_COLOR_BUFFER_BIT);
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
@@ -63,6 +75,8 @@ public final class CosmeticLayer implements LayerRenderer<AbstractClientPlayer> 
             if (head > 0) this.renderHeadAccessory(player, model, head, scale);
         } finally {
             GL11.glPopAttrib();
+            GlStateSync.afterPopAttrib(glCache);
+            GlStateManager.popMatrix();   // postRender() transforms must not leak into the rest of the model/GUI
         }
     }
 

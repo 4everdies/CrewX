@@ -32,16 +32,65 @@ public class TeamUtil {
         return mc.theWorld.loadedEntityList.contains(entity);
     }
 
+    private static List<Entity> sortedCache = java.util.Collections.emptyList();
+    private static Object sortedWorld;
+    private static double sortedX = Double.NaN, sortedY, sortedZ;
+    private static float sortedPartial;
+    private static long sortedTime;
+    private static int sortedSize = -1;
+
+    /**
+     * Loaded entities, farthest first. Several render modules ask for this every frame (ESP twice, NameTags,
+     * Tracers, Radar, ...): the list is sorted once per frame - same world, camera and partial tick - and shared.
+     * Distances are computed once per entity instead of in every comparison, and ties use the entity id instead
+     * of building UUID strings. The returned list must not be modified.
+     */
     public static List<Entity> getLoadedEntitiesSorted() {
         if (mc.theWorld == null) return java.util.Collections.emptyList();
+        net.minecraft.client.renderer.entity.RenderManager renderManager = mc.getRenderManager();
+        double cx = renderManager.viewerPosX, cy = renderManager.viewerPosY, cz = renderManager.viewerPosZ;
+        float partial = ((crewx.mixin.IAccessorMinecraft) mc).getTimer().renderPartialTicks;
+        long time = mc.theWorld.getTotalWorldTime();
+        List<Entity> loaded = mc.theWorld.loadedEntityList;
+        if (sortedWorld == mc.theWorld && sortedSize == loaded.size() && sortedTime == time && sortedPartial == partial
+                && sortedX == cx && sortedY == cy && sortedZ == cz) {
+            return sortedCache;
+        }
+        int n = loaded.size();
+        final Entity[] entities = loaded.toArray(new Entity[n]);
+        final double[] distance = new double[n];
+        Integer[] order = new Integer[n];
+        for (int i = 0; i < n; i++) {
+            Entity entity = entities[i];
+            double dx = entity.posX - cx, dy = entity.posY - cy, dz = entity.posZ - cz;
+            distance[i] = dx * dx + dy * dy + dz * dz;
+            order[i] = i;
+        }
+        java.util.Arrays.sort(order, (a, b) -> {
+            int byDistance = Double.compare(distance[b], distance[a]);
+            return byDistance != 0 ? byDistance : Integer.compare(entities[a].getEntityId(), entities[b].getEntityId());
+        });
+        List<Entity> result = new java.util.ArrayList<Entity>(n);
+        for (int i = 0; i < n; i++) result.add(entities[order[i]]);
+        sortedCache = java.util.Collections.unmodifiableList(result);
+        sortedWorld = mc.theWorld;
+        sortedSize = n;
+        sortedTime = time;
+        sortedPartial = partial;
+        sortedX = cx;
+        sortedY = cy;
+        sortedZ = cz;
+        return sortedCache;
+    }
 
-        return mc.theWorld.loadedEntityList.stream().sorted((entity1, entity2) -> {
-            double dist1 = mc.getRenderManager().getDistanceToCamera(entity1.posX, entity1.posY, entity1.posZ);
-            double dist2 = mc.getRenderManager().getDistanceToCamera(entity2.posX, entity2.posY, entity2.posZ);
-            if (dist1 < dist2) return 1;
-            if (dist1 > dist2) return -1;
-            return entity1.getUniqueID().toString().compareTo(entity2.getUniqueID().toString());
-        }).collect(Collectors.toList());
+    /**
+     * True when the player is listed in the server's tab list. For visuals (tags, boxes) a listed player is a real
+     * player even when a bot check flags it: some servers never send the packets those checks wait for (attributes,
+     * for example), which used to leave ordinary players without a name tag.
+     */
+    public static boolean isInTabList(EntityPlayer player) {
+        return player != null && mc.getNetHandler() != null && player.getUniqueID() != null
+                && mc.getNetHandler().getPlayerInfo(player.getUniqueID()) != null;
     }
 
     public static float getHealthScore(EntityLivingBase entityLivingBase) {

@@ -255,7 +255,7 @@ public final class RemoteImageCache {
         ResourceLocation location = entry.texture;
         mc.addScheduledTask(() -> {
             try {
-                mc.getTextureManager().deleteTexture(location);
+                crewx.util.DynamicTextures.release(location);
             } catch (Throwable ignored) {
             }
         });

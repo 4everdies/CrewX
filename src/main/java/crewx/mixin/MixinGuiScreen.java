@@ -24,7 +24,8 @@ public abstract class MixinGuiScreen {
 
     @Inject(method = "drawDefaultBackground", at = @At("HEAD"), cancellable = true)
     private void crewx$drawDefaultBackground(CallbackInfo callbackInfo) {
-        if (!(Minecraft.getMinecraft().currentScreen instanceof GuiMainMenu)) return;
+        // every screen outside a world (options, alt manager dialogs...) shares the menu's space background
+        if (Minecraft.getMinecraft().theWorld != null || !crewx.gui.InterfaceSettings.isEnabled()) return;
         CrewXTheme.drawScreenBackground(width, height);
         callbackInfo.cancel();
     }

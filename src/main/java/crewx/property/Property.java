@@ -2,6 +2,8 @@ package crewx.property;
 
 import com.google.gson.JsonObject;
 import crewx.module.Module;
+import crewx.config.Config;
+import java.util.Objects;
 
 import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
@@ -47,10 +49,12 @@ public abstract class Property<T> {
         if (this.validator != null && !this.validator.test((T) object)) {
             return false;
         } else {
+            boolean changed = !Objects.equals(this.value, object);
             this.value = (T) object;
             if (this.owner != null) {
                 this.owner.verifyValue(this.name);
             }
+            if (changed) Config.markDirty();
             return true;
         }
     }

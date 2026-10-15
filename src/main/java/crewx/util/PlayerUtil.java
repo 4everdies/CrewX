@@ -20,7 +20,6 @@ import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.DamageSource;
 import net.minecraft.util.MathHelper;
-import net.minecraftforge.common.ForgeHooks;
 
 public class PlayerUtil {
     private static final Minecraft mc = Minecraft.getMinecraft();
@@ -140,7 +139,7 @@ public class PlayerUtil {
     }
 
     public static void attackEntity(Entity target) {
-        if (ForgeHooks.onPlayerAttackTarget(mc.thePlayer, target)) {
+        if (net.minecraftforge.common.ForgeHooks.onPlayerAttackTarget(mc.thePlayer, target)) {
             if (target.canAttackWithItem() && !target.hitByEntity(mc.thePlayer)) {
                 float baseDamage = (float) mc.thePlayer.getEntityAttribute(SharedMonsterAttributes.attackDamage).getAttributeValue();
                 float enchantmentBonus = EnchantmentHelper.getModifierForCreature(

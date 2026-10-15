@@ -1,9 +1,12 @@
 package crewx.module;
 
 import crewx.CrewX;
+import crewx.config.Config;
 import crewx.module.modules.render.HUD;
 import crewx.module.modules.render.GuiModule;
+import crewx.module.modules.render.MediaPlayer;
 import crewx.module.modules.render.Notifications;
+import crewx.module.modules.movement.Sprint;
 import crewx.util.KeyBindUtil;
 import crewx.util.SoundUtil;
 
@@ -22,7 +25,9 @@ public abstract class Module {
 
     public Module(String name, boolean enabled, boolean hidden) {
         this.name = name;
-        this.enabled = this.defaultEnabled = enabled;
+        this.defaultEnabled = enabled && (this instanceof Sprint || this instanceof HUD || this instanceof Notifications
+                || this instanceof MediaPlayer);
+        this.enabled = this.defaultEnabled;
         this.key = this.defaultKey = 0;
         this.hidden = this.defaultHidden = hidden;
     }
@@ -31,8 +36,13 @@ public abstract class Module {
         return this.name;
     }
 
+    /** The package never changes: worked out once (this is asked for every module, every frame, by the HUD). */
+    private ModuleCategory category;
+
     public ModuleCategory getCategory() {
-        return ModuleCategory.fromPackage(this.getClass().getPackage().getName());
+        ModuleCategory cached = this.category;
+        if (cached == null) this.category = cached = ModuleCategory.fromPackage(this.getClass().getPackage().getName());
+        return cached;
     }
 
     public String formatModule() {
@@ -62,10 +72,10 @@ public abstract class Module {
             }
             try {
                 if (!(this instanceof Notifications) && !(this instanceof GuiModule)) {
-                    Notifications.push(enabled ? "Enabled" : "Disabled",
-                            this.name + (enabled ? " Toggled" : " Toggled Off"), enabled);
+                    Notifications.push(enabled ? "Enabled" : "Disabled", this.name, enabled);
                 }
             } catch (Throwable ignored) {}
+            Config.markDirty();
         }
     }
 
@@ -88,7 +98,10 @@ public abstract class Module {
     }
 
     public void setKey(int integer) {
-        this.key = integer;
+        if (this.key != integer) {
+            this.key = integer;
+            Config.markDirty();
+        }
     }
 
     public boolean isHidden() {
@@ -96,7 +109,10 @@ public abstract class Module {
     }
 
     public void setHidden(boolean boolean1) {
-        this.hidden = boolean1;
+        if (this.hidden != boolean1) {
+            this.hidden = boolean1;
+            Config.markDirty();
+        }
     }
 
     public void onEnabled() {

@@ -60,9 +60,16 @@ public abstract class MixinEntityRenderer {
     @Shadow
     private float thirdPersonDistance;
 
+    // Forge replaces the screen.drawScreen call of updateCameraAndRender with ForgeHooksClient.drawScreen, so a
+    // required injection on the vanilla call failed and made Mixin drop every EntityRenderer mixin of the client
+    // (accessors included). Both call sites are optional: whichever exists is used.
     @Inject(
             method = "updateCameraAndRender",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiScreen;drawScreen(IIF)V", shift = At.Shift.BEFORE)
+            at = {
+                    @At(value = "INVOKE", target = "Lnet/minecraftforge/client/ForgeHooksClient;drawScreen(Lnet/minecraft/client/gui/GuiScreen;IIF)V", shift = At.Shift.BEFORE, remap = false),
+                    @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiScreen;drawScreen(IIF)V", shift = At.Shift.BEFORE)
+            },
+            require = 0
     )
     private void crewx$beginGuiTransition(float partialTicks, long finishTimeNano, CallbackInfo callbackInfo) {
         if (this.mc.currentScreen instanceof GuiMainMenu) {
@@ -72,12 +79,26 @@ public abstract class MixinEntityRenderer {
 
     @Inject(
             method = "updateCameraAndRender",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiScreen;drawScreen(IIF)V", shift = At.Shift.AFTER)
+            at = {
+                    @At(value = "INVOKE", target = "Lnet/minecraftforge/client/ForgeHooksClient;drawScreen(Lnet/minecraft/client/gui/GuiScreen;IIF)V", shift = At.Shift.AFTER, remap = false),
+                    @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiScreen;drawScreen(IIF)V", shift = At.Shift.AFTER)
+            },
+            require = 0
     )
     private void crewx$endGuiTransition(float partialTicks, long finishTimeNano, CallbackInfo callbackInfo) {
-        if (this.mc.currentScreen instanceof GuiMainMenu) {
-            CrewXTransition.endGuiRender();
-        }
+        // not tied to the current screen: GuiMainMenu replaces itself with the CrewX menu while it is drawn,
+        // and the matrix pushed before drawScreen must still be popped
+        CrewXTransition.endGuiRender();
+    }
+
+    @Inject(method = {"renderWorld"}, at = {@At("HEAD")}, require = 0)
+    private void crewx$worldTimerStart(float partialTicks, long finishTimeNano, CallbackInfo callbackInfo) {
+        crewx.util.HitchMonitor.beginPhase(crewx.util.HitchMonitor.WORLD);
+    }
+
+    @Inject(method = {"renderWorld"}, at = {@At("RETURN")}, require = 0)
+    private void crewx$worldTimerEnd(float partialTicks, long finishTimeNano, CallbackInfo callbackInfo) {
+        crewx.util.HitchMonitor.endPhase(crewx.util.HitchMonitor.WORLD);
     }
 
     @Inject(
@@ -85,6 +106,11 @@ public abstract class MixinEntityRenderer {
             at = {@At("HEAD")}
     )
     private void updateCameraAndRender(float float1, long long2, CallbackInfo callbackInfo) {
+        // fresh backdrop-blur snapshot every frame, in menus too (the HUD path also resets it)
+        crewx.gui.BackdropBlur.beginFrame();
+        crewx.util.HitchMonitor.frame();
+        crewx.util.WorldRenderPass.frameBegin();
+        crewx.util.TextureGuard.tick();
         if (this.mc.thePlayer != null && CrewX.moduleManager != null) {
             FreeLook freeLook = (FreeLook) CrewX.moduleManager.modules.get(FreeLook.class);
             if (freeLook != null && freeLook.isEnabled()) freeLook.prepare(this.mc.thePlayer);
@@ -231,6 +257,9 @@ public abstract class MixinEntityRenderer {
             )}
     )
     private void renderWorldPass(int integer, float float2, long long3, CallbackInfo callbackInfo) {
+        // OptiFine reads renderHand again after the hand was drawn (hand matrices): only the first read of the frame
+        if (!crewx.util.WorldRenderPass.begin(float2)) return;
+        crewx.util.CameraMatrices.captureWorldPass();
         crewx.util.RenderUtil.updateFrustum();
         EventManager.call(new Render3DEvent(float2));
     }

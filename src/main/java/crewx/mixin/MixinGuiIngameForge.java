@@ -21,6 +21,13 @@ public abstract class MixinGuiIngameForge {
     @Inject(method = {"renderGameOverlay"}, at = @At("HEAD"))
     private void crewx$beginBackdropFrame(float partialTicks, CallbackInfo callbackInfo) {
         BackdropBlur.beginFrame();
+        crewx.util.HitchMonitor.beginPhase(crewx.util.HitchMonitor.OVERLAY);
+    }
+
+    @Inject(method = {"renderGameOverlay"}, at = @At("RETURN"))
+    private void crewx$overlayTimerEnd(float partialTicks, CallbackInfo callbackInfo) {
+        crewx.util.WorldRenderPass.frameBegin();
+        crewx.util.HitchMonitor.endPhase(crewx.util.HitchMonitor.OVERLAY);
     }
 
     @Inject(

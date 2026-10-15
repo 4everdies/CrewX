@@ -27,6 +27,7 @@ import org.lwjgl.opengl.GL11;
 
 public class Chams extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
+    private static boolean loggedPlayerRender;
     private static final int GL_POLYGON_OFFSET_FILL = 32823;
     public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Offset", "NoDepth"});
     public final BooleanProperty flat = new BooleanProperty("flat", false);
@@ -42,7 +43,7 @@ public class Chams extends Module {
     public final BooleanProperty self = new BooleanProperty("self", false);
     public final BooleanProperty bots = new BooleanProperty("bots", false);
 
-    private boolean shouldRenderChams(EntityLivingBase entityLivingBase) {
+    public boolean shouldRenderChams(EntityLivingBase entityLivingBase) {
         if (entityLivingBase.deathTime > 0) {
             return false;
         } else if (mc.getRenderViewEntity().getDistanceToEntity(entityLivingBase) > 512.0F) {
@@ -76,6 +77,7 @@ public class Chams extends Module {
         }
     }
 
+
     public Chams() {
         super("Chams", false);
     }
@@ -83,7 +85,14 @@ public class Chams extends Module {
     @EventTarget
     public void onRenderLiving(RenderLivingEvent event) {
         if (!this.isEnabled()) return;
-        if (!this.shouldRenderChams(event.getEntity())) return;
+        boolean selected = this.shouldRenderChams(event.getEntity());
+        if (!loggedPlayerRender && event.getType() == crewx.event.types.EventType.PRE
+                && event.getEntity() instanceof EntityPlayer && event.getEntity() != mc.thePlayer) {
+            loggedPlayerRender = true;
+            crewx.util.ClientLog.log("Chams player render reached; selected=" + selected
+                    + " mode=" + this.mode.getValue());
+        }
+        if (!selected) return;
 
         boolean noDepth = this.mode.getValue() == 1;
 

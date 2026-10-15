@@ -1,0 +1,17 @@
+# char x width advance (pixels); cell height, ascent, cap-top, cap-bottom
+0 0 130 117.08
+1 130 83 70.14
+2 213 120 107.75
+3 333 124 111.53
+4 457 131 118.22
+5 588 120 107.75
+6 708 124 111.09
+7 832 111 98.97
+8 943 123 110.56
+9 1066 124 111.09
+: 1190 57 44.03
+height 227
+ascent 179
+captop 46
+capbottom 181
+pad 6

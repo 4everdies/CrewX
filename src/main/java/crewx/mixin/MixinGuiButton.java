@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MixinGuiButton {
     @Inject(method = "drawButton", at = @At("HEAD"), cancellable = true)
     private void crewx$drawButton(Minecraft minecraft, int mouseX, int mouseY, CallbackInfo callbackInfo) {
+        if (!crewx.gui.InterfaceSettings.isEnabled()) return;   // "Background" off: Minecraft's buttons
         CrewXTheme.drawButton((GuiButton) (Object) this, mouseX, mouseY);
         callbackInfo.cancel();
     }

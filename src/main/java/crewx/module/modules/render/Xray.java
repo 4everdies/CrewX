@@ -25,7 +25,6 @@ import net.minecraft.network.play.server.S23PacketBlockChange;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.Vec3;
 import net.minecraft.util.Vec3i;
-import net.minecraftforge.common.ForgeModContainer;
 
 import java.awt.*;
 import java.util.Arrays;
@@ -219,7 +218,7 @@ public class Xray extends Module {
                                                 RenderUtil.lerpFloat(
                                                         mc.getRenderViewEntity().rotationPitch,
                                                         mc.getRenderViewEntity().prevRotationPitch,
-                                                        ((IAccessorMinecraft) mc).getTimer().renderPartialTicks
+                                                        crewx.util.WorldRenderPass.partialTicks()
                                                 )
                                         )
                                 )
@@ -230,7 +229,7 @@ public class Xray extends Module {
                                                 RenderUtil.lerpFloat(
                                                         mc.getRenderViewEntity().rotationYaw,
                                                         mc.getRenderViewEntity().prevRotationYaw,
-                                                        ((IAccessorMinecraft) mc).getTimer().renderPartialTicks
+                                                        crewx.util.WorldRenderPass.partialTicks()
                                                 )
                                         )
                                 )
@@ -241,7 +240,7 @@ public class Xray extends Module {
                                 (float) (
                                         -Math.toRadians(
                                                 RenderUtil.lerpFloat(
-                                                        mc.thePlayer.cameraPitch, mc.thePlayer.prevCameraPitch, ((IAccessorMinecraft) mc).getTimer().renderPartialTicks
+                                                        mc.thePlayer.cameraPitch, mc.thePlayer.prevCameraPitch, crewx.util.WorldRenderPass.partialTicks()
                                                 )
                                         )
                                 )
@@ -249,7 +248,7 @@ public class Xray extends Module {
                         .rotateYaw(
                                 (float) (
                                         -Math.toRadians(
-                                                RenderUtil.lerpFloat(mc.thePlayer.cameraYaw, mc.thePlayer.prevCameraYaw, ((IAccessorMinecraft) mc).getTimer().renderPartialTicks)
+                                                RenderUtil.lerpFloat(mc.thePlayer.cameraYaw, mc.thePlayer.prevCameraYaw, crewx.util.WorldRenderPass.partialTicks())
                                         )
                                 )
                         );
@@ -306,7 +305,7 @@ public class Xray extends Module {
 
     @Override
     public void onEnabled() {
-        ForgeModContainer.forgeLightPipelineEnabled = false;
+        net.minecraftforge.common.ForgeModContainer.forgeLightPipelineEnabled = false;
         if (mc.renderGlobal != null) {
             mc.renderGlobal.loadRenderers();
         }
@@ -314,7 +313,7 @@ public class Xray extends Module {
 
     @Override
     public void onDisabled() {
-        ForgeModContainer.forgeLightPipelineEnabled = true;
+        net.minecraftforge.common.ForgeModContainer.forgeLightPipelineEnabled = true;
         if (mc.renderGlobal != null) {
             mc.renderGlobal.loadRenderers();
         }

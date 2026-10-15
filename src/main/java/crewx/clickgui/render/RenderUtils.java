@@ -14,19 +14,21 @@ public class RenderUtils {
         float b = (float) (color & 255) / 255.0F;
         float a = (float) (color >> 24 & 255) / 255.0F;
 
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        // through GlStateManager: raw GL toggles here left its cache out of date (see GlStateSync)
+        GlStateManager.enableBlend();
+        GlStateManager.disableTexture2D();
         GL11.glEnable(GL11.GL_LINE_SMOOTH);
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GL11.glColor4f(r, g, b, a);
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.color(r, g, b, a);
         GL11.glBegin(GL11.GL_TRIANGLE_FAN);
         for (int i = 0; i <= 360; i++) {
             GL11.glVertex2d(x + Math.sin(i * Math.PI / 180.0) * radius, y + Math.cos(i * Math.PI / 180.0) * radius);
         }
         GL11.glEnd();
         GL11.glDisable(GL11.GL_LINE_SMOOTH);
-        GL11.glEnable(GL11.GL_TEXTURE_2D);
-        GL11.glDisable(GL11.GL_BLEND);
+        GlStateManager.enableTexture2D();
+        GlStateManager.disableBlend();
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
     public static void drawGradientRect(double x, double y, double x1, double y1, int colorLeftT, int colorRightT, int colorRightB, int colorLeftB) {
@@ -39,7 +41,7 @@ public class RenderUtils {
         GlStateManager.disableAlpha();
         GlStateManager.disableDepth();
 
-        GL11.glShadeModel(GL11.GL_SMOOTH);
+        GlStateManager.shadeModel(GL11.GL_SMOOTH);
         GL11.glBegin(GL11.GL_QUADS);
         color(colorLeftT); GL11.glVertex2d(x, y);
         color(colorRightT); GL11.glVertex2d(x1, y);
@@ -47,6 +49,7 @@ public class RenderUtils {
         color(colorLeftB); GL11.glVertex2d(x, y1);
         GL11.glEnd();
 
+        GlStateManager.shadeModel(GL11.GL_FLAT);
         GlStateManager.enableDepth();
         GlStateManager.enableAlpha();
         GlStateManager.enableTexture2D();
@@ -55,7 +58,7 @@ public class RenderUtils {
 
     public static void drawImage(double x, double y, double width, double height, ResourceLocation image, int color) {
         GlStateManager.enableBlend();
-        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GlStateManager.enableAlpha();
         color(color);
         Minecraft.getMinecraft().getTextureManager().bindTexture(image);

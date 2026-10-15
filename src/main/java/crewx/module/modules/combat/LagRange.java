@@ -22,6 +22,7 @@ import crewx.property.properties.*;
 import crewx.property.properties.BooleanProperty;
 import crewx.property.properties.ModeProperty;
 import net.minecraft.client.Minecraft;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemSword;
@@ -52,18 +53,20 @@ public class LagRange extends Module {
     public final BooleanProperty teams = new BooleanProperty("teams", true);
     public final ModeProperty showPosition = new ModeProperty("show-position", 0, new String[]{"None", "Default", "HUD"});
 
-    private boolean isValidTarget(EntityPlayer entityPlayer) {
+    private boolean isValidTarget(EntityLivingBase entityPlayer) {
         if (entityPlayer != mc.thePlayer && entityPlayer != mc.thePlayer.ridingEntity) {
             if (entityPlayer == mc.getRenderViewEntity() || entityPlayer == mc.getRenderViewEntity().ridingEntity) {
                 return false;
             } else if (entityPlayer.deathTime > 0) {
                 return false;
-            } else if (TeamUtil.isFriend(entityPlayer)) {
+            } else if (!(entityPlayer instanceof EntityPlayer)) {
+                return mc.isSingleplayer();
+            } else if (TeamUtil.isFriend((EntityPlayer) entityPlayer)) {
                 return false;
             } else {
                 AntiBot antiBot = (AntiBot) CrewX.moduleManager.modules.get(AntiBot.class);
-                boolean isBot = antiBot.isEnabled() && antiBot.isBot(entityPlayer);
-                return (!this.teams.getValue() || !TeamUtil.isSameTeam(entityPlayer)) && !isBot;
+                boolean isBot = antiBot.isEnabled() && antiBot.isBot((EntityPlayer) entityPlayer);
+                return (!this.teams.getValue() || !TeamUtil.isSameTeam((EntityPlayer) entityPlayer)) && !isBot;
             }
         } else {
             return false;
@@ -116,11 +119,12 @@ public class LagRange extends Module {
                                     || ItemUtil.hasRawUnbreakingEnchant()
                                     || this.allowTools.getValue() && ItemUtil.isHoldingTool()
                     )) {
-                        List<EntityPlayer> players = mc.theWorld
+                        List<EntityLivingBase> players = mc.theWorld
                                 .loadedEntityList
                                 .stream()
-                                .filter(entity -> entity instanceof EntityPlayer)
-                                .map(entity -> (EntityPlayer) entity)
+                                .filter(entity -> entity instanceof EntityLivingBase
+                                        && (entity instanceof EntityPlayer || mc.isSingleplayer()))
+                                .map(entity -> (EntityLivingBase) entity)
                                 .filter(this::isValidTarget)
                                 .collect(Collectors.toList());
                         if (players.isEmpty()) {
@@ -130,7 +134,7 @@ public class LagRange extends Module {
                             Vec3 eyePosition = CrewX.lagManager.getLastPosition().addVector(0.0, height, 0.0);
                             Vec3 targetEyePosition = new Vec3(mc.thePlayer.lastTickPosX, mc.thePlayer.lastTickPosY + height, mc.thePlayer.lastTickPosZ);
                             Vec3 playerEyePosition = new Vec3(mc.thePlayer.posX, mc.thePlayer.posY + height, mc.thePlayer.posZ);
-                            for (EntityPlayer player : players) {
+                            for (EntityLivingBase player : players) {
                                 double distance = RotationUtil.distanceToBox(player, playerEyePosition);
                                 if (!(distance > (double) this.range.getValue())) {
                                     double targetDist = RotationUtil.distanceToBox(player, targetEyePosition);

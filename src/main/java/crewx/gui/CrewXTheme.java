@@ -4,8 +4,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.renderer.GlStateManager;
 
-import java.util.IdentityHashMap;
 import java.util.Map;
+import java.lang.reflect.Field;
 
 public final class CrewXTheme {
     public static final int BACKGROUND_TOP = 0xFF02040A;
@@ -17,33 +17,59 @@ public final class CrewXTheme {
     public static final int ACCENT = 0xFF7770D9;
     public static final int TEXT = 0xFFF1F2F8;
     public static final int MUTED = 0xFF9CA2BC;
-    private static final Map<GuiButton, Float> HOVER_PROGRESS = new IdentityHashMap<GuiButton, Float>();
+    /** Hover / press animation per button. Weak keys: the buttons of closed screens are not kept alive. */
+    private static final Map<GuiButton, ButtonAnim> BUTTON_STATE = new java.util.WeakHashMap<GuiButton, ButtonAnim>();
+
+    private static final class ButtonAnim {
+        float hover;
+        float press;
+        long last = Minecraft.getSystemTime();
+    }
+    private static final Field BUTTON_HEIGHT_FIELD = findButtonHeight();
 
     private CrewXTheme() {
     }
 
-    public static void drawBackground(int width, int height) {
-        GuiRender.gradientV(0.0, 0.0, width, height, BACKGROUND_TOP, BACKGROUND_BOTTOM);
-
-        float time = (System.currentTimeMillis() % 14000L) / 14000.0f;
-        float cx = width * 0.50f + (float) Math.sin(time * Math.PI * 2.0) * width * 0.10f;
-        float cy = height * 0.60f;
-        float baseRadius = Math.min(width, height) * 0.20f;
-
-        for (int i = 17; i >= 1; i--) {
-            float radius = baseRadius + i * 10.0f + (float) Math.sin(time * Math.PI * 2.0 + i * 0.28) * 3.0f;
-            int alpha = 5 + (17 - i) * 2;
-            int color = (alpha << 24) | (i % 3 == 0 ? 0x4A63B5 : i % 3 == 1 ? 0x6D45A8 : 0x1676A8);
-            GuiRender.circleOutline(cx, cy, radius, 7.0f, color);
+    private static Field findButtonHeight() {
+        for (String name : new String[]{"height", "g"}) {
+            try {
+                Field field = GuiButton.class.getDeclaredField(name);
+                field.setAccessible(true);
+                return field;
+            } catch (ReflectiveOperationException | SecurityException ignored) {
+                // Try the other name (MCP / Badlion Notch).
+            }
         }
+        return null;
+    }
 
-        GuiRender.gradientH(0.0, 0.0, width, height, 0x54000000, 0x25000000);
-        drawBranding(width, height);
+    private static int buttonHeight(GuiButton button) {
+        if (button instanceof CrewXMainMenu.MenuButton) {
+            return ((CrewXMainMenu.MenuButton) button).menuHeight();
+        }
+        if (BUTTON_HEIGHT_FIELD != null) {
+            try {
+                return BUTTON_HEIGHT_FIELD.getInt(button);
+            } catch (IllegalAccessException ignored) {
+                // Preserve rendering if a client refuses reflective access.
+            }
+        }
+        return 20;
+    }
+
+    /** Space background (Earth at sunrise, mouse parallax) shared by every out-of-game CrewX screen. */
+    public static void drawBackground(int width, int height) {
+        drawBackground(width, height, true);
+    }
+
+    public static void drawBackground(int width, int height, boolean branding) {
+        crewx.gui.menu.SpaceBackground.render(width, height);
+        if (branding) drawBranding(width, height);
     }
 
     public static void drawBranding(int width, int height) {
-        GuiRender.textShadow("discord.gg/crackcrew", 12.0, 10.0, 0xD0C7CBEA);
-        GuiRender.textShadow("Made by Crowly & 4ever", 12.0, height - 18.0, 0x886D75A2);
+        GuiRender.text("discord.gg/crackcrew", 10.0, 10.0, 0x99C7CBD6);
+        GuiRender.text("Made by Crowly, Forever & Shinra", 10.0, height - 16.0, 0x667A7F8C);
     }
 
     public static void drawMainTitle(int width, int height) {
@@ -57,45 +83,86 @@ public final class CrewXTheme {
         GlStateManager.popMatrix();
     }
 
-    private static float updateHover(GuiButton button, boolean hovered) {
-        Float previous = HOVER_PROGRESS.get(button);
-        float current = previous == null ? 0.0f : previous;
-        float target = hovered && button.enabled ? 1.0f : 0.0f;
-        current += (target - current) * 0.28f;
-        if (Math.abs(target - current) < 0.01f) current = target;
-        HOVER_PROGRESS.put(button, current);
-        return current;
+    private static ButtonAnim buttonState(GuiButton button, boolean hovered, boolean pressed) {
+        ButtonAnim state = BUTTON_STATE.get(button);
+        if (state == null) {
+            state = new ButtonAnim();
+            BUTTON_STATE.put(button, state);
+        }
+        long now = Minecraft.getSystemTime();
+        float dt = Math.max(0.0F, Math.min(0.1F, (now - state.last) / 1000.0F));
+        state.last = now;
+        // frame-rate independent easing
+        state.hover = approach(state.hover, hovered && button.enabled ? 1.0F : 0.0F, dt, 16.0F);
+        state.press = approach(state.press, pressed ? 1.0F : 0.0F, dt, 24.0F);
+        return state;
     }
 
+    private static float approach(float current, float target, float dt, float speed) {
+        float next = current + (target - current) * (1.0F - (float) Math.exp(-dt * speed));
+        return Math.abs(target - next) < 0.005F ? target : next;
+    }
+
+    /**
+     * Every GuiButton of the client (pause menu, options, dialogs...): a dark rounded pill with a hairline edge, in
+     * the same neutral tones as the ClickGUI and the Alt Manager. Hover lights the edge with the theme accent,
+     * pressing darkens it, disabled buttons fade out.
+     */
     public static void drawButton(GuiButton button, int mouseX, int mouseY) {
         if (!button.visible) return;
+        // Badlion makes GuiButton.width/height protected. The menu's own
+        // subclass exposes its bounds without reflective access per frame.
+        int buttonWidth = button instanceof CrewXMainMenu.MenuButton
+                ? ((CrewXMainMenu.MenuButton) button).menuWidth()
+                : button.getButtonWidth();
+        int buttonHeight = buttonHeight(button);
 
         boolean hovered = mouseX >= button.xPosition && mouseY >= button.yPosition
-                && mouseX < button.xPosition + button.width && mouseY < button.yPosition + button.height;
-        float hover = updateHover(button, hovered);
-        int background = button.enabled
-                ? GuiRender.mix(BUTTON_IDLE, BUTTON_HOVER, hover)
-                : 0x8010141E;
-        int border = button.enabled
-                ? GuiRender.mix(BUTTON_BORDER, BUTTON_BORDER_HOVER, hover)
-                : 0x50313A4F;
-        int text = button.enabled
-                ? GuiRender.mix(0xFFD1D4E5, TEXT, hover)
-                : 0xFF6E7388;
+                && mouseX < button.xPosition + buttonWidth && mouseY < button.yPosition + buttonHeight;
+        boolean pressed = hovered && button.enabled && org.lwjgl.input.Mouse.isButtonDown(0);
+        ButtonAnim state = buttonState(button, hovered, pressed);
+        float hover = state.hover;
+        float press = state.press;
+        int accent = accent();
 
-        GuiRender.roundedRect(button.xPosition, button.yPosition, button.width, button.height, 6.0, background);
-        GuiRender.roundedOutline(button.xPosition, button.yPosition, button.width, button.height, 6.0, 1.0f, border);
-        if (hover > 0.01f) {
-            GuiRender.roundedRect(button.xPosition + 2.0, button.yPosition + 2.0,
-                    2.0 + 12.0 * hover, button.height - 4.0, 2.0,
-                    GuiRender.alpha(ACCENT, 0.35f * hover));
-            GuiRender.roundedOutline(button.xPosition - 1.0, button.yPosition - 1.0,
-                    button.width + 2.0, button.height + 2.0, 7.0, 1.0f,
-                    GuiRender.alpha(BUTTON_BORDER_HOVER, hover * 0.55f));
+        double x = button.xPosition;
+        double y = button.yPosition;
+        double radius = Math.min(5.5, buttonHeight / 2.0 - 1.0);
+        int background;
+        int edge;
+        int text;
+        if (button.enabled) {
+            background = GuiRender.mix(GuiRender.mix(0xD9131418, 0xE61C1D23, hover), 0xF0101114, press);
+            edge = GuiRender.mix(0x24FFFFFF, GuiRender.alpha(accent, 0.75F), hover);
+            text = GuiRender.mix(0xFFD3D5DB, 0xFFFFFFFF, hover);
+        } else {
+            background = 0x990F1013;
+            edge = 0x14FFFFFF;
+            text = 0xFF5F636C;
         }
-        double textOffset = hover * 1.5;
-        GuiRender.textCentered(button.displayString, button.xPosition + button.width / 2.0 + textOffset,
-                button.yPosition + (button.height - ClientFont.getHeight()) / 2.0, text);
+        // soft drop shadow, body, hairline edge, faint top highlight
+        GuiRender.roundedRect(x, y + 1.0, buttonWidth, buttonHeight, radius + 0.5, button.enabled ? 0x38000000 : 0x1E000000);
+        GuiRender.roundedRect(x, y, buttonWidth, buttonHeight, radius, background);
+        GuiRender.roundedOutline(x, y, buttonWidth, buttonHeight, radius, 1.0F, edge);
+        if (button.enabled && press < 0.5F) {
+            GuiRender.rect(x + radius, y + 1.0, buttonWidth - radius * 2.0, 1.0, GuiRender.alpha(0x12FFFFFF, 1.0F - press));
+        }
+        if (hover > 0.01F) {
+            // gentle accent glow around the edge
+            GuiRender.roundedOutline(x - 1.0, y - 1.0, buttonWidth + 2.0, buttonHeight + 2.0, radius + 1.0, 1.0F,
+                    GuiRender.alpha(accent, 0.22F * hover * (1.0F - press)));
+        }
+        GuiRender.textCentered(button.displayString, x + buttonWidth / 2.0,
+                y + (buttonHeight - ClientFont.getHeight()) / 2.0 + 0.5 * press, text);
+    }
+
+    /** Theme accent (HUD colour), as the ClickGUI uses it. */
+    private static int accent() {
+        try {
+            return crewx.module.modules.render.GuiModule.getAccent().getRGB() | 0xFF000000;
+        } catch (Throwable ignored) {
+            return ACCENT;
+        }
     }
 
     public static void drawScreenBackground(int width, int height) {

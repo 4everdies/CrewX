@@ -6,6 +6,7 @@ package crewx.module.modules.combat;
  * Copyright (c) CCBlueX contributors. Licensed under GPL-3.0.
  */
 
+import net.minecraft.client.renderer.GlStateManager;
 import crewx.CrewX;
 import crewx.event.EventTarget;
 import crewx.event.types.EventType;
@@ -68,6 +69,7 @@ public class Backtrack extends Module {
     private final FloatProperty distanceMin = new FloatProperty("DistanceMin", 2.0F, 0.0F, 6.0F);
     private final FloatProperty distanceMax = new FloatProperty("DistanceMax", 3.0F, 0.0F, 6.0F);
     private final BooleanProperty smart = new BooleanProperty("Smart", true);
+    private final BooleanProperty teams = new BooleanProperty("Teams", false);
     private final FloatProperty advantageThreshold = new FloatProperty("AdvantageThreshold", 0.0F, 0.0F, 1.0F,
             () -> this.smart.getValue());
     private final ModeProperty targetHurtTimeHandling = new ModeProperty("TargetHurtTimeHandling", 2,
@@ -310,9 +312,9 @@ public class Backtrack extends Module {
                 .offset(-renderManager.getRenderPosX(), -renderManager.getRenderPosY(), -renderManager.getRenderPosZ());
         Color color = new Color(this.espColor.getValue() & 0xFFFFFF);
         RenderUtil.enableRenderState();
-        GL11.glColor4f(color.getRed() / 255.0F, color.getGreen() / 255.0F, color.getBlue() / 255.0F, 1.0F);
-        RenderUtil.drawFilledBox(box, color.getRed(), color.getGreen(), color.getBlue());
-        RenderUtil.drawBoundingBox(box, color.getRed(), color.getGreen(), color.getBlue(), 220, 1.6F);
+        // the server-side position: soft gradient box with a glowing edge (same style as the 3D ESP)
+        RenderUtil.drawStyledBox(box, color.getRGB() & 0xFFFFFF, 0.24F, 0.04F, 1.6F);
+        GlStateManager.color(1.0F, 1.0F, 1.0F, 1.0F);
         RenderUtil.disableRenderState();
     }
 
@@ -450,7 +452,7 @@ public class Backtrack extends Module {
         if (entity instanceof EntityPlayer) {
             EntityPlayer player = (EntityPlayer) entity;
             try {
-                if (TeamUtil.isSameTeam(player) || TeamUtil.isFriend(player)) {
+                if ((this.teams.getValue() && TeamUtil.isSameTeam(player)) || TeamUtil.isFriend(player)) {
                     return false;
                 }
             } catch (Throwable ignored) {
@@ -620,6 +622,7 @@ public class Backtrack extends Module {
         double oldLastY = entity.lastTickPosY;
         double oldLastZ = entity.lastTickPosZ;
         RenderUtil.enableRenderState();
+        double[] glCache = crewx.util.GlStateSync.snapshot();
         GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
         try {
             if (wireframe) {
@@ -648,6 +651,8 @@ public class Backtrack extends Module {
             entity.lastTickPosY = oldLastY;
             entity.lastTickPosZ = oldLastZ;
             GL11.glPopAttrib();
+            // the entity renderer changed GL state through GlStateManager inside the attrib block
+            crewx.util.GlStateSync.afterPopAttrib(glCache);
             RenderUtil.disableRenderState();
         }
     }

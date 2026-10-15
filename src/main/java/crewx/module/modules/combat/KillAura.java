@@ -103,6 +103,7 @@ public class KillAura extends Module {
     public final IntProperty maxPing;
     public final BooleanProperty armorCheck;
     public final ModeProperty showTarget;
+    public final BooleanProperty indicators;
     public final ModeProperty debugLog;
 
     private long getAttackDelay() {
@@ -385,6 +386,7 @@ public class KillAura extends Module {
         this.maxPing = new IntProperty("max-ping", 300, 50, 1000, () -> this.msCheck.getValue());
         this.armorCheck = new BooleanProperty("armor-check", false);
         this.showTarget = new ModeProperty("show-target", 0, new String[]{"None", "Default", "HUD"});
+        this.indicators = new BooleanProperty("indicators", true);
         this.debugLog = new ModeProperty("debug-log", 0, new String[]{"None", "Health"});
     }
 
@@ -873,8 +875,34 @@ public class KillAura extends Module {
         }
     }
 
+    /** Jello ring on the target: fades in when attacking starts and out when the target is lost. */
+    private EntityLivingBase indicatorEntity;
+    private float indicatorAlpha;
+    private long indicatorFrame;
+
+    private void renderIndicator(float partialTicks) {
+        long now = System.currentTimeMillis();
+        float dt = this.indicatorFrame == 0L ? 0.0F : Math.min(0.1F, (now - this.indicatorFrame) / 1000.0F);
+        this.indicatorFrame = now;
+        EntityLivingBase current = this.isEnabled() && this.indicators.getValue() && this.target != null
+                && TeamUtil.isEntityLoaded(this.target.getEntity()) && this.isAttackAllowed()
+                ? this.target.getEntity() : null;
+        if (current != null) {
+            if (current != this.indicatorEntity) this.indicatorAlpha = 0.0F;
+            this.indicatorEntity = current;
+            this.indicatorAlpha = Math.min(1.0F, this.indicatorAlpha + dt * 5.0F);
+        } else {
+            this.indicatorAlpha = Math.max(0.0F, this.indicatorAlpha - dt * 5.0F);
+            if (this.indicatorAlpha <= 0.0F) this.indicatorEntity = null;
+        }
+        if (this.indicatorEntity != null && !this.indicatorEntity.isDead) {
+            TargetIndicator.draw(this.indicatorEntity, partialTicks, this.indicatorAlpha, 0x000000);
+        }
+    }
+
     @EventTarget
     public void onRender(Render3DEvent event) {
+        renderIndicator(event.getPartialTicks());
         if (this.isEnabled() && target != null) {
             if (this.showTarget.getValue() != 0
                     && TeamUtil.isEntityLoaded(this.target.getEntity())

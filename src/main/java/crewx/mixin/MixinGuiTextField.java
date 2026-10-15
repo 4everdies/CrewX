@@ -21,7 +21,7 @@ public abstract class MixinGuiTextField {
     private void crewx$roundedChatInput(int left, int top, int right, int bottom, int color) {
         Minecraft mc = Minecraft.getMinecraft();
         if (mc.currentScreen instanceof GuiChat && right - left >= 100 && bottom - top >= 9) {
-            int alpha = color == -16777216 ? 0xA6000000 : 0xB8141414;
+            int alpha = color == -16777216 ? 0x90000000 : 0xA2141414;
             BackdropBlur.drawRoundedPanel(left, top, right - left, bottom - top, 4.0F, alpha | (color & 0x00FFFFFF));
         } else {
             Gui.drawRect(left, top, right, bottom, color);
