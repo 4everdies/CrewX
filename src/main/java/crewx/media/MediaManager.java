@@ -32,6 +32,9 @@ public final class MediaManager implements MediaSource.Listener {
     private final SystemMediaSource system;
     private final SpotifyApiSource spotify;
     private final LyricsService lyrics;
+    private final OnlineCovers onlineCovers = new OnlineCovers();
+    /** When the current song was first seen: the player gets a moment to hand over its own cover first. */
+    private volatile long trackSeenAt;
     private ScheduledExecutorService ticker;
     private ExecutorService artworkWorker;
     private final Map<String, BufferedImage> artworkCache = new LinkedHashMap<String, BufferedImage>(8, 0.75F, true) {
@@ -71,6 +74,9 @@ public final class MediaManager implements MediaSource.Listener {
         if (this.running) return;
         this.running = true;
         this.autoLoginTried = false;
+        synchronized (this.artworkCache) {
+            this.artworkCache.clear();
+        }
         this.artworkWorker = Executors.newSingleThreadExecutor(runnable -> {
             Thread thread = new Thread(runnable, "CrewX Cover");
             thread.setDaemon(true);
@@ -144,9 +150,14 @@ public final class MediaManager implements MediaSource.Listener {
         String key = held == null ? "" : held.key;
         if (!key.equals(this.lastKey)) {
             this.lastKey = key;
+            this.trackSeenAt = System.currentTimeMillis();
             this.lyrics.request(held);
         }
         String art = held == null ? "" : held.artworkUrl;
+        if (held != null && art.isEmpty() && System.currentTimeMillis() - this.trackSeenAt > 2500L) {
+            // the player gave no picture (or it could not be read): look the cover up online
+            art = this.onlineCovers.coverFor(held, this::evaluate);
+        }
         if (!art.equals(this.artworkRequested)) {
             this.artworkRequested = art;
             // drop the old cover right away so a new song never shows the previous song's art
@@ -183,9 +194,15 @@ public final class MediaManager implements MediaSource.Listener {
         if (worker == null) return;
         worker.execute(() -> {
             if (!url.equals(this.artworkRequested)) return;
-            BufferedImage built;
-            synchronized (this.artworkCache) {
-                built = this.artworkCache.get(url);
+            // Covers written by the Windows helper are numbered files (cover.img.1, .2, ...) and the numbering
+            // starts over whenever the helper restarts, so a file name does not identify a picture: those are
+            // always read again. Caching them showed an earlier song's cover.
+            boolean cacheable = !url.startsWith("file:");
+            BufferedImage built = null;
+            if (cacheable) {
+                synchronized (this.artworkCache) {
+                    built = this.artworkCache.get(url);
+                }
             }
             if (built == null) {
                 try {
@@ -207,8 +224,10 @@ public final class MediaManager implements MediaSource.Listener {
                     }
                     return;
                 }
-                synchronized (this.artworkCache) {
-                    this.artworkCache.put(url, built);
+                if (cacheable) {
+                    synchronized (this.artworkCache) {
+                        this.artworkCache.put(url, built);
+                    }
                 }
             }
             if (url.equals(this.artworkRequested)) {
@@ -251,6 +270,7 @@ public final class MediaManager implements MediaSource.Listener {
             if (info.artworkUrl.isEmpty()) {
                 int cover = this.systemStatus.indexOf("cover error:");
                 text += cover >= 0 && !info.key.startsWith("spotify:") ? " · " + this.systemStatus.substring(cover) : " · no cover from the player";
+                if (!this.artworkRequested.isEmpty()) text += " (using an online cover)";
             } else if (!this.artworkError.isEmpty()) {
                 text += " · " + this.artworkError;
             }

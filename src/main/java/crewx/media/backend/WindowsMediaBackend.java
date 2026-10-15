@@ -41,6 +41,11 @@ public final class WindowsMediaBackend implements MediaBackend {
     private volatile Consumer<MediaInfo> sink;
     private volatile Consumer<String> status;
     private Thread readerThread;
+    /** Own clock for players without a timeline (reader thread only). */
+    private String clockKey = "";
+    private long clockBase;
+    private long clockAnchor;
+    private boolean clockPlaying;
 
     public WindowsMediaBackend(File directory) {
         this.directory = directory;
@@ -191,6 +196,7 @@ public final class WindowsMediaBackend implements MediaBackend {
             info.capturedAt = System.currentTimeMillis();
             info.playing = "Playing".equalsIgnoreCase(str(json, "status", ""));
             info.canSeek = bool(json, "seek", false);
+            applyOwnClock(info);
             info.artworkUrl = artworkUrl(json, thumb);
             String artError = str(json, "artErr", "");
             this.status.accept(info.source + (info.playing ? " playing" : " paused")
@@ -198,6 +204,31 @@ public final class WindowsMediaBackend implements MediaBackend {
             this.sink.accept(info.build());
         } catch (Exception ignored) {
         }
+    }
+
+    /**
+     * Some players (several sites in the browser) publish a song without a timeline: position and length stay 0.
+     * The lyrics then never left their first line. For those, the time is counted here from when the song was
+     * first seen, paused while it is paused.
+     */
+    void applyOwnClock(MediaInfo.Builder info) {
+        if (info.durationMs > 0L || info.positionMs > 0L) {
+            this.clockKey = "";
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (!info.key.equals(this.clockKey)) {
+            this.clockKey = info.key;
+            this.clockBase = 0L;
+            this.clockAnchor = now;
+            this.clockPlaying = info.playing;
+        } else if (this.clockPlaying != info.playing) {
+            if (this.clockPlaying) this.clockBase += now - this.clockAnchor;
+            this.clockAnchor = now;
+            this.clockPlaying = info.playing;
+        }
+        info.positionMs = this.clockBase + (this.clockPlaying ? now - this.clockAnchor : 0L);
+        info.capturedAt = now;
     }
 
     /** powershell.exe from the Windows directory (works even when PATH is broken), or an explicit override. */

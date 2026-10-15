@@ -18,6 +18,15 @@ import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
+import java.security.KeyStore;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 
 /** Small HTTP / OS helpers shared by the media sources. */
 public final class HttpUtil {
@@ -38,9 +47,97 @@ public final class HttpUtil {
         }
     }
 
+    private static volatile SSLSocketFactory socketFactory;
+
+    /**
+     * Opens a connection that trusts both the client's bundled certificate list (ssl.jks) and the Java one.
+     * The Minecraft launcher runs 1.8.9 on an old Java 8 whose certificate list predates the roots used today by
+     * lrclib.net (lyrics), Spotify and the Apple cover CDN, so lyrics and covers failed there with a certificate
+     * error while working on clients that bring a recent Java (Lunar, ...).
+     */
+    static HttpURLConnection open(String url) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        if (connection instanceof HttpsURLConnection) {
+            SSLSocketFactory factory = socketFactory();
+            if (factory != null) ((HttpsURLConnection) connection).setSSLSocketFactory(factory);
+        }
+        return connection;
+    }
+
+    private static SSLSocketFactory socketFactory() {
+        SSLSocketFactory factory = socketFactory;
+        if (factory != null) return factory;
+        synchronized (HttpUtil.class) {
+            if (socketFactory != null) return socketFactory;
+            try {
+                X509TrustManager bundled = null;
+                try (InputStream stream = HttpUtil.class.getResourceAsStream("/ssl.jks")) {
+                    if (stream != null) {
+                        KeyStore store = KeyStore.getInstance("JKS");
+                        store.load(stream, "changeit".toCharArray());
+                        bundled = trustManager(store);
+                    }
+                }
+                X509TrustManager system = trustManager(null);
+                if (bundled == null) return null;
+                SSLContext context = SSLContext.getInstance("TLS");
+                context.init(null, new TrustManager[]{new EitherTrustManager(bundled, system)}, null);
+                socketFactory = context.getSocketFactory();
+            } catch (Exception failure) {
+                return null;   // the Java defaults stay in place
+            }
+            return socketFactory;
+        }
+    }
+
+    private static X509TrustManager trustManager(KeyStore store) throws Exception {
+        TrustManagerFactory factory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        factory.init(store);
+        for (TrustManager manager : factory.getTrustManagers()) {
+            if (manager instanceof X509TrustManager) return (X509TrustManager) manager;
+        }
+        return null;
+    }
+
+    /** A server is trusted when either list knows its root. */
+    private static final class EitherTrustManager implements X509TrustManager {
+        private final X509TrustManager first;
+        private final X509TrustManager second;
+
+        EitherTrustManager(X509TrustManager first, X509TrustManager second) {
+            this.first = first;
+            this.second = second;
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            this.first.checkClientTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+            try {
+                this.first.checkServerTrusted(chain, authType);
+            } catch (CertificateException notInBundle) {
+                if (this.second == null) throw notInBundle;
+                this.second.checkServerTrusted(chain, authType);
+            }
+        }
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+            X509Certificate[] a = this.first.getAcceptedIssuers();
+            X509Certificate[] b = this.second == null ? new X509Certificate[0] : this.second.getAcceptedIssuers();
+            X509Certificate[] all = new X509Certificate[a.length + b.length];
+            System.arraycopy(a, 0, all, 0, a.length);
+            System.arraycopy(b, 0, all, a.length, b.length);
+            return all;
+        }
+    }
+
     public static Result request(String url, String method, Map<String, String> form, String body,
                                  String contentType, String bearerToken, int timeoutMs) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        HttpURLConnection connection = open(url);
         try {
             connection.setRequestMethod(method);
             connection.setConnectTimeout(timeoutMs);
@@ -103,7 +200,7 @@ public final class HttpUtil {
     }
 
     public static byte[] download(String url, int timeoutMs, int maxBytes) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+        HttpURLConnection connection = open(url);
         try {
             connection.setConnectTimeout(timeoutMs);
             connection.setReadTimeout(timeoutMs);

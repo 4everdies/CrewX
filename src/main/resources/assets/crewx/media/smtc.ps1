@@ -63,6 +63,12 @@ $script:thumbReads = 0
 $script:thumbNextAt = 0
 $script:artv = 0
 $script:artError = ''
+# timeline model of the current song (see Poll-And-Emit)
+$script:tlKey = ''
+$script:tlLive = $false
+$script:tlLastRaw = [long]-1
+$script:tlLastUpd = [long]0
+$script:tlRawSeenAt = [long]0
 $thumbClock = [System.Diagnostics.Stopwatch]::StartNew()
 
 # Covers from earlier runs (one file per version: cover.img.<n>) are never reused.
@@ -181,24 +187,50 @@ function Poll-And-Emit {
     if ($info -eq $null -or $props -eq $null -or ([string]$props.Title) -eq '') { Emit @{ ok = $true; none = $true }; return }
 
     $status = $info.PlaybackStatus.ToString()
+    $app = [string]$s.SourceAppUserModelId
+    $key = "$app|$($props.Title)|$($props.Artist)|$($props.AlbumTitle)"
     $pos = [long]0
     $dur = [long]0
     $tl = $s.GetTimelineProperties()
     if ($tl -ne $null) {
         $start = [long]$tl.StartTime.TotalMilliseconds
         $dur = [long]$tl.EndTime.TotalMilliseconds - $start
-        $pos = [long]$tl.Position.TotalMilliseconds - $start
+        $raw = [long]$tl.Position.TotalMilliseconds - $start
+        $upd = [long]$tl.LastUpdatedTime.UtcTicks
+        $now = $thumbClock.ElapsedMilliseconds
+        if ($key -ne $script:tlKey) {
+            $script:tlKey = $key
+            $script:tlLive = $false
+            $script:tlLastRaw = $raw
+            $script:tlLastUpd = $upd
+            $script:tlRawSeenAt = $now
+        } elseif ($raw -ne $script:tlLastRaw) {
+            # The position moved. If the player did not touch LastUpdatedTime with it, it keeps the position itself
+            # up to date ("live"); adding the time since LastUpdatedTime on top of that counted the same seconds
+            # twice and ran the lyrics ahead of the song.
+            if ($upd -eq $script:tlLastUpd -and $status -eq 'Playing') { $script:tlLive = $true }
+            $script:tlLastRaw = $raw
+            $script:tlLastUpd = $upd
+            $script:tlRawSeenAt = $now
+        } else {
+            $script:tlLastUpd = $upd
+        }
+        $pos = $raw
         if ($status -eq 'Playing') {
-            $age = ([DateTimeOffset]::Now - $tl.LastUpdatedTime).TotalMilliseconds
-            if ($age -gt 0 -and $age -lt 600000) { $pos += [long]$age }
+            if ($script:tlLive) {
+                # live players: advance from the moment this position was first seen
+                $pos += [long]($now - $script:tlRawSeenAt)
+            } else {
+                # players that publish a position with its timestamp (Spotify): advance from that timestamp
+                $age = ([DateTimeOffset]::Now - $tl.LastUpdatedTime).TotalMilliseconds
+                if ($age -gt 0 -and $age -lt 600000) { $pos += [long]$age }
+            }
         }
         if ($dur -lt 0) { $dur = 0 }
         if ($dur -gt 0 -and $pos -gt $dur) { $pos = $dur }
         if ($pos -lt 0) { $pos = 0 }
     }
 
-    $app = [string]$s.SourceAppUserModelId
-    $key = "$app|$($props.Title)|$($props.Artist)|$($props.AlbumTitle)"
     Update-Thumbnail $props $key
     $ctl = $info.Controls
     Emit ([ordered]@{
