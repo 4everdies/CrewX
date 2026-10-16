@@ -8,7 +8,6 @@ import crewx.module.modules.misc.*;
 import com.google.common.base.Predicates;
 import crewx.CrewX;
 import crewx.event.EventTarget;
-import crewx.events.RaytraceEvent;
 import crewx.module.Module;
 import crewx.property.properties.BooleanProperty;
 import crewx.property.properties.ModeProperty;
@@ -41,10 +40,6 @@ public class Piercing extends Module {
         super("Piercing", false);
     }
 
-    @EventTarget
-    public void onRaytrace(RaytraceEvent event) {
-        this.modifyMouseOverFromGetMouseOver(1.0F);
-    }
 
     @Override
     public String[] getSuffix() {

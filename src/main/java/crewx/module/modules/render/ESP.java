@@ -29,12 +29,17 @@ import net.minecraft.client.shader.Framebuffer;
 import net.minecraft.entity.player.EntityPlayer;
 import org.lwjgl.opengl.GL11;
 
-import javax.vecmath.Vector4d;
+import crewx.util.RenderUtil.ScreenRect;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class ESP extends Module {
+    public boolean needsSmoothOverlay() {
+        return this.isEnabled() && (this.mode.getValue() == 3
+                || ((this.mode.getValue() == 1 || this.healthBar.getValue() == 1)
+                && !this.boxPlayers.isEmpty()));
+    }
     private static final Minecraft mc = Minecraft.getMinecraft();
     private final OutlineShader outlineRenderer = new OutlineShader();
     private final GlowShader glowShader = new GlowShader();
@@ -112,7 +117,9 @@ public class ESP extends Module {
 
     /** 2D boxes of this frame, projected in the world pass (same camera, partial tick and render position). */
     private final List<EntityPlayer> boxPlayers = new ArrayList<>();
-    private final List<Vector4d> boxRects = new ArrayList<>();
+    private final List<ScreenRect> boxRects = new ArrayList<>();
+    private boolean outlineScissorValid;
+    private int outlineScissorX, outlineScissorY, outlineScissorW, outlineScissorH;
 
     private List<EntityPlayer> getRenderedPlayers() {
         List<EntityPlayer> result = new ArrayList<>();
@@ -177,7 +184,13 @@ public class ESP extends Module {
             mc.entityRenderer.setupOverlayRendering();
             mc.getFramebuffer().bindFramebuffer(false);
             this.outlineRenderer.use();
+            if (this.outlineScissorValid) {
+                GL11.glEnable(GL11.GL_SCISSOR_TEST);
+                GL11.glScissor(this.outlineScissorX, this.outlineScissorY,
+                        this.outlineScissorW, this.outlineScissorH);
+            }
             RenderUtil.drawFramebuffer(this.framebuffer);
+            if (this.outlineScissorValid) GL11.glDisable(GL11.GL_SCISSOR_TEST);
             this.outlineRenderer.stop();
             this.framebuffer.framebufferClear();
             mc.getFramebuffer().bindFramebuffer(false);
@@ -193,7 +206,7 @@ public class ESP extends Module {
             for (int index = 0; index < this.boxPlayers.size(); index++) {
                 // projected during this frame's world pass (GUI units): the HUD matrices stay as they are
                 EntityPlayer player = this.boxPlayers.get(index);
-                Vector4d screenPosition = this.boxRects.get(index);
+                ScreenRect screenPosition = this.boxRects.get(index);
                 if (player.isDead) continue;
 
                 float x = (float) screenPosition.x;
@@ -236,16 +249,40 @@ public class ESP extends Module {
     public void onRender3D(Render3DEvent event) {
         this.boxPlayers.clear();
         this.boxRects.clear();
+        this.outlineScissorValid = false;
         if (!this.isEnabled()) return;
 
         int modeVal = this.mode.getValue();
         int healthBarVal = this.healthBar.getValue();
+        if (modeVal == 3) {
+            double factor = new ScaledResolution(mc).getScaleFactor();
+            double minX = Double.POSITIVE_INFINITY, minY = Double.POSITIVE_INFINITY;
+            double maxX = Double.NEGATIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
+            boolean allProjected = true;
+            for (EntityPlayer player : getRenderedPlayers()) {
+                ScreenRect rect = RenderUtil.projectToScreen(player, factor);
+                if (rect == null) { allProjected = false; break; }
+                minX = Math.min(minX, rect.x); minY = Math.min(minY, rect.y);
+                maxX = Math.max(maxX, rect.z); maxY = Math.max(maxY, rect.w);
+            }
+            if (allProjected && minX != Double.POSITIVE_INFINITY) {
+                int x1 = Math.max(0, (int) Math.floor(minX * factor) - 8);
+                int x2 = Math.min(mc.displayWidth, (int) Math.ceil(maxX * factor) + 8);
+                int y1 = Math.max(0, (int) Math.floor(mc.displayHeight - maxY * factor) - 8);
+                int y2 = Math.min(mc.displayHeight, (int) Math.ceil(mc.displayHeight - minY * factor) + 8);
+                if (x2 > x1 && y2 > y1) {
+                    this.outlineScissorX = x1; this.outlineScissorY = y1;
+                    this.outlineScissorW = x2 - x1; this.outlineScissorH = y2 - y1;
+                    this.outlineScissorValid = true;
+                }
+            }
+        }
         if (modeVal == 1 || healthBarVal == 1) {
             // The 2D box is projected here, while the camera matrices, render position and partial tick are exactly
             // the ones this frame's world (and the player models) were drawn with, and drawn later on the HUD.
             double scaleFactor = new ScaledResolution(mc).getScaleFactor();
             for (EntityPlayer player : getRenderedPlayers()) {
-                Vector4d rect = RenderUtil.projectToScreen(player, scaleFactor);
+                ScreenRect rect = RenderUtil.projectToScreen(player, scaleFactor);
                 if (rect == null) continue;
                 this.boxPlayers.add(player);
                 this.boxRects.add(rect);

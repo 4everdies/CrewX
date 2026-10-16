@@ -96,6 +96,7 @@ public class CrewX {
         moduleManager.modules.put(Piercing.class, new Piercing());
         moduleManager.modules.put(AntiCheat.class, new AntiCheat());
         moduleManager.modules.put(AutoSoup.class, new AutoSoup());
+        moduleManager.modules.put(SoupHotkey.class, new SoupHotkey());
         moduleManager.modules.put(BedNuker.class, new BedNuker());
         moduleManager.modules.put(BedESP.class, new BedESP());
         moduleManager.modules.put(BedTracker.class, new BedTracker());

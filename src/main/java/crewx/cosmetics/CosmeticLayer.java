@@ -64,7 +64,9 @@ public final class CosmeticLayer implements LayerRenderer<AbstractClientPlayer> 
         // GlStateManager caches the GL state; glPopAttrib changes the driver behind its back. Keep both in step.
         double[] glCache = GlStateSync.snapshot();
         GlStateManager.pushMatrix();
-        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_CURRENT_BIT | GL11.GL_LINE_BIT | GL11.GL_COLOR_BUFFER_BIT);
+        // Perspective renders the local player's layers before its own HUD. Restore texture bindings,
+        // active texture unit and depth/polygon state as well as the enable flags used by the accessories.
+        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
         GL11.glEnable(GL11.GL_BLEND);
         GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GL11.glDisable(GL11.GL_TEXTURE_2D);

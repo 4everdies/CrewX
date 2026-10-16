@@ -45,6 +45,9 @@ public class BlinkManager {
             return false;
         }
         if (state) {
+            if (this.blinkModule != BlinkModules.NONE && this.blinkModule != module) {
+                return false;
+            }
             this.blinkModule = module;
             this.blinking = true;
         } else {

@@ -266,7 +266,15 @@ public class DynamicIsland extends Module {
 
     private boolean isBridgeAssistCounterActive() {
         BridgeAssist bridgeAssist = (BridgeAssist) CrewX.moduleManager.modules.get(BridgeAssist.class);
-        return bridgeAssist != null && bridgeAssist.isEnabled() && bridgeAssist.blockCounter.getValue();
+        return bridgeAssist != null && bridgeAssist.isEnabled() && bridgeAssist.blockCounter.getValue()
+                && this.isHoldingPlaceableBlock();
+    }
+    private boolean isHoldingPlaceableBlock() {
+        if (mc.thePlayer == null) return false;
+        ItemStack held = mc.thePlayer.getHeldItem();
+        if (held == null || !(held.getItem() instanceof ItemBlock)) return false;
+        Block block = ((ItemBlock) held.getItem()).getBlock();
+        return !BlockUtil.isInteractable(block) && BlockUtil.isSolid(block);
     }
 
     private ItemStack getHeldBlock() {

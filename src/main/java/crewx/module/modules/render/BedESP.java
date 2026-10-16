@@ -80,6 +80,7 @@ public class BedESP extends Module {
     public void onRender3D(Render3DEvent event) {
         if (this.isEnabled()) {
             RenderUtil.enableRenderState();
+            try {
             for (BlockPos blockPos : this.beds) {
                 IBlockState state = mc.theWorld.getBlockState(blockPos);
                 if (state.getBlock() instanceof BlockBed && state.getValue(BlockBed.PART) == EnumPartType.HEAD) {
@@ -143,7 +144,9 @@ public class BedESP extends Module {
                     this.beds.remove(blockPos);
                 }
             }
+            } finally {
             RenderUtil.disableRenderState();
+            }
         }
     }
 

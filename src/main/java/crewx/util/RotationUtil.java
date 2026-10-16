@@ -48,9 +48,10 @@ public class RotationUtil {
     }
 
     public static float[] getRotationsPredicated(Entity entity, int ticks) {
-        double px = entity.posX + entity.motionX * ticks;
-        double py = entity.posY + entity.motionY * ticks + 0.5;
-        double pz = entity.posZ + entity.motionZ * ticks;
+        double px = entity.posX + entity.motionX * ticks - mc.thePlayer.posX;
+        double py = entity.posY + entity.motionY * ticks + 0.5
+                - (mc.thePlayer.posY + mc.thePlayer.getEyeHeight());
+        double pz = entity.posZ + entity.motionZ * ticks - mc.thePlayer.posZ;
         return RotationUtil.getRotationsTo(px, py, pz, mc.thePlayer.rotationYaw, mc.thePlayer.rotationPitch);
     }
 

@@ -81,6 +81,12 @@ public class LagManager {
         this.tickDelay = delay;
     }
 
+    /** A server position correction invalidates movement and placements queued from the old position. */
+    public void resetOnPositionCorrection() {
+        this.tickDelay = 0;
+        this.packetQueue.clear();
+    }
+
     /** Read-only bridge diagnostic; does not change packet scheduling. */
     public int getTickDelay() {
         return this.tickDelay;

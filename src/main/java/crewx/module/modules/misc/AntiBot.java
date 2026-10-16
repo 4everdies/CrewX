@@ -9,6 +9,7 @@ import crewx.CrewX;
 import crewx.event.EventTarget;
 import crewx.events.PacketEvent;
 import crewx.module.Module;
+import crewx.util.TeamUtil;
 import crewx.property.properties.BooleanProperty;
 import crewx.property.properties.IntProperty;
 import net.minecraft.client.Minecraft;
@@ -131,12 +132,22 @@ public class AntiBot extends Module {
     }
 
     public boolean isBot(EntityPlayer p) {
+        return isBot(p, false);
+    }
+
+    /** The tab list is the visual modules' source for real players; attributes packets can be absent. */
+    public boolean isBotForVisual(EntityPlayer p) {
+        if (TeamUtil.isInTabList(p)) return false;
+        return isBot(p, true);
+    }
+
+    private boolean isBot(EntityPlayer p, boolean visual) {
         if (p == mc.thePlayer) return false;
 
         if (this.invalidGroundCheck.getValue() && hasInvalidGround(p)) return true;
         if (this.neverSwungCheck.getValue() && neverSwung(p)) return true;
         if (this.neverCrittedCheck.getValue() && neverCritted(p)) return true;
-        if (this.noAttributesCheck.getValue() && noAttributes(p)) return true;
+        if (!visual && this.noAttributesCheck.getValue() && noAttributes(p)) return true;
         if (this.illegalPitchCheck.getValue() && illegalPitch(p)) return true;
         if (this.zeroHealthCheck.getValue() && zeroHealth(p)) return true;
         if (this.illegalHealthCheck.getValue() && illegalHealth(p)) return true;

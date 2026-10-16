@@ -31,6 +31,9 @@ public final class OnlineCovers {
         }
     };
     private final JsonParser parser = new JsonParser();
+    /** Songs whose lookup failed on the network: asked again after this moment (a bad connection is not "no cover"). */
+    private final Map<String, Long> retryAt = new java.util.HashMap<String, Long>();
+    private static final long RETRY_MS = 20000L;
 
     /**
      * The cover URL found for this song, or "" while it is being looked up / when nothing matched.
@@ -43,20 +46,34 @@ public final class OnlineCovers {
         synchronized (this.results) {
             String known = this.results.get(key);
             if (known != null) return known;
-            this.results.put(key, NONE);   // looked up once, even when nothing is found
+            Long retry = this.retryAt.get(key);
+            if (retry != null && System.currentTimeMillis() < retry) return NONE;
+            this.results.put(key, NONE);   // one lookup at a time; "no match" stays for the session
         }
         this.executor.execute(() -> {
-            String url = lookup(query);
+            String url;
+            try {
+                url = lookup(query);
+            } catch (java.io.IOException network) {
+                synchronized (this.results) {
+                    this.results.remove(key);
+                    this.retryAt.put(key, System.currentTimeMillis() + RETRY_MS);
+                    if (this.retryAt.size() > MAX_ENTRIES) this.retryAt.clear();
+                }
+                return;
+            }
             if (url.isEmpty()) return;
             synchronized (this.results) {
                 this.results.put(key, url);
+                this.retryAt.remove(key);
             }
             onFound.run();
         });
         return NONE;
     }
 
-    private String lookup(LyricsQuery query) {
+    /** The cover URL, "" when nothing matches; throws when the service could not be reached. */
+    private String lookup(LyricsQuery query) throws java.io.IOException {
         String title = LyricsQuery.cleanTitle(query.title);
         String artist = LyricsQuery.firstArtist(query.artist);
         if (artist.isEmpty()) {
@@ -70,6 +87,7 @@ public final class OnlineCovers {
         try {
             HttpUtil.Result result = HttpUtil.get("https://itunes.apple.com/search?media=music&entity=song&limit=10&term="
                     + HttpUtil.urlEncode(term), 6000);
+            if (result.code >= 500 || result.code == 429) throw new java.io.IOException("HTTP " + result.code);
             if (result.code != 200) return NONE;
             JsonElement root = this.parser.parse(result.body);
             if (!root.isJsonObject() || !root.getAsJsonObject().has("results")) return NONE;
@@ -93,7 +111,9 @@ public final class OnlineCovers {
                 }
             }
             return bigger(best);
-        } catch (Exception failure) {
+        } catch (java.io.IOException network) {
+            throw network;
+        } catch (RuntimeException badAnswer) {
             return NONE;
         }
     }

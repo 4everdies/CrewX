@@ -51,7 +51,9 @@ public class Chams extends Module {
         } else if (entityLivingBase instanceof EntityPlayer) {
             if (entityLivingBase != mc.thePlayer && entityLivingBase != mc.getRenderViewEntity()) {
                 AntiBot antiBot = (AntiBot) CrewX.moduleManager.modules.get(AntiBot.class);
-                if (antiBot.isEnabled() && antiBot.isBot((EntityPlayer) entityLivingBase)) {
+                EntityPlayer player = (EntityPlayer) entityLivingBase;
+                if (!TeamUtil.isInTabList(player)
+                        || (antiBot != null && antiBot.isEnabled() && antiBot.isBotForVisual(player))) {
                     return this.bots.getValue();
                 } else if (TeamUtil.isFriend((EntityPlayer) entityLivingBase)) {
                     return this.friends.getValue();
@@ -89,8 +91,15 @@ public class Chams extends Module {
         if (!loggedPlayerRender && event.getType() == crewx.event.types.EventType.PRE
                 && event.getEntity() instanceof EntityPlayer && event.getEntity() != mc.thePlayer) {
             loggedPlayerRender = true;
+            EntityPlayer player = (EntityPlayer) event.getEntity();
+            AntiBot antiBot = (AntiBot) CrewX.moduleManager.modules.get(AntiBot.class);
             crewx.util.ClientLog.log("Chams player render reached; selected=" + selected
-                    + " mode=" + this.mode.getValue());
+                    + " mode=" + this.mode.getValue()
+                    + " inTab=" + TeamUtil.isInTabList(player)
+                    + " bot=" + (antiBot != null && antiBot.isEnabled() && antiBot.isBotForVisual(player))
+                    + " health=" + player.getHealth()
+                    + " players=" + this.players.getValue()
+                    + " bots=" + this.bots.getValue());
         }
         if (!selected) return;
 

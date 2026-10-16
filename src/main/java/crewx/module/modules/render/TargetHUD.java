@@ -94,6 +94,10 @@ public class TargetHUD extends Module {
         return this.position.getValue() == 1;
     }
 
+    public boolean needsSmoothOverlay() {
+        return this.isEnabled() && following();
+    }
+
     private EntityLivingBase resolveTarget() {
         if (following()) {
             // whoever we hit last, while hits keep coming (any hit refreshes the timer, KillAura's too)
@@ -299,7 +303,7 @@ public class TargetHUD extends Module {
         this.followVisible = false;
         if (!this.isEnabled() || !following() || this.target == null || mc.thePlayer == null) return;
         ScaledResolution sr = new ScaledResolution(mc);
-        javax.vecmath.Vector4d bounds = RenderUtil.projectToScreen(this.target, sr.getScaleFactor());
+        RenderUtil.ScreenRect bounds = RenderUtil.projectToScreen(this.target, sr.getScaleFactor());
         if (bounds == null) return;
         this.followBounds[0] = bounds.x;
         this.followBounds[1] = bounds.y;

@@ -34,26 +34,21 @@ public class TeamUtil {
 
     private static List<Entity> sortedCache = java.util.Collections.emptyList();
     private static Object sortedWorld;
-    private static double sortedX = Double.NaN, sortedY, sortedZ;
-    private static float sortedPartial;
-    private static long sortedTime;
+    private static int sortedTick = Integer.MIN_VALUE;
     private static int sortedSize = -1;
 
     /**
-     * Loaded entities, farthest first. Several render modules ask for this every frame (ESP twice, NameTags,
-     * Tracers, Radar, ...): the list is sorted once per frame - same world, camera and partial tick - and shared.
-     * Distances are computed once per entity instead of in every comparison, and ties use the entity id instead
-     * of building UUID strings. The returned list must not be modified.
+     * Loaded entities, farthest first. Several render modules ask for this during each frame; cache the ordering
+     * for the current game tick so mobile clients do not allocate and sort entity arrays at display refresh rate.
+     * The ordering may be up to one tick old, which is visually negligible. The returned list must not be modified.
      */
     public static List<Entity> getLoadedEntitiesSorted() {
         if (mc.theWorld == null) return java.util.Collections.emptyList();
         net.minecraft.client.renderer.entity.RenderManager renderManager = mc.getRenderManager();
         double cx = renderManager.viewerPosX, cy = renderManager.viewerPosY, cz = renderManager.viewerPosZ;
-        float partial = ((crewx.mixin.IAccessorMinecraft) mc).getTimer().renderPartialTicks;
-        long time = mc.theWorld.getTotalWorldTime();
         List<Entity> loaded = mc.theWorld.loadedEntityList;
-        if (sortedWorld == mc.theWorld && sortedSize == loaded.size() && sortedTime == time && sortedPartial == partial
-                && sortedX == cx && sortedY == cy && sortedZ == cz) {
+        int tick = mc.thePlayer != null ? mc.thePlayer.ticksExisted : (int) mc.theWorld.getTotalWorldTime();
+        if (sortedWorld == mc.theWorld && sortedSize == loaded.size() && sortedTick == tick) {
             return sortedCache;
         }
         int n = loaded.size();
@@ -75,11 +70,7 @@ public class TeamUtil {
         sortedCache = java.util.Collections.unmodifiableList(result);
         sortedWorld = mc.theWorld;
         sortedSize = n;
-        sortedTime = time;
-        sortedPartial = partial;
-        sortedX = cx;
-        sortedY = cy;
-        sortedZ = cz;
+        sortedTick = tick;
         return sortedCache;
     }
 

@@ -413,7 +413,23 @@ public class NoSlow extends Module {
         mc.thePlayer.inventory.mainInventory[mc.thePlayer.inventory.currentItem] = packet.func_149174_e();
     }
 
+    public void releaseBlinkForKillAura() {
+        if ("Blink".equals(this.swordMode.getModeString())
+                && CrewX.blinkManager.getBlinkingModule() == BlinkModules.NO_SLOW) {
+            this.flushBlink();
+            this.blinkTicks = 0;
+            this.shouldBlink = true;
+        }
+    }
+    private boolean shouldYieldBlinkToKillAura() {
+        KillAura aura = (KillAura) CrewX.moduleManager.modules.get(KillAura.class);
+        return aura != null && aura.isAutoBlockActiveForNoSlow();
+    }
     private void handleBlinkPacket(Packet<?> packet) {
+        if ("Blink".equals(this.swordMode.getModeString()) && this.shouldYieldBlinkToKillAura()) {
+            this.releaseBlinkForKillAura();
+            return;
+        }
         if (!"Blink".equals(this.swordMode.getModeString())) {
             this.flushBlink();
             return;
@@ -457,6 +473,7 @@ public class NoSlow extends Module {
             return;
         }
         if (!this.isEnabled() || mc.thePlayer == null || !"Blink".equals(this.swordMode.getModeString())
+                || this.shouldYieldBlinkToKillAura()
                 || mc.thePlayer.getHeldItem() == null || !(mc.thePlayer.getHeldItem().getItem() instanceof ItemSword)
                 || !this.usingItemFunc() || !this.isMoving()) {
             this.flushBlink();

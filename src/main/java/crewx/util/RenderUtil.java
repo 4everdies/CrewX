@@ -28,8 +28,6 @@ import org.lwjgl.opengl.Display;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.util.glu.GLU;
 
-import javax.vecmath.Vector3d;
-import javax.vecmath.Vector4d;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.HashMap;
@@ -560,7 +558,14 @@ public class RenderUtil {
      * Every corner has to project: building the rectangle from only the corners in front of the camera (a player
      * right beside or behind you) gave the stretched, flattened, jumping boxes. Such a box is skipped instead.
      */
-    public static Vector4d projectToScreen(Entity entity, double screenScale) {
+    public static final class ScreenRect {
+        public double x, y, z, w;
+        public ScreenRect(double x, double y, double z, double w) {
+            this.x = x; this.y = y; this.z = z; this.w = w;
+        }
+    }
+
+    public static ScreenRect projectToScreen(Entity entity, double screenScale) {
         float partialTicks = WorldRenderPass.partialTicks();
         double ix = lerpDouble(entity.posX, entity.lastTickPosX, partialTicks);
         double iy = lerpDouble(entity.posY, entity.lastTickPosY, partialTicks);
@@ -569,7 +574,7 @@ public class RenderUtil {
         AxisAlignedBB box = entity.getEntityBoundingBox().expand(0.1F, 0.1F, 0.1F)
                 .offset(ix - entity.posX - renderManager.getRenderPosX(), iy - entity.posY - renderManager.getRenderPosY(),
                         iz - entity.posZ - renderManager.getRenderPosZ());
-        Vector4d result = null;
+        ScreenRect result = null;
         for (int corner = 0; corner < 8; corner++) {
             double x = (corner & 1) == 0 ? box.minX : box.maxX;
             double y = (corner & 2) == 0 ? box.minY : box.maxY;
@@ -578,7 +583,7 @@ public class RenderUtil {
             double sx = PROJECTED[0] / screenScale;
             double sy = (mc.displayHeight - PROJECTED[1]) / screenScale;
             if (result == null) {
-                result = new Vector4d(sx, sy, sx, sy);
+                result = new ScreenRect(sx, sy, sx, sy);
             } else {
                 result.x = Math.min(sx, result.x);
                 result.y = Math.min(sy, result.y);

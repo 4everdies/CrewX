@@ -122,8 +122,6 @@ public class KillAura extends Module {
                         && RotationUtil.rayTrace(this.target.getBox(), yaw, pitch, clampedRange) == null) {
                     return false;
                 } else {
-                    // Commit the cooldown only after the same raytrace used by
-                    // the server-facing attack has confirmed the hit.
                     this.attackDelayMS = this.attackDelayMS + this.getAttackDelay();
                     mc.thePlayer.swingItem();
                     AttackEvent event = new AttackEvent(this.target.getEntity());
@@ -141,7 +139,6 @@ public class KillAura extends Module {
             return false;
         }
     }
-
     private void sendUseItem() {
         ((IAccessorPlayerControllerMP) mc.playerController).callSyncCurrentPlayItem();
         this.startBlock(mc.thePlayer.getHeldItem());
@@ -426,6 +423,10 @@ public class KillAura extends Module {
     public boolean isPlayerBlocking() {
         return (mc.thePlayer.isUsingItem() || this.blockingState) && ItemUtil.isHoldingSword();
     }
+    public boolean isAutoBlockActiveForNoSlow() {
+        return this.isEnabled() && this.target != null && this.autoBlock.getValue() != 0
+                && this.canAutoBlock() && this.isBlocking;
+    }
 
     @EventTarget(Priority.LOW)
     public void onUpdate(UpdateEvent event) {
@@ -440,6 +441,10 @@ public class KillAura extends Module {
             }
             boolean attack = this.target != null && this.canAttack();
             boolean block = attack && this.canAutoBlock();
+            if (block) {
+                NoSlow noSlow = (NoSlow) CrewX.moduleManager.modules.get(NoSlow.class);
+                if (noSlow != null) noSlow.releaseBlinkForKillAura();
+            }
             if (!block) {
                 CrewX.blinkManager.setBlinkState(false, BlinkModules.AUTO_BLOCK);
                 this.isBlocking = false;
@@ -518,14 +523,6 @@ public class KillAura extends Module {
                                             break;
                                         case 1:
                                             if (this.isPlayerBlocking()) {
-                                                if(CrewX.moduleManager.modules.get(NoSlow.class).isEnabled()){
-                                                    int randomSlot = new Random().nextInt(9);
-                                                    while (randomSlot == mc.thePlayer.inventory.currentItem) {
-                                                        randomSlot = new Random().nextInt(9);
-                                                    }
-                                                    PacketUtil.sendPacket(new C09PacketHeldItemChange(randomSlot));
-                                                    PacketUtil.sendPacket(new C09PacketHeldItemChange(mc.thePlayer.inventory.currentItem));
-                                                }
                                                 this.stopBlock();
                                                 attack = false;
                                             }
@@ -710,7 +707,19 @@ public class KillAura extends Module {
                         }
                     }
                     if (attack) {
-                        attacked = this.performAttack(event.getNewYaw(), event.getNewPitch());
+                        Displace displace = (Displace) CrewX.moduleManager.modules.get(Displace.class);
+                        boolean displaceReady = displace != null
+                                && displace.prepareKillAuraDisplacement(this.target.getEntity());
+                        float attackYaw = event.getNewYaw();
+                        float attackPitch = event.getNewPitch();
+                        attacked = this.performAttack(attackYaw, attackPitch);
+                        if (attacked && displaceReady) {
+                            displace.applyKillAuraDisplacement(event, this.target.getEntity());
+                        }
+                        if (attacked && swap) {
+                            this.interactAttack(attackYaw, attackPitch);
+                            swap = false;
+                        }
                     }
                 }
                 if (swap) {

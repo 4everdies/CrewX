@@ -19,7 +19,15 @@ public final class SystemMediaSource implements MediaSource {
 
     public SystemMediaSource(File workDirectory) {
         String os = HttpUtil.osName();
-        if (os.contains("win")) this.backend = new WindowsMediaBackend(workDirectory);
+        if (crewx.util.ClientPlatform.isAndroid()) {
+            // PojavLauncher: there is no desktop media session to read, and starting "playerctl" once a second
+            // forked the whole game every time (Pojav only allows fork), which froze the game for a moment each time
+            this.backend = new crewx.media.backend.UnavailableMediaBackend(
+                    "System media can't be read on Android; use the Spotify login (.spotify connect)");
+        } else if (crewx.util.ClientPlatform.spawnIsExpensive() && !os.contains("win")) {
+            this.backend = new crewx.media.backend.UnavailableMediaBackend(
+                    "System media disabled: this Java starts programs with fork, which would freeze the game");
+        } else if (os.contains("win")) this.backend = new WindowsMediaBackend(workDirectory);
         else if (os.contains("mac")) this.backend = new MacMediaBackend();
         else this.backend = new LinuxMediaBackend();
     }

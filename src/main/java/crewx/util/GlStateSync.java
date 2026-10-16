@@ -34,7 +34,7 @@ public final class GlStateSync {
     private static java.lang.reflect.Field[] fields;
     private static char[] kinds;   // 'Z' boolean, 'I' int, 'F' float, 'D' double
     private static boolean snapshotUnavailable;
-    /** GlStateManager's vanilla state fields, development (MCP) and game (SRG) names. */
+    /** GlStateManager's vanilla state fields in MCP, SRG and 1.8.9 notch names. */
     private static final java.util.Set<String> STATE_FIELDS = new java.util.HashSet<String>(java.util.Arrays.asList(
             "alphaState", "field_179160_a", "lightingState", "field_179158_b", "lightState", "field_179159_c",
             "colorMaterialState", "field_179156_d", "blendState", "field_179157_e", "depthState", "field_179154_f",
@@ -42,7 +42,9 @@ public final class GlStateSync {
             "colorLogicState", "field_179165_j", "texGenState", "field_179166_k", "clearState", "field_179163_l",
             "stencilState", "field_179164_m", "normalizeState", "field_179161_n", "activeTextureUnit", "field_179162_o",
             "textureState", "field_179174_p", "activeShadeModel", "field_179173_q", "rescaleNormalState", "field_179172_r",
-            "colorMaskState", "field_179171_s", "colorState", "field_179170_t"));
+            "colorMaskState", "field_179171_s", "colorState", "field_179170_t",
+            "a", "b", "c", "d", "e", "f", "g", "h", "i", "j",
+            "k", "l", "m", "n", "o", "p", "q", "r", "s", "t"));
 
     /**
      * Copies GlStateManager's cached state. Call right before a {@code glPushAttrib(GL_ALL_ATTRIB_BITS)} and hand

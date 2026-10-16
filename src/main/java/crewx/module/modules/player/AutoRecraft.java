@@ -43,6 +43,9 @@ public class AutoRecraft extends Module {
     public final BooleanProperty cactusMode = new BooleanProperty("cactus", false);
     public final BooleanProperty cocoaMode = new BooleanProperty("cocoa", true);
     public final BooleanProperty mushroomMode = new BooleanProperty("mushroom", true);
+    public final BooleanProperty pumpkinSeedsMode = new BooleanProperty("pumpkin-seeds", false);
+    public final ModeProperty priority = new ModeProperty("priority", 0,
+            new String[]{"Most Available", "Cactus", "Cocoa", "Mushroom", "Pumpkin Seeds"});
 
     private long startLastMs = 0L;
     private long recraftLastMs = 0L;
@@ -111,6 +114,55 @@ public class AutoRecraft extends Module {
         return bowl && cactus;
     }
 
+    private int countItem(net.minecraft.item.Item item) {
+        int count = 0;
+        for (int i = 9; i < 45; i++) {
+            ItemStack stack = mc.thePlayer.inventoryContainer.getSlot(i).getStack();
+            if (stack != null && stack.getItem() == item) count += stack.stackSize;
+        }
+        return count;
+    }
+    private int countBlock(Block block) {
+        int count = 0;
+        for (int i = 9; i < 45; i++) {
+            ItemStack stack = mc.thePlayer.inventoryContainer.getSlot(i).getStack();
+            if (stack != null && stack.getItem() instanceof ItemBlock
+                    && ((ItemBlock) stack.getItem()).getBlock() == block) count += stack.stackSize;
+        }
+        return count;
+    }
+    private int countCocoa() {
+        int count = 0;
+        for (int i = 9; i < 45; i++) {
+            ItemStack stack = mc.thePlayer.inventoryContainer.getSlot(i).getStack();
+            if (stack != null && stack.getItem() instanceof ItemDye
+                    && EnumDyeColor.byDyeDamage(stack.getMetadata()) == EnumDyeColor.BROWN) count += stack.stackSize;
+        }
+        return count;
+    }
+    private int available(int recipe) {
+        int bowls = countItem(Items.bowl);
+        switch (recipe) {
+            case 1: return cactusMode.getValue() ? Math.min(bowls, countBlock(Blocks.cactus)) : 0;
+            case 2: return cocoaMode.getValue() ? Math.min(bowls, countCocoa()) : 0;
+            case 3: return mushroomMode.getValue()
+                    ? Math.min(bowls, Math.min(countBlock(Blocks.red_mushroom), countBlock(Blocks.brown_mushroom))) : 0;
+            case 4: return pumpkinSeedsMode.getValue() ? Math.min(bowls, countItem(Items.pumpkin_seeds)) : 0;
+            default: return 0;
+        }
+    }
+    private int chooseRecipe() {
+        int preference = priority.getValue();
+        if (preference > 0 && available(preference) > 0) return preference;
+        int selected = 0;
+        int best = 0;
+        // Stable tie-break order retains the old preference, with pumpkin seeds last.
+        for (int recipe = 1; recipe <= 4; recipe++) {
+            int count = available(recipe);
+            if (count > best) { best = count; selected = recipe; }
+        }
+        return selected;
+    }
     private void buildRecraftMap(int m) {
         recraftMap.clear();
         for (int i = 9; i < 45; i++) {
@@ -136,6 +188,10 @@ public class AutoRecraft extends Module {
                         if (b == Blocks.red_mushroom) recraftMap.putIfAbsent("red", i);
                         else if (b == Blocks.brown_mushroom) recraftMap.putIfAbsent("brown", i);
                     }
+                    break;
+                case 4:
+                    if (s.getItem() == Items.bowl) recraftMap.putIfAbsent("bowl", i);
+                    else if (s.getItem() == Items.pumpkin_seeds) recraftMap.putIfAbsent("seeds", i);
                     break;
             }
         }
@@ -182,6 +238,8 @@ public class AutoRecraft extends Module {
                             click(recraftMap.get("cactus"), 1, 0);
                         else if (cocoaMode.getValue() && recraftMap.containsKey("cocoa"))
                             click(recraftMap.get("cocoa"), 1, 0);
+                        else if (pumpkinSeedsMode.getValue() && recraftMap.containsKey("seeds"))
+                            click(recraftMap.get("seeds"), 1, 0);
                         step++;
                         break;
                     case 4: click(2, 0, 0); step++; break;
@@ -232,10 +290,9 @@ public class AutoRecraft extends Module {
                 return;
             startLastMs = System.currentTimeMillis();
 
-            if (cactusMode.getValue() && hasCactusRecraft()) buildRecraftMap(1);
-            else if (cocoaMode.getValue() && hasCocoaRecraft()) buildRecraftMap(2);
-            else if (mushroomMode.getValue() && hasMushroomRecraft()) buildRecraftMap(3);
-            else return;
+            int recipe = chooseRecipe();
+            if (recipe == 0) return;
+            buildRecraftMap(recipe);
 
             recraftDelay = randomDelay(recraftMinDelay.getValue(), recraftMaxDelay.getValue());
             recraftLastMs = System.currentTimeMillis();

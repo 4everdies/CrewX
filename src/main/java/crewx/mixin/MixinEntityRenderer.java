@@ -1,6 +1,7 @@
 package crewx.mixin;
 
 import crewx.CrewX;
+import crewx.module.modules.combat.Piercing;
 import crewx.data.Box;
 import crewx.event.EventManager;
 import crewx.events.PickEvent;
@@ -335,6 +336,15 @@ public abstract class MixinEntityRenderer {
             if (event.isEnabled()) {
                 list.removeIf(event::shouldSkip);
             }
+        }
+    }
+
+    @Inject(method = {"getMouseOver"}, at = {@At("TAIL")})
+    private void crewx$applyPiercing(float partialTicks, CallbackInfo callbackInfo) {
+        if (CrewX.moduleManager == null) return;
+        Piercing piercing = (Piercing) CrewX.moduleManager.modules.get(Piercing.class);
+        if (piercing != null && piercing.isEnabled()) {
+            piercing.modifyMouseOverFromGetMouseOver(partialTicks);
         }
     }
 

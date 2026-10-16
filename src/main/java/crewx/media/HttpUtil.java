@@ -276,6 +276,7 @@ public final class HttpUtil {
             }
         } catch (Exception ignored) {
         }
+        if (crewx.util.ClientPlatform.spawnIsExpensive()) return false;
         try {
             String os = osName();
             ProcessBuilder builder;

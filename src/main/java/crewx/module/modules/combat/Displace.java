@@ -1,347 +1,300 @@
 package crewx.module.modules.combat;
-import crewx.module.modules.combat.*;
-import crewx.module.modules.movement.*;
-import crewx.module.modules.render.*;
-import crewx.module.modules.player.*;
-import crewx.module.modules.misc.*;
 
 import crewx.CrewX;
-import crewx.enums.BlinkModules;
 import crewx.event.EventTarget;
+import crewx.event.EventManager;
 import crewx.event.types.EventType;
-import crewx.event.types.Priority;
-import crewx.events.MoveInputEvent;
-import crewx.events.PacketEvent;
-import crewx.events.TickEvent;
+import crewx.events.LeftClickMouseEvent;
+import crewx.events.AttackEvent;
+import crewx.events.Render3DEvent;
 import crewx.events.UpdateEvent;
+import crewx.mixin.IAccessorRenderManager;
+import crewx.event.types.Priority;
 import crewx.module.Module;
+import crewx.module.modules.combat.AutoClicker;
+import crewx.module.modules.combat.KillAura;
 import crewx.property.properties.BooleanProperty;
 import crewx.property.properties.FloatProperty;
 import crewx.property.properties.ModeProperty;
+import crewx.util.PacketUtil;
 import crewx.util.PlayerUtil;
-import crewx.util.RotationUtil;
+import net.minecraft.network.play.client.C02PacketUseEntity;
+import net.minecraft.network.play.client.C02PacketUseEntity.Action;
+import crewx.mixin.IAccessorPlayerControllerMP;
+import java.util.Random;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.settings.KeyBinding;
+import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.entity.RenderManager;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.network.play.client.C03PacketPlayer;
-import net.minecraft.util.MathHelper;
-import net.minecraft.util.Vec3;
-import org.lwjgl.input.Mouse;
+import net.minecraft.util.BlockPos;
+import net.minecraft.util.MovingObjectPosition;
+import org.lwjgl.opengl.GL11;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-
-public class Displace extends Module {
+public class Displace
+extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
-    private static final int DISPLACE_WINDOW_TICKS = 10;
-
-    public final FloatProperty yawOffset = new FloatProperty("Yaw offset", 90.0F, 0.0F, 180.0F);
-    public final FloatProperty delay = new FloatProperty("Delay", 0.0F, 0.0F, 500.0F);
-    public final ModeProperty direction = new ModeProperty("Direction", 0, new String[]{"Left", "Right"});
-    public final BooleanProperty findVoid = new BooleanProperty("Find void", false);
-    public final BooleanProperty blink = new BooleanProperty("Blink", false);
-    public final BooleanProperty hasKnockback = new BooleanProperty("Has knockback", false);
-
-    private boolean displaceThisTick = false;
-    private boolean active = false;
-    private boolean hasKB = false;
-    private boolean compensateNextTick = false;
-    private boolean displaceLeft = false;
-    private boolean wasDisplacingLastTick = false;
-    private boolean releaseBlinkNextGameTick = false;
-    private int tickCounter;
-    private final Map<Integer, Integer> targetWindowStartTicks = new HashMap<>();
+    private static final Random RANDOM = new Random();
+    public final ModeProperty mode = new ModeProperty("Mode", 0, new String[]{"Left", "Right", "Random", "Void"});
+    public final FloatProperty angle = new FloatProperty("Angle", Float.valueOf(90.0f), Float.valueOf(0.0f), Float.valueOf(180.0f));
+    public final FloatProperty cooldown = new FloatProperty("Cooldown", Float.valueOf(0.0f), Float.valueOf(0.0f), Float.valueOf(5.0f));
+    public final BooleanProperty hideRotations = new BooleanProperty("Hide rotations", false);
+    public final BooleanProperty onlyKnockbackItems = new BooleanProperty("Only knockback items", false);
+    public final BooleanProperty overrideAttacks = new BooleanProperty("Override attacks", false);
+    public final BooleanProperty playersOnly = new BooleanProperty("Players only", true);
+    public final BooleanProperty renderArrow = new BooleanProperty("Render arrow", false);
+    public final BooleanProperty manual = new BooleanProperty("Manual", true);
+    public final BooleanProperty autoClicker = new BooleanProperty("AutoClicker", false);
+    public final BooleanProperty killAura = new BooleanProperty("KillAura", false);
+    private long lastAt;
+    private int side = -1;
+    private int lastSide = -1;
+    private boolean rotate;
+    private EntityLivingBase pendingManualTarget;
+    private EntityLivingBase preparedAuraTarget;
+    private EntityLivingBase lastTarget;
+    private long arrowAt;
+    private double arrowX;
+    private double arrowY;
+    private double arrowZ;
+    private double dirX;
+    private double dirZ;
 
     public Displace() {
         super("Displace", false);
     }
 
     @Override
-    public void onEnabled() {
-        displaceThisTick = false;
-        active = false;
-        hasKB = false;
-        compensateNextTick = false;
-        wasDisplacingLastTick = false;
-        releaseBlinkNextGameTick = false;
-        tickCounter = 0;
-        targetWindowStartTicks.clear();
-        releaseBlink();
-    }
-
-    @Override
     public void onDisabled() {
-        active = false;
-        compensateNextTick = false;
-        wasDisplacingLastTick = false;
-        releaseBlinkNextGameTick = false;
-        targetWindowStartTicks.clear();
-        releaseBlink();
+        this.pendingManualTarget = null;
+        this.preparedAuraTarget = null;
+        this.rotate = false;
+        this.lastSide = -1;
+        this.side = -1;
+        this.arrowAt = 0L;
     }
 
     @Override
     public String[] getSuffix() {
-        return new String[]{(int) Math.round(delay.getValue()) + "ms"};
+        return new String[]{this.mode.getModeString()};
     }
 
-    private static int msToTicks(double ms) {
-        if (ms <= 0.0D) {
-            return 0;
+    private boolean canDisplace(Entity entity, boolean checkHurtTime, boolean checkCooldown) {
+        if (Displace.mc.thePlayer == null || Displace.mc.theWorld == null || !(entity instanceof EntityLivingBase)) {
+            return false;
         }
-        return (int) Math.ceil(ms / 50.0D);
-    }
-
-    private boolean anyMovementKey() {
-        return mc.gameSettings.keyBindForward.isKeyDown()
-                || mc.gameSettings.keyBindBack.isKeyDown()
-                || mc.gameSettings.keyBindLeft.isKeyDown()
-                || mc.gameSettings.keyBindRight.isKeyDown();
-    }
-
-    private boolean tryFindVoidDirection(EntityPlayer target) {
-        double dx = target.posX - mc.thePlayer.posX;
-        double dz = target.posZ - mc.thePlayer.posZ;
-        double dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < 0.001) return false;
-
-        dx /= dist;
-        dz /= dist;
-
-        double rightX = -dz;
-        double rightZ = dx;
-
-        double eyeY = target.posY + (double) target.getEyeHeight();
-
-        int leftVoidCount = 0;
-        int rightVoidCount = 0;
-
-        for (int i = 1; i <= 12; i++) {
-            double off = i * 0.5;
-
-            double rx = target.posX + rightX * off;
-            double rz = target.posZ + rightZ * off;
-            if (mc.theWorld.rayTraceBlocks(new Vec3(rx, eyeY, rz), new Vec3(rx, eyeY - 10, rz)) == null) {
-                rightVoidCount++;
-            }
-
-            double lx = target.posX - rightX * off;
-            double lz = target.posZ - rightZ * off;
-            if (mc.theWorld.rayTraceBlocks(new Vec3(lx, eyeY, lz), new Vec3(lx, eyeY - 10, lz)) == null) {
-                leftVoidCount++;
+        EntityLivingBase living = (EntityLivingBase)entity;
+        if (checkHurtTime && living.hurtTime > 0) {
+            return false;
+        }
+        if (((Boolean)this.playersOnly.getValue()).booleanValue() && !(entity instanceof EntityPlayer)) {
+            return false;
+        }
+        int knockback = EnchantmentHelper.getKnockbackModifier((EntityLivingBase)Displace.mc.thePlayer);
+        if (!Displace.mc.thePlayer.isSprinting() && knockback == 0) {
+            return false;
+        }
+        if (((Boolean)this.onlyKnockbackItems.getValue()).booleanValue() && knockback == 0) {
+            return false;
+        }
+        if (checkCooldown && (double)Math.abs(System.currentTimeMillis() - this.lastAt) < (double)((Float)this.cooldown.getValue()).floatValue() * 1000.0 - 20.0) {
+            return false;
+        }
+        if ((Integer)this.mode.getValue() == 3) {
+            this.side = this.lastSide = this.dropSide(living, this.lastSide);
+            if (this.lastSide == -1) {
+                return false;
             }
         }
+        this.lastTarget = living;
+        return true;
+    }
 
-        if (leftVoidCount == 0 && rightVoidCount == 0) return false;
+    private int dropSide(EntityLivingBase target, int previous) {
+        double dx = target.posX - Displace.mc.thePlayer.posX;
+        double dz = target.posZ - Displace.mc.thePlayer.posZ;
+        double length = Math.sqrt(dx * dx + dz * dz);
+        if (length < 0.001) {
+            return -1;
+        }
+        double rightX = -dz / length;
+        double rightZ = dx / length;
+        int left = 0;
+        int right = 0;
+        int y = (int)Math.floor(target.posY - 1.0);
+        for (int i = 1; i <= 12; ++i) {
+            double distance = (double)i * 0.5;
+            if (this.isDrop(target.posX - rightX * distance, y, target.posZ - rightZ * distance)) {
+                ++left;
+            }
+            if (!this.isDrop(target.posX + rightX * distance, y, target.posZ + rightZ * distance)) continue;
+            ++right;
+        }
+        if (left == 0 && right == 0) {
+            return -1;
+        }
+        return left == right && previous >= 0 ? previous : (left >= right ? 0 : 1);
+    }
 
-        if (leftVoidCount != rightVoidCount) {
-            displaceLeft = leftVoidCount > rightVoidCount;
+    private boolean isDrop(double x, int y, double z) {
+        int bx = (int)Math.floor(x);
+        int bz = (int)Math.floor(z);
+        for (int depth = 0; depth < 10; ++depth) {
+            if (Displace.mc.theWorld.isAirBlock(new BlockPos(bx, y - depth, bz))) continue;
+            return false;
         }
         return true;
     }
 
-    private void pruneTargetDelayStates() {
-        if (mc.theWorld == null) {
-            targetWindowStartTicks.clear();
-            return;
-        }
-
-        Iterator<Map.Entry<Integer, Integer>> iterator = targetWindowStartTicks.entrySet().iterator();
-        while (iterator.hasNext()) {
-            Map.Entry<Integer, Integer> entry = iterator.next();
-            Entity entity = mc.theWorld.getEntityByID(entry.getKey());
-            if (!(entity instanceof EntityPlayer) || entity.isDead || ((EntityPlayer) entity).deathTime != 0) {
-                iterator.remove();
+    private float offset(float baseYaw) {
+        float result = ((Float)this.angle.getValue()).floatValue();
+        if (this.side >= 0) {
+            if (this.side == 0) {
+                result = -result;
             }
+            this.side = -1;
+        } else if ((Integer)this.mode.getValue() == 0 || (Integer)this.mode.getValue() == 2 && RANDOM.nextBoolean()) {
+            result = -result;
         }
-    }
-
-    private boolean shouldDisplaceInCurrentWindow(EntityPlayer target, int currentTick) {
-        if (target == null) {
-            return true;
+        result += RANDOM.nextFloat() * 10.0f - 5.0f;
+        if (this.renderArrow.getValue() && this.lastTarget != null) {
+            this.setArrow(this.lastTarget, baseYaw, result);
         }
-
-        int targetId = target.getEntityId();
-        Integer windowStartTick = targetWindowStartTicks.get(targetId);
-        if (windowStartTick == null || currentTick - windowStartTick >= DISPLACE_WINDOW_TICKS) {
-            targetWindowStartTicks.put(targetId, currentTick);
-            return true;
-        }
-
-        int delayTicks = msToTicks(delay.getValue());
-        if (delayTicks <= 0) {
-            return true;
-        }
-
-        int elapsed = currentTick - windowStartTick;
-        return elapsed >= delayTicks;
-    }
-
-    private void releaseBlink() {
-        CrewX.blinkManager.setBlinkState(false, BlinkModules.DISPLACE);
+        return result;
     }
 
     @EventTarget(Priority.HIGHEST)
-    public void onTick(TickEvent event) {
-        if (event.getType() != EventType.PRE) return;
-
-        if (releaseBlinkNextGameTick) {
-            releaseBlink();
-            releaseBlinkNextGameTick = false;
-        }
-    }
-
-    @EventTarget(Priority.LOWEST)
-    public void onMoveInput(MoveInputEvent event) {
-        if (!this.isEnabled()) {
-            compensateNextTick = false;
+    public void onLeftClick(LeftClickMouseEvent event) {
+        AutoClicker clicker;
+        if (!this.isEnabled() || !((Boolean)this.manual.getValue()).booleanValue() || Displace.mc.currentScreen != null || event.isCancelled()) {
             return;
         }
-        if (!active) {
-            compensateNextTick = false;
+        if (!((Boolean)this.autoClicker.getValue()).booleanValue() && (clicker = (AutoClicker)CrewX.moduleManager.modules.get(AutoClicker.class)) != null && clicker.isEnabled()) {
             return;
         }
-
-        if (compensateNextTick && !displaceThisTick) {
-            compensateNextTick = false;
-            if (displaceLeft) {
-                mc.thePlayer.movementInput.moveStrafe = -1;
-            } else {
-                mc.thePlayer.movementInput.moveStrafe = 1;
-            }
+        MovingObjectPosition hit = Displace.mc.objectMouseOver;
+        if (hit == null || hit.typeOfHit != MovingObjectPosition.MovingObjectType.ENTITY) {
             return;
         }
-
-        if (!displaceThisTick || hasKB) return;
-        if (!anyMovementKey()) return;
-
-        mc.thePlayer.movementInput.moveForward = 1;
-        compensateNextTick = true;
-    }
-
-    @EventTarget(Priority.HIGH)
-    public void onSendPacket(PacketEvent event) {
-        if (!this.isEnabled()) return;
-        if (event.getType() != EventType.POST) return;
-
-        if (!blink.getValue() || !active || !displaceThisTick || releaseBlinkNextGameTick) {
-            return;
+        Entity entity = hit.entityHit;
+        if (this.canDisplace(entity, true, true)) {
+            event.setCancelled(true);
+            this.pendingManualTarget = (EntityLivingBase) entity;
+        } else if (((Boolean)this.overrideAttacks.getValue()).booleanValue() && this.canDisplace(entity, false, false)) {
+            event.setCancelled(true);
         }
-        if (!(event.getPacket() instanceof C03PacketPlayer)) {
-            return;
-        }
-        if (CrewX.blinkManager.getBlinkingModule() == BlinkModules.DISPLACE) {
-            return;
-        }
-
-        CrewX.blinkManager.setBlinkState(true, BlinkModules.DISPLACE);
-        releaseBlinkNextGameTick = true;
     }
 
     @EventTarget(Priority.LOWEST)
     public void onUpdate(UpdateEvent event) {
-        if (event.getType() != EventType.PRE) return;
-        if (!this.isEnabled()) return;
-
-        if (mc.thePlayer == null || mc.theWorld == null) {
-            active = false;
-            compensateNextTick = false;
-            wasDisplacingLastTick = false;
+        if (!this.isEnabled() || Displace.mc.thePlayer == null || Displace.mc.theWorld == null) {
+            this.pendingManualTarget = null;
             return;
         }
-
-        tickCounter++;
-        int currentTick = tickCounter;
-        pruneTargetDelayStates();
-
-        boolean passesItemCondition = true;
-        if (hasKnockback.getValue()) {
-            passesItemCondition = EnchantmentHelper.getKnockbackModifier(mc.thePlayer) > 0;
-        }
-        if (!passesItemCondition) {
-            active = false;
-            displaceThisTick = false;
-            compensateNextTick = false;
-            wasDisplacingLastTick = false;
-            return;
-        }
-
-        EntityPlayer target = null;
-        boolean attacking = Mouse.isButtonDown(0)
-                || isKillAuraActive();
-        if (attacking) {
-            target = findClosestTarget(9.0);
-        }
-
-        boolean hasKBEnchant = EnchantmentHelper.getKnockbackModifier(mc.thePlayer) > 0;
-        active = target != null && (hasKBEnchant || anyMovementKey());
-        if (!active) {
-            displaceThisTick = false;
-            compensateNextTick = false;
-            wasDisplacingLastTick = false;
-            return;
-        }
-
-        if (!findVoid.getValue() || !tryFindVoidDirection(target)) {
-            displaceLeft = direction.getValue() == 0;
-        }
-
-        hasKB = hasKBEnchant;
-        displaceThisTick = !displaceThisTick;
-        if (displaceThisTick && !shouldDisplaceInCurrentWindow(target, currentTick)) {
-            displaceThisTick = false;
-            compensateNextTick = false;
-            wasDisplacingLastTick = false;
-            return;
-        }
-
-        if (!displaceThisTick && wasDisplacingLastTick) {
-            int key = mc.gameSettings.keyBindAttack.getKeyCode();
-            if (key != 0) {
-                KeyBinding.onTick(key);
+        if (event.getType() == EventType.POST) {
+            EntityLivingBase target = this.pendingManualTarget;
+            this.pendingManualTarget = null;
+            if (target != null && !target.isDead && Displace.mc.theWorld.loadedEntityList.contains(target)) {
+                Displace.mc.thePlayer.swingItem();
+                EventManager.call(new AttackEvent(target));
+                ((IAccessorPlayerControllerMP) Displace.mc.playerController).callSyncCurrentPlayItem();
+                PacketUtil.sendPacket(new C02PacketUseEntity(target, Action.ATTACK));
+                if (Displace.mc.playerController.getCurrentGameType() != net.minecraft.world.WorldSettings.GameType.SPECTATOR) {
+                    PlayerUtil.attackEntity(target);
+                }
+                this.lastAt = System.currentTimeMillis();
+                this.rotate = true;
             }
+            return;
         }
-
-        wasDisplacingLastTick = displaceThisTick;
-
-        if (!displaceThisTick) return;
-
-        float baseYaw = mc.thePlayer.rotationYaw;
-        float offset = yawOffset.getValue();
-
-        if (displaceLeft) {
-            baseYaw -= offset;
-        } else {
-            baseYaw += offset;
-        }
-
-        event.setRotation(baseYaw, mc.thePlayer.rotationPitch, 1);
-        event.setPervRotation(baseYaw, 1);
+        if (event.getType() != EventType.PRE || !this.rotate) return;
+        this.rotate = false;
+        float baseYaw = Displace.mc.thePlayer.rotationYaw;
+        float yaw = baseYaw + this.offset(baseYaw);
+        event.setRotation(yaw, Displace.mc.thePlayer.rotationPitch, 2);
+        event.setPervRotation(yaw, 2);
     }
 
-    private boolean isKillAuraActive() {
-        KillAura killAura = (KillAura) CrewX.moduleManager.modules.get(KillAura.class);
-        return killAura != null && killAura.isEnabled() && killAura.getTarget() != null;
+    public boolean prepareKillAuraDisplacement(EntityLivingBase target) {
+        this.preparedAuraTarget = null;
+        if (!this.isEnabled() || !this.killAura.getValue() || !this.canDisplace(target, true, true)) {
+            return false;
+        }
+        this.preparedAuraTarget = target;
+        return true;
+    }
+    public void applyKillAuraDisplacement(UpdateEvent event, EntityLivingBase target) {
+        if (!this.isEnabled() || event == null || event.getType() != EventType.PRE
+                || target == null || target != this.preparedAuraTarget) {
+            this.preparedAuraTarget = null;
+            return;
+        }
+        this.preparedAuraTarget = null;
+        this.lastAt = System.currentTimeMillis();
+        float baseYaw = event.getNewYaw();
+        float yaw = baseYaw + this.offset(baseYaw);
+        event.setRotation(yaw, event.getNewPitch(), 2);
+        event.setPervRotation(yaw, 2);
+    }
+    private void setArrow(EntityLivingBase target, float baseYaw, float yawOffset) {
+        double direction = Math.toRadians(baseYaw + yawOffset);
+        this.dirX = -Math.sin(direction);
+        this.dirZ = Math.cos(direction);
+        this.arrowX = target.posX + this.dirX * 0.8;
+        this.arrowY = target.posY + 1.2;
+        this.arrowZ = target.posZ + this.dirZ * 0.8;
+        this.arrowAt = System.currentTimeMillis();
     }
 
-    private EntityPlayer findClosestTarget(double maxRange) {
-        EntityPlayer closest = null;
-        double closestDist = maxRange;
-
-        for (Entity entity : mc.theWorld.loadedEntityList) {
-            if (!(entity instanceof EntityPlayer)) continue;
-            if (entity == mc.thePlayer) continue;
-            if (entity.isDead || ((EntityPlayer) entity).deathTime != 0) continue;
-
-            double dist = mc.thePlayer.getDistanceToEntity(entity);
-            if (dist < closestDist) {
-                closest = (EntityPlayer) entity;
-                closestDist = dist;
-            }
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    @EventTarget
+    public void onRenderWorld(Render3DEvent event) {
+        if (!this.isEnabled() || !((Boolean)this.renderArrow.getValue()).booleanValue() || this.arrowAt == 0L || Displace.mc.theWorld == null) {
+            return;
         }
-
-        return closest;
+        long elapsed = System.currentTimeMillis() - this.arrowAt;
+        if (elapsed > 600L) {
+            this.arrowAt = 0L;
+            return;
+        }
+        double appear = Math.min(1.0, (double)elapsed / 100.0);
+        double fade = elapsed > 500L ? Math.max(0.0, 1.0 - (double)(elapsed - 500L) / 100.0) : 1.0;
+        float alpha = (float)((0.08 + 0.92 * appear * appear * (3.0 - 2.0 * appear)) * fade);
+        RenderManager render = mc.getRenderManager();
+        GlStateManager.pushMatrix();
+        try {
+            GlStateManager.translate((double)(this.arrowX - ((IAccessorRenderManager) render).getRenderPosX() + this.dirX * 0.8), (double)(this.arrowY - ((IAccessorRenderManager) render).getRenderPosY() + Math.sin((double)elapsed * 0.015) * 0.02), (double)(this.arrowZ - ((IAccessorRenderManager) render).getRenderPosZ() + this.dirZ * 0.8));
+            GlStateManager.rotate((float)((float)Math.toDegrees(Math.atan2(-this.dirZ, this.dirX))), (float)0.0f, (float)1.0f, (float)0.0f);
+            GlStateManager.disableTexture2D();
+            GlStateManager.enableBlend();
+            GlStateManager.disableCull();
+            GlStateManager.disableDepth();
+            GlStateManager.depthMask((boolean)false);
+            GlStateManager.color((float)1.0f, (float)1.0f, (float)1.0f, (float)alpha);
+            GL11.glBegin((int)7);
+            GL11.glVertex3d((double)-0.2784, (double)-0.0816, (double)0.0);
+            GL11.glVertex3d((double)0.0, (double)-0.0288, (double)0.0);
+            GL11.glVertex3d((double)0.0, (double)0.0288, (double)0.0);
+            GL11.glVertex3d((double)-0.2784, (double)0.0816, (double)0.0);
+            GL11.glEnd();
+            GL11.glBegin((int)4);
+            GL11.glVertex3d((double)0.0, (double)-0.144, (double)0.0);
+            GL11.glVertex3d((double)0.288, (double)0.0, (double)0.0);
+            GL11.glVertex3d((double)0.0, (double)0.144, (double)0.0);
+            GL11.glEnd();
+        }
+        finally {
+            GlStateManager.color((float)1.0f, (float)1.0f, (float)1.0f, (float)1.0f);
+            GlStateManager.depthMask((boolean)true);
+            GlStateManager.enableDepth();
+            GlStateManager.enableCull();
+            GlStateManager.disableBlend();
+            GlStateManager.enableTexture2D();
+            GlStateManager.popMatrix();
+        }
     }
 }
