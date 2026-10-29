@@ -248,9 +248,6 @@ extends Module {
         this.arrowAt = System.currentTimeMillis();
     }
 
-    /*
-     * WARNING - Removed try catching itself - possible behaviour change.
-     */
     @EventTarget
     public void onRenderWorld(Render3DEvent event) {
         if (!this.isEnabled() || !((Boolean)this.renderArrow.getValue()).booleanValue() || this.arrowAt == 0L || Displace.mc.theWorld == null) {
