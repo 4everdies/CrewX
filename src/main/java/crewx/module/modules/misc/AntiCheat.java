@@ -43,11 +43,6 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Watches the other players and warns in chat when one of them moves like a cheat would (AimAssist, AutoClicker,
- * AutoBlock, Blink, Legit Scaffold, NoFall, NoSlow, Scaffold, FastMine, Nuker, Bed Nuker, Protocol). Replaces the old
- * HackerDetector. Block packets arrive on the network thread, so everything they touch is concurrent.
- */
 public class AntiCheat extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
 
@@ -84,7 +79,6 @@ public class AntiCheat extends Module {
         }
     }
 
-    /** What is known about one player, updated every tick. */
     private static final class Tracker {
         Block belowBlock;
         int quickSwings, lastPitchTick, lastSwing, yawTicks, restTicks, sprintTicks, lastRestTicks, lastSprintTicks,
@@ -194,7 +188,6 @@ public class AntiCheat extends Module {
         return mc.theWorld.getBlockState(pos).getBlock();
     }
 
-    /** A block with air next to it could be broken by hand; Nuker is only about blocks broken through others. */
     private static boolean exposed(BlockPos pos) {
         for (EnumFacing facing : EnumFacing.values()) {
             if (block(pos.offset(facing)) instanceof BlockAir) return true;
