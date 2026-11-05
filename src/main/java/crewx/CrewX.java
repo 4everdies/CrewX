@@ -173,6 +173,8 @@ public class CrewX {
         moduleManager.modules.put(RemoteShop.class, new RemoteShop());
         moduleManager.modules.put(AutoRegister.class, new AutoRegister());
         moduleManager.modules.put(FreeLook.class, new FreeLook());
+        moduleManager.modules.put(Freecam.class, new Freecam());
+        moduleManager.modules.put(ChatCustomization.class, new ChatCustomization());
         commandManager.commands.add(new BindCommand());
         commandManager.commands.add(new ConfigCommand());
         commandManager.commands.add(new DenickCommand());

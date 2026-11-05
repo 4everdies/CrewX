@@ -1,10 +1,13 @@
 package crewx.mixin;
 
+import crewx.CrewX;
 import crewx.gui.BackdropBlur;
 import crewx.gui.ChatMessageAnimator;
 import crewx.gui.ChatPosition;
+import crewx.module.modules.render.ChatCustomization;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.ChatLine;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiNewChat;
 import net.minecraftforge.fml.relauncher.Side;
 import net.minecraftforge.fml.relauncher.SideOnly;
@@ -38,6 +41,8 @@ public abstract class MixinGuiNewChat {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GlStateManager;translate(FFF)V", ordinal = 0)
     )
     private void crewx$moveChatFeed(Args args) {
+        ChatCustomization settings = this.crewx$chatSettings();
+        if (settings == null || !settings.isEnabled()) return;
         GuiNewChat chat = (GuiNewChat) (Object) this;
         float scale = Math.max(0.01F, chat.getChatScale());
         args.set(0, ((Float) args.get(0)) + ChatPosition.getOffsetX() / scale);
@@ -49,6 +54,8 @@ public abstract class MixinGuiNewChat {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GlStateManager;scale(FFF)V", shift = At.Shift.AFTER)
     )
     private void crewx$drawUnifiedChatPanel(int updateCounter, CallbackInfo callbackInfo) {
+        ChatCustomization settings = this.crewx$chatSettings();
+        if (settings == null || !settings.isEnabled() || settings.background.getValue() != 0) return;
         GuiNewChat chat = (GuiNewChat) (Object) this;
         int visibleLines = this.crewx$visibleLines(chat, updateCounter);
         if (visibleLines <= 0) return;
@@ -83,6 +90,9 @@ public abstract class MixinGuiNewChat {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiNewChat;drawRect(IIIII)V", ordinal = 0)
     )
     private void crewx$replacePerLineBackground(int left, int top, int right, int bottom, int color) {
+        ChatCustomization settings = this.crewx$chatSettings();
+        if (settings != null && settings.isEnabled() && settings.background.getValue() != 2) return;
+        Gui.drawRect(left, top, right, bottom, color);
     }
 
     @ModifyArgs(
@@ -90,6 +100,8 @@ public abstract class MixinGuiNewChat {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/FontRenderer;drawStringWithShadow(Ljava/lang/String;FFI)I")
     )
     private void crewx$animateNewChatLine(Args args) {
+        ChatCustomization settings = this.crewx$chatSettings();
+        if (settings == null || !settings.isEnabled() || !settings.messageAnimation.getValue()) return;
         if (this.drawnChatLines == null || this.drawnChatLines.isEmpty()) return;
         String renderedText = (String) args.get(0);
         if (renderedText == null) return;
@@ -127,7 +139,10 @@ public abstract class MixinGuiNewChat {
     }
 
     private int crewx$panelAlpha(GuiNewChat chat, int updateCounter) {
-        if (chat.getChatOpen()) return 148;
+        ChatCustomization settings = this.crewx$chatSettings();
+        if (settings == null) return 0;
+        int baseAlpha = Math.max(0, Math.min(200, Math.round(200.0F * settings.opacity.getValue() / 100.0F)));
+        if (chat.getChatOpen()) return baseAlpha;
         if (this.drawnChatLines == null || this.drawnChatLines.isEmpty()) return 0;
         int newestIndex = Math.min(this.drawnChatLines.size() - 1, Math.max(0, this.scrollPos));
         ChatLine newest = this.drawnChatLines.get(newestIndex);
@@ -136,6 +151,12 @@ public abstract class MixinGuiNewChat {
         fade = Math.max(0.0D, Math.min(1.0D, fade));
         fade *= fade;
         float opacity = Minecraft.getMinecraft().gameSettings.chatOpacity * 0.9F + 0.1F;
-        return Math.max(0, Math.min(200, (int) (148.0D * fade * opacity)));
+        return Math.max(0, Math.min(200, (int) (baseAlpha * fade * opacity)));
+    }
+
+    private ChatCustomization crewx$chatSettings() {
+        if (CrewX.moduleManager == null) return null;
+        Object module = CrewX.moduleManager.modules.get(ChatCustomization.class);
+        return module instanceof ChatCustomization ? (ChatCustomization) module : null;
     }
 }
