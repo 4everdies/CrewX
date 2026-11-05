@@ -13,7 +13,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.entity.EntityOtherPlayerMP;
 import net.minecraft.network.play.client.C0BPacketEntityAction;
 import net.minecraft.network.play.client.C03PacketPlayer;
-import org.lwjgl.input.Keyboard;
 
 public final class Freecam extends Module {
     private static final Minecraft MC = Minecraft.getMinecraft();
@@ -25,7 +24,6 @@ public final class Freecam extends Module {
 
     public Freecam() {
         super("Freecam", false);
-        this.setKey(Keyboard.KEY_U);
     }
 
     @Override
@@ -69,6 +67,7 @@ public final class Freecam extends Module {
                 - (MC.gameSettings.keyBindRight.isKeyDown() ? 1.0F : 0.0F);
         float verticalInput = (MC.gameSettings.keyBindJump.isKeyDown() ? 1.0F : 0.0F)
                 - (MC.gameSettings.keyBindSneak.isKeyDown() ? 1.0F : 0.0F);
+
         double length = Math.sqrt(forwardInput * forwardInput + strafeInput * strafeInput);
         if (length > 1.0D) {
             forwardInput /= (float) length;
@@ -83,6 +82,8 @@ public final class Freecam extends Module {
         MC.thePlayer.setPosition(MC.thePlayer.posX + dx, MC.thePlayer.posY + dy, MC.thePlayer.posZ + dz);
         MC.thePlayer.motionX = MC.thePlayer.motionY = MC.thePlayer.motionZ = 0.0D;
     }
+
+    /** Prevent vanilla input from applying a second movement step to the camera player. */
     @EventTarget(Priority.HIGHEST)
     public void onMoveInput(MoveInputEvent event) {
         if (!this.isEnabled() || MC.thePlayer == null || MC.thePlayer.movementInput == null) return;
@@ -92,6 +93,7 @@ public final class Freecam extends Module {
         MC.thePlayer.movementInput.sneak = false;
         MC.thePlayer.motionX = MC.thePlayer.motionY = MC.thePlayer.motionZ = 0.0D;
     }
+
     @EventTarget(Priority.HIGHEST)
     public void onPacket(PacketEvent event) {
         if (!this.isEnabled() || event.getType() != EventType.SEND) return;
@@ -108,11 +110,13 @@ public final class Freecam extends Module {
     private void ensureBody() {
         if (MC.thePlayer == null || MC.theWorld == null) return;
         if (this.body != null && this.body.worldObj == MC.theWorld) return;
+
         this.body = new EntityOtherPlayerMP(MC.theWorld,
                 new GameProfile(MC.thePlayer.getUniqueID(), MC.thePlayer.getName()));
         this.body.copyLocationAndAnglesFrom(MC.thePlayer);
         this.body.inventory = MC.thePlayer.inventory;
         MC.theWorld.addEntityToWorld(-69420, this.body);
+
         if (!this.flightStateCaptured) {
             this.wasFlying = MC.thePlayer.capabilities.isFlying;
             this.flightStateCaptured = true;
