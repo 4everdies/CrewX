@@ -32,6 +32,18 @@ public abstract class MixinRendererLivingEntity<T extends EntityLivingBase> exte
             method = {"doRender(Lnet/minecraft/entity/EntityLivingBase;DDDFF)V"},
             at = {@At("HEAD")}
     )
+    private void crewx$installCosmeticLayer(T entityLivingBase, double x, double y, double z,
+                                             float yaw, float partialTicks, CallbackInfo callbackInfo) {
+        if ((Object) this instanceof net.minecraft.client.renderer.entity.RenderPlayer) {
+            crewx.cosmetics.CosmeticRenderHandler.INSTANCE.onPlayerRenderPre(
+                    (net.minecraft.client.renderer.entity.RenderPlayer) (Object) this);
+        }
+    }
+
+    @Inject(
+            method = {"doRender(Lnet/minecraft/entity/EntityLivingBase;DDDFF)V"},
+            at = {@At("HEAD")}
+    )
     private void doRender(T entityLivingBase, double double2, double double3, double double4, float float5, float float6, CallbackInfo callbackInfo) {
         EventManager.call(new RenderLivingEvent(EventType.PRE, entityLivingBase));
     }

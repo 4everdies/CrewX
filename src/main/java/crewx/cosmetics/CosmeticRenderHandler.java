@@ -20,7 +20,16 @@ public final class CosmeticRenderHandler {
     }
 
     public void onPlayerRenderPre(RenderPlayer renderer) {
-        if (renderer == null || !this.installedRenderers.add(renderer)) return;
-        renderer.addLayer(new CosmeticLayer(renderer));
+        if (renderer == null) return;
+        synchronized (this.installedRenderers) {
+            if (this.installedRenderers.contains(renderer)) return;
+            try {
+                if (renderer.addLayer(new CosmeticLayer(renderer))) {
+                    this.installedRenderers.add(renderer);
+                }
+            } catch (Throwable ignored) {
+                // Retry on the next render instead of permanently losing the accessory layer.
+            }
+        }
     }
 }

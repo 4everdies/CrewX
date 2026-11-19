@@ -9,20 +9,21 @@ import crewx.module.Module;
 import crewx.property.properties.BooleanProperty;
 import crewx.property.properties.IntProperty;
 import crewx.property.properties.ModeProperty;
-import crewx.util.KeyBindUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
-import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.item.ItemSoup;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.play.client.C07PacketPlayerDigging;
+import net.minecraft.network.play.client.C09PacketHeldItemChange;
 import net.minecraft.util.BlockPos;
 import net.minecraft.util.EnumFacing;
 import org.lwjgl.input.Keyboard;
 
+/** Uses soup through PlayerController and waits for an inventory change before advancing. */
 public class AutoSoup extends Module {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final long SOUP_USE_TIMEOUT_MS = 1200L;
+    private static final long USE_RETRY_INTERVAL_MS = 250L;
 
     public final ModeProperty mode = new ModeProperty("mode", 0, new String[]{"Automatic", "Manual"});
     public final IntProperty manualBind = new IntProperty("manual-bind", 0, 0, 255, () -> this.mode.getValue() != 0);
@@ -35,14 +36,15 @@ public class AutoSoup extends Module {
 
     private long lastActionMs;
     private long useAttemptStartedAt;
+    private long lastUseAttemptMs;
     private int soupIndex = Integer.MIN_VALUE;
     private int originalIndex = Integer.MIN_VALUE;
     private int soupStackBeforeUse;
     private int soupsRemaining;
+    private int useAttempts;
     private int step = 1;
     private boolean start;
     private boolean auraWasEnabled;
-    private boolean useKeyPressedBySoup;
 
     public AutoSoup() {
         super("AutoSoup", false);
@@ -56,9 +58,7 @@ public class AutoSoup extends Module {
         if (mc.thePlayer == null) return Integer.MIN_VALUE;
         for (int slot = 36; slot < 45; slot++) {
             ItemStack stack = mc.thePlayer.inventoryContainer.getSlot(slot).getStack();
-            if (stack != null && stack.getItem() instanceof ItemSoup) {
-                return slot - 36;
-            }
+            if (stack != null && stack.getItem() instanceof ItemSoup) return slot - 36;
         }
         return Integer.MIN_VALUE;
     }
@@ -81,6 +81,16 @@ public class AutoSoup extends Module {
         this.lastActionMs = System.currentTimeMillis();
     }
 
+    private void selectHotbarSlot(int slot) {
+        if (mc.thePlayer == null || slot < 0 || slot > 8) return;
+        if (mc.thePlayer.inventory.currentItem != slot) {
+            mc.thePlayer.inventory.currentItem = slot;
+            if (mc.getNetHandler() != null) {
+                mc.getNetHandler().addToSendQueue(new C09PacketHeldItemChange(slot));
+            }
+        }
+    }
+
     @EventTarget
     public void onWorld(LoadWorldEvent event) {
         this.finishSequence();
@@ -89,11 +99,7 @@ public class AutoSoup extends Module {
     @EventTarget
     public void onTick(TickEvent event) {
         if (!this.isEnabled() || event.getType() != EventType.PRE) return;
-        if (mc.thePlayer == null) {
-            if (this.start) this.finishSequence();
-            return;
-        }
-        if (mc.currentScreen != null) {
+        if (mc.thePlayer == null || mc.theWorld == null || mc.currentScreen != null) {
             if (this.start) this.finishSequence();
             return;
         }
@@ -104,36 +110,32 @@ public class AutoSoup extends Module {
                 this.auraWasEnabled = true;
                 killAura.setEnabled(false);
             }
-
-            if (this.step >= 2 && this.step <= 3 && mc.thePlayer.inventory.currentItem != this.soupIndex) {
-                mc.thePlayer.inventory.currentItem = this.soupIndex;
-            }
-
             switch (this.step) {
                 case 1:
                     if (this.timeElapsed(this.switchDelay.getValue())) {
-                        mc.thePlayer.inventory.currentItem = this.soupIndex;
+                        if (this.getSoupStackSize(this.soupIndex) <= 0) {
+                            this.finishSequence();
+                            break;
+                        }
+                        this.selectHotbarSlot(this.soupIndex);
                         this.resetTimer();
-                        this.step++;
+                        this.step = 2;
                     }
                     break;
                 case 2:
-                    if (!this.useKeyPressedBySoup) {
-                        if (this.timeElapsed(this.healDelay.getValue())) {
-                            KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), true);
-                            this.useKeyPressedBySoup = true;
-                            this.useAttemptStartedAt = System.currentTimeMillis();
-                        }
-                    } else if (mc.gameSettings.keyBindUseItem.isKeyDown()) {
-                        KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
-                        this.useKeyPressedBySoup = false;
+                    this.selectHotbarSlot(this.soupIndex);
+                    if (this.currentSoupWasConsumed()) {
                         this.resetTimer();
-                        this.step++;
-                    } else {
-                        KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), true);
-                        if (System.currentTimeMillis() - this.useAttemptStartedAt >= SOUP_USE_TIMEOUT_MS) {
-                            this.finishSequence();
-                        }
+                        this.step = 3;
+                        break;
+                    }
+                    long now = System.currentTimeMillis();
+                    if (this.useAttemptStartedAt == 0L) {
+                        if (this.timeElapsed(this.healDelay.getValue())) this.tryUseSoup(now);
+                    } else if (now - this.useAttemptStartedAt >= SOUP_USE_TIMEOUT_MS) {
+                        this.finishSequence();
+                    } else if (now - this.lastUseAttemptMs >= USE_RETRY_INTERVAL_MS && this.useAttempts < 3) {
+                        this.tryUseSoup(now);
                     }
                     break;
                 case 3:
@@ -143,28 +145,28 @@ public class AutoSoup extends Module {
                     }
                     if (this.dropSoup.getValue()) {
                         if (this.timeElapsed(this.dropDelay.getValue())) {
-                            C07PacketPlayerDigging.Action action = GuiScreen.isCtrlKeyDown()
-                                    ? C07PacketPlayerDigging.Action.DROP_ALL_ITEMS
-                                    : C07PacketPlayerDigging.Action.DROP_ITEM;
                             if (mc.getNetHandler() == null) {
                                 this.finishSequence();
                                 break;
                             }
+                            C07PacketPlayerDigging.Action action = GuiScreen.isCtrlKeyDown()
+                                    ? C07PacketPlayerDigging.Action.DROP_ALL_ITEMS
+                                    : C07PacketPlayerDigging.Action.DROP_ITEM;
                             mc.getNetHandler().getNetworkManager().sendPacket(
                                     new C07PacketPlayerDigging(action, BlockPos.ORIGIN, EnumFacing.DOWN));
                             this.resetTimer();
-                            this.step++;
+                            this.step = 4;
                         }
                     } else {
                         this.resetTimer();
-                        this.step++;
+                        this.step = 4;
                     }
                     break;
                 case 4:
                     if (this.timeElapsed(this.switchDelay.getValue())) {
                         this.restoreOriginalSlot();
                         this.resetTimer();
-                        this.step++;
+                        this.step = 5;
                     }
                     break;
                 case 5:
@@ -174,7 +176,9 @@ public class AutoSoup extends Module {
                             this.soupsRemaining--;
                             this.soupIndex = nextSoup;
                             this.soupStackBeforeUse = this.getSoupStackSize(nextSoup);
-                            this.useKeyPressedBySoup = false;
+                            this.useAttemptStartedAt = 0L;
+                            this.lastUseAttemptMs = 0L;
+                            this.useAttempts = 0;
                             this.step = 1;
                             this.resetTimer();
                             break;
@@ -188,34 +192,53 @@ public class AutoSoup extends Module {
             }
         } else {
             this.soupIndex = this.getSoupInHotbar();
-            if (this.soupIndex != Integer.MIN_VALUE) {
-                boolean auto = this.mode.getValue() == 0 && mc.thePlayer.getHealth() <= this.health.getValue();
-                boolean manual = this.mode.getValue() == 1 && this.manualBind.getValue() > 0
-                        && Keyboard.isKeyDown(this.manualBind.getValue());
-                if (auto || manual) {
-                    this.originalIndex = mc.thePlayer.inventory.currentItem;
-                    this.soupsRemaining = this.soupsPerTrigger.getValue();
-                    this.soupStackBeforeUse = this.getSoupStackSize(this.soupIndex);
-                    this.start = true;
-                    this.auraWasEnabled = false;
-                    this.useKeyPressedBySoup = false;
-                    KeyBinding.setKeyBindState(mc.gameSettings.keyBindUseItem.getKeyCode(), false);
-                    this.resetTimer();
-                }
+            if (this.soupIndex == Integer.MIN_VALUE) return;
+            boolean auto = this.mode.getValue() == 0 && mc.thePlayer.getHealth() <= this.health.getValue();
+            boolean manual = this.mode.getValue() == 1 && this.manualBind.getValue() > 0
+                    && Keyboard.isKeyDown(this.manualBind.getValue());
+            if (auto || manual) {
+                this.originalIndex = mc.thePlayer.inventory.currentItem;
+                this.soupsRemaining = this.soupsPerTrigger.getValue();
+                this.soupStackBeforeUse = this.getSoupStackSize(this.soupIndex);
+                this.useAttemptStartedAt = 0L;
+                this.lastUseAttemptMs = 0L;
+                this.useAttempts = 0;
+                this.start = true;
+                this.auraWasEnabled = false;
+                this.resetTimer();
             }
         }
     }
 
+    private void tryUseSoup(long now) {
+        if (mc.thePlayer == null || mc.theWorld == null || mc.playerController == null
+                || this.getSoupStackSize(this.soupIndex) <= 0) {
+            this.finishSequence();
+            return;
+        }
+        ItemStack held = mc.thePlayer.getHeldItem();
+        if (held == null || !(held.getItem() instanceof ItemSoup)) {
+            this.selectHotbarSlot(this.soupIndex);
+            return;
+        }
+        if (mc.getNetHandler() == null) {
+            this.finishSequence();
+            return;
+        }
+        // sendUseItem dispatches the normal right-click packet and local item action together.
+        mc.playerController.sendUseItem(mc.thePlayer, mc.theWorld, held);
+        this.useAttempts++;
+        this.lastUseAttemptMs = now;
+        if (this.useAttemptStartedAt == 0L) this.useAttemptStartedAt = now;
+    }
+
     private void restoreOriginalSlot() {
         if (mc.thePlayer != null && this.originalIndex >= 0 && this.originalIndex < 9) {
-            mc.thePlayer.inventory.currentItem = this.originalIndex;
+            this.selectHotbarSlot(this.originalIndex);
         }
     }
 
     private void finishSequence() {
-        if (mc.gameSettings != null) {
-            KeyBindUtil.updateKeyState(mc.gameSettings.keyBindUseItem.getKeyCode());
-        }
         this.restoreOriginalSlot();
         Module killAura = CrewX.moduleManager == null ? null : CrewX.moduleManager.getModule("KillAura");
         boolean restoreAura = this.auraWasEnabled;
@@ -230,8 +253,9 @@ public class AutoSoup extends Module {
         this.soupsRemaining = 0;
         this.start = false;
         this.auraWasEnabled = false;
-        this.useKeyPressedBySoup = false;
         this.useAttemptStartedAt = 0L;
+        this.lastUseAttemptMs = 0L;
+        this.useAttempts = 0;
         this.step = 1;
         this.lastActionMs = 0L;
     }
